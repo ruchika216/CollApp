@@ -1,3 +1,6 @@
+import FirebaseCore
+import FirebaseFirestore
+import FirebaseAuth
 import UIKit
 import React
 import React_RCTAppDelegate
@@ -15,6 +18,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
     let delegate = ReactNativeDelegate()
+    FirebaseApp.configure()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
 

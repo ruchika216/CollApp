@@ -1,0 +1,53 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "src/assets/fonts/DynaPuff-Bold.ttf",
+      "sha1": "ea4f50c41169e410e4bc6ef142211d857fc9ef87"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff-Medium.ttf",
+      "sha1": "65f06e873cc7e5f1bb4237018f59aa2053dca97d"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff-Regular.ttf",
+      "sha1": "fa1f1d5512f3d88b604a4b2f3072f96366ac0536"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff-SemiBold.ttf",
+      "sha1": "970c61744a9bab29554c9d951bf0b33f3b774c06"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff_Condensed-Bold.ttf",
+      "sha1": "d3867d142781200f7cabe9b4b6632d0d2d1e639b"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff_Condensed-Medium.ttf",
+      "sha1": "c941a403622cc394315dfadba0e29a4044d48126"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff_Condensed-Regular.ttf",
+      "sha1": "435003ae2ceb24991b0451f66f63e370615acabf"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff_Condensed-SemiBold.ttf",
+      "sha1": "82d98f677866209613b26b9d92011c221d3b9ff0"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff_SemiCondensed-Bold.ttf",
+      "sha1": "94309e37db527a2a5a1ee987490326a16c6c8388"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff_SemiCondensed-Medium.ttf",
+      "sha1": "f9aaa29a976e4a32a5cdd11beeb099c18d62921c"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff_SemiCondensed-Regular.ttf",
+      "sha1": "2c3a63d63bb74bfe100c3611baee17bd10d2c286"
+    },
+    {
+      "path": "src/assets/fonts/DynaPuff_SemiCondensed-SemiBold.ttf",
+      "sha1": "de3d650daf6b81af39ff60d122f3308a4e1e79ff"
+    }
+  ]
+}
