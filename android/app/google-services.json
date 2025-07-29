@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "217635740089",
+    "project_id": "collapp-9f290",
+    "storage_bucket": "collapp-9f290.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:217635740089:android:1900e93cb7e12535e0fe68",
+        "android_client_info": {
+          "package_name": "com.collapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "217635740089-8prcbprpu5jqitl87mugt56o0v7m8ilh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.collapp",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "217635740089-tdkv26u4l49nlic78r3sqav6a5d3jv1e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.collapp",
+            "certificate_hash": "fce7de3650c5bc29cdae55d01e1a5123cdbb5346"
+          }
+        },
+        {
+          "client_id": "217635740089-o1qp2cpvd8krvcf6tcekpeaj59un6hls.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMPNOkKF4Nr_VoW3uDoQl8BmVPK8JSZZU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "217635740089-o1qp2cpvd8krvcf6tcekpeaj59un6hls.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
