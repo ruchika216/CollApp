@@ -8,11 +8,13 @@ import {
   Platform,
 } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Icon from '../components/common/Icon';
 import { useTheme } from '../theme/useTheme';
 import { ICON_SIZES } from '../theme';
 
 import ProfileScreen from '../screens/ProfileScreen';
+import NotificationScreen from '../screens/NotificationScreen';
+import ProjectScreen from '../screens/ProjectScreen';
 
 const Tab = createBottomTabNavigator();
 const { width: WINDOW_WIDTH } = Dimensions.get('window');
@@ -34,13 +36,14 @@ function CustomTabBar({ state, navigation }) {
 
           // Icon mapping
           const iconMapping = {
-            Profile: { outline: 'person-outline', filled: 'person' },
+            Dashboard: 'dashboard',
+            Projects: 'project',
+            Notifications: 'notification',
+            Profile: 'account',
+            Home: 'home',
           };
 
-          const icons = iconMapping[route.name] || {
-            outline: 'ellipse-outline',
-            filled: 'ellipse',
-          };
+          const iconName = iconMapping[route.name] || 'home';
 
           return (
             <TouchableOpacity
@@ -49,10 +52,10 @@ function CustomTabBar({ state, navigation }) {
               activeOpacity={0.7}
               onPress={() => navigation.navigate(route.name)}
             >
-              <Ionicons
-                name={isFocused ? icons.filled : icons.outline}
+              <Icon
+                name={iconName}
                 size={ICON_SIZES.medium}
-                color={isFocused ? colors.primary : colors.iconInactive}
+                tintColor={isFocused ? colors.primary : colors.iconInactive}
               />
               <Text
                 style={[
@@ -81,6 +84,9 @@ export default function BottomNavigator() {
       }}
       tabBar={props => <CustomTabBar {...props} />}
     >
+      <Tab.Screen name="Dashboard" component={ProfileScreen} />
+      <Tab.Screen name="Projects" component={ProjectScreen} />
+      <Tab.Screen name="Notifications" component={NotificationScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

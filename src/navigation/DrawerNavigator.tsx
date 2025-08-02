@@ -17,7 +17,7 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Icon from '../components/common/Icon';
 
 // Navigation & Screens
 import BottomNavigator from './BottomNavigator';
@@ -102,7 +102,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         label="Sign Out"
         onPress={handleSignOut}
         icon={({ size }) => (
-          <Ionicons name="log-out-outline" size={size} color={colors.error} />
+          <Icon name="logout" size={size} tintColor={colors.error} />
         )}
         style={styles.signOutButton}
         labelStyle={[styles.signOutLabel, { color: colors.error }]}
@@ -139,7 +139,7 @@ export default function DrawerNavigator() {
               pressed && styles.menuButtonPressed,
             ]}
           >
-            <Ionicons name="menu" size={28} color="#333" />
+            <Icon name="menu" size={28} tintColor="#333" />
           </Pressable>
         ),
       })}
@@ -149,7 +149,16 @@ export default function DrawerNavigator() {
         component={BottomNavigator}
         options={{
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+            <Icon name="dashboard" size={size} tintColor={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="Settings"
+        component={BottomNavigator}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Icon name="settings" size={size} tintColor={color} />
           ),
         }}
       />
