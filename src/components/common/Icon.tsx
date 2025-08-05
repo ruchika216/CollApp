@@ -28,7 +28,8 @@ export type IconName =
   | 'check'
   | 'star'
   | 'time'
-  | 'assign';
+  | 'assign'
+  | 'info';
 
 const iconSources: Record<IconName, any> = {
   account: require('../../assets/icons/account.png'),
@@ -59,6 +60,7 @@ const iconSources: Record<IconName, any> = {
   star: require('../../assets/icons/project.png'),
   time: require('../../assets/icons/dashboard.png'),
   assign: require('../../assets/icons/account.png'),
+  info: require('../../assets/icons/notification.png'),
 };
 
 interface IconProps {

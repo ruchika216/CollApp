@@ -11,7 +11,6 @@ import SplashScreen from '../screens/SplashScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import PendingApprovalScreen from '../screens/PendingApprovalScreen';
-import AdminDashboard from '../screens/Admin/AdminDashboard';
 
 const Stack = createNativeStackNavigator();
 

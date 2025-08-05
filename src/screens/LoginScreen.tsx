@@ -28,7 +28,6 @@ import {
 } from '../services/auth';
 import { saveUserToFirestore } from '../services/userFirestore';
 import { setUser } from '../store/slices/userSlice';
-import { COLORS, FONTS } from '../theme';
 import { useTheme } from '../theme/useTheme';
 
 const { width } = Dimensions.get('window');
@@ -40,7 +39,7 @@ type Props = {
 export default function LoginScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
-  const { gradients } = useTheme();
+  const { colors, gradients, isDark } = useTheme();
 
   // Redirect if already signed in
   useEffect(() => {
@@ -116,7 +115,10 @@ export default function LoginScreen({ navigation }: Props) {
       style={styles.background}
     >
       <SafeAreaView style={styles.safe}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar 
+          barStyle={isDark ? "light-content" : "dark-content"} 
+          backgroundColor={colors.background} 
+        />
 
         {/* COLLAPP Title */}
         <MaskedView
@@ -136,28 +138,32 @@ export default function LoginScreen({ navigation }: Props) {
           />
         </MaskedView>
 
-        {/* White card */}
-        <View style={styles.card}>
+        {/* Card */}
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Image
             source={require('../assets/images/4.png')}
             style={styles.logo}
             resizeMode="contain"
           />
 
-          <Text style={styles.headline}>Welcome Back</Text>
-          <Text style={styles.sub}>
+          <Text style={[styles.headline, { color: colors.text }]}>Welcome Back</Text>
+          <Text style={[styles.sub, { color: colors.textSecondary }]}>
             Sign in to organize your projects and collaborate seamlessly.
           </Text>
 
           {/* Google */}
           <TouchableOpacity
-            style={[styles.button, styles.googleButton]}
+            style={[
+              styles.button, 
+              styles.googleButton, 
+              { backgroundColor: colors.card, borderColor: colors.border }
+            ]}
             activeOpacity={0.85}
             onPress={handleGoogleLogin}
             disabled={loading}
           >
             <Ionicons name="logo-google" size={24} color="#EA4335" />
-            <Text style={styles.googleText}>
+            <Text style={[styles.googleText, { color: colors.text }]}>
               {loading ? 'Signing in…' : 'Continue with Google'}
             </Text>
           </TouchableOpacity>
@@ -201,8 +207,8 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 40,
-    fontFamily: FONTS.regular,
-    color: COLORS.text,
+    // fontFamily: FONTS.bold,
+    // color: COLORS.text,
     textAlign: 'center',
   },
   coll: { fontWeight: '800' },
@@ -212,7 +218,6 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     width: width,
-    backgroundColor: '#fff',
     borderTopLeftRadius: 36,
     borderTopRightRadius: 36,
     paddingTop: 32,
@@ -228,12 +233,10 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#222',
     marginBottom: 8,
   },
   sub: {
     fontSize: 16,
-    color: '#555',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,
@@ -251,9 +254,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   googleButton: {
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e4eaf5',
     ...SHADOW,
   },
   appleButton: {
@@ -267,7 +268,6 @@ const styles = StyleSheet.create({
     marginLeft: -24,
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
   },
   appleText: {
     flex: 1,

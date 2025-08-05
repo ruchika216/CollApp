@@ -13,4 +13,4 @@ const config = {};
 
 const mergedConfig = mergeConfig(getDefaultConfig(__dirname), config);
 
-module.exports = mergedConfig;
+module.exports = wrapWithReanimatedMetroConfig(mergedConfig);

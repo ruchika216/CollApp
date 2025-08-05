@@ -16,11 +16,13 @@ import { setUserProjects, setLoading } from '../../store/slices/projectSlice';
 import { getUserProjects } from '../../firebase/firestore';
 import Icon from '../../components/common/Icon';
 import { Project } from '../../types';
+import { getStatusColor, getPriorityColor } from '../../theme/themeUtils';
+import ThemeToggle from '../../components/common/ThemeToggle';
 
 const { width } = Dimensions.get('window');
 
 const DeveloperDashboard = ({ navigation }: any) => {
-  const { colors, gradients, theme } = useTheme();
+  const { colors, gradients, shadows, isDark } = useTheme();
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.user.user);
   const userProjects = useAppSelector(state => state.projects.userProjects);
@@ -71,28 +73,11 @@ const DeveloperDashboard = ({ navigation }: any) => {
     setRefreshing(false);
   };
 
-  const getStatusColor = (status: Project['status']) => {
-    switch (status) {
-      case 'Pending': return colors.warning;
-      case 'Development': return colors.primary;
-      case 'Review': return colors.info;
-      case 'Testing': return colors.secondary;
-      case 'Done': return colors.success;
-      case 'Deployment': return colors.accent;
-      case 'Fixing Bug': return colors.error;
-      default: return colors.disabled;
-    }
-  };
+  const getProjectStatusColor = (status: Project['status']) => 
+    getStatusColor(status, colors);
 
-  const getPriorityColor = (priority: Project['priority']) => {
-    switch (priority) {
-      case 'Critical': return colors.error;
-      case 'High': return colors.warning;
-      case 'Medium': return colors.info;
-      case 'Low': return colors.success;
-      default: return colors.disabled;
-    }
-  };
+  const getProjectPriorityColor = (priority: Project['priority']) => 
+    getPriorityColor(priority, colors);
 
   const StatCard = ({ title, value, color, icon, onPress }: any) => (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
@@ -100,7 +85,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
         colors={[color, `${color}80`]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.statCard, theme.shadow.medium]}
+        style={[styles.statCard, shadows.md]}
       >
         <View style={styles.statContent}>
           <View style={styles.statHeader}>
@@ -115,7 +100,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
 
   const ProjectCard = ({ project }: { project: Project }) => (
     <TouchableOpacity
-      style={[styles.projectCard, { backgroundColor: colors.card }, theme.shadow.small]}
+      style={[styles.projectCard, { backgroundColor: colors.card }, shadows.sm]}
       onPress={() => navigation.navigate('ProjectDetails', { projectId: project.id })}
       activeOpacity={0.7}
     >
@@ -124,16 +109,16 @@ const DeveloperDashboard = ({ navigation }: any) => {
           <Text style={[styles.projectTitle, { color: colors.text }]} numberOfLines={2}>
             {project.title}
           </Text>
-          <Text style={[styles.projectDescription, { color: colors.subtext }]} numberOfLines={2}>
+          <Text style={[styles.projectDescription, { color: colors.textSecondary }]} numberOfLines={2}>
             {project.description}
           </Text>
         </View>
         <View style={styles.projectMeta}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status) }]}>
+          <View style={[styles.statusBadge, { backgroundColor: getProjectStatusColor(project.status) }]}>
             <Text style={styles.statusText}>{project.status}</Text>
           </View>
-          <View style={[styles.priorityBadge, { backgroundColor: `${getPriorityColor(project.priority)}20` }]}>
-            <Text style={[styles.priorityText, { color: getPriorityColor(project.priority) }]}>
+          <View style={[styles.priorityBadge, { backgroundColor: `${getProjectPriorityColor(project.priority)}20` }]}>
+            <Text style={[styles.priorityText, { color: getProjectPriorityColor(project.priority) }]}>
               {project.priority}
             </Text>
           </View>
@@ -142,7 +127,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
       
       <View style={styles.projectFooter}>
         <View style={styles.progressSection}>
-          <Text style={[styles.progressLabel, { color: colors.subtext }]}>Progress</Text>
+          <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Progress</Text>
           <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
             <View 
               style={[
@@ -155,7 +140,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
         </View>
         
         <View style={styles.dateSection}>
-          <Text style={[styles.dateLabel, { color: colors.subtext }]}>Due Date</Text>
+          <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>Due Date</Text>
           <Text style={[styles.dateText, { color: colors.text }]}>
             {new Date(project.endDate).toLocaleDateString()}
           </Text>
@@ -168,7 +153,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
     <View style={styles.emptyState}>
       <Icon name="project" size={64} tintColor={colors.disabled} />
       <Text style={[styles.emptyTitle, { color: colors.text }]}>No Projects Assigned</Text>
-      <Text style={[styles.emptySubtitle, { color: colors.subtext }]}>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
         You don't have any projects assigned yet. Check back later or contact your admin.
       </Text>
     </View>
@@ -190,12 +175,15 @@ const DeveloperDashboard = ({ navigation }: any) => {
             <Text style={styles.welcomeText}>Welcome back,</Text>
             <Text style={styles.userName}>{user?.displayName || 'Developer'}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => navigation.navigate('Notification')}
-          >
-            <Icon name="notification" size={24} tintColor="#fff" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <ThemeToggle size={20} style={styles.themeToggle} />
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={() => navigation.navigate('Notification')}
+            >
+              <Icon name="notification" size={24} tintColor="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
@@ -292,6 +280,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginTop: 4,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  themeToggle: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   notificationButton: {
     width: 44,
