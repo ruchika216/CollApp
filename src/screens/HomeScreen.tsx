@@ -6,12 +6,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAppSelector } from '../store/hooks';
 import Icon from '../components/common/Icon';
 import Card from '../components/ui/Card';
-import ScreenLayout from '../components/layout/ScreenLayout';
+import ScreenLayout from '../components/common/ScreenLayout';
 import { spacing, borderRadius } from '../constants/spacing';
 
 const { width } = Dimensions.get('window');
@@ -24,12 +25,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
   const user = useAppSelector(state => state.user.user);
   const projects = useAppSelector(state => state.projects.projects);
-  const notifications = useAppSelector(state => state.notifications.notifications);
+  const notifications = useAppSelector(
+    state => state.notifications.notifications,
+  );
 
   const unreadNotifications = notifications.filter(n => !n.read).length;
-  const userProjects = user?.role === 'admin' 
-    ? projects 
-    : projects.filter(p => p.assignedTo === user?.uid);
+  const userProjects =
+    user?.role === 'admin'
+      ? projects
+      : projects.filter(p => p.assignedTo === user?.uid);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -50,7 +54,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <Text style={[styles.quickActionTitle, { color: colors.text }]}>
         {title}
       </Text>
-      <Text style={[styles.quickActionSubtitle, { color: colors.textSecondary }]}>
+      <Text
+        style={[styles.quickActionSubtitle, { color: colors.textSecondary }]}
+      >
         {subtitle}
       </Text>
     </Card>
@@ -63,15 +69,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       </View>
       <View style={styles.statInfo}>
         <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
-        <Text style={[styles.statTitle, { color: colors.textSecondary }]}>{title}</Text>
+        <Text style={[styles.statTitle, { color: colors.textSecondary }]}>
+          {title}
+        </Text>
       </View>
     </View>
   );
 
   const headerLeftComponent = (
     <View style={styles.greetingContainer}>
-      <Text style={styles.greeting}>{getGreeting()},</Text>
-      <Text style={styles.userName}>{user?.name?.split(' ')[0] || 'User'}! 👋</Text>
+      <Text style={[styles.greeting, { color: colors.textOnPrimary }]}>
+        {getGreeting()},
+      </Text>
+      <Text style={[styles.userName, { color: colors.textOnPrimary }]}>
+        {user?.name?.split(' ')[0] || 'User'}! 👋
+      </Text>
     </View>
   );
 
@@ -80,7 +92,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       style={styles.notificationButton}
       onPress={() => navigation.navigate('Notifications')}
     >
-      <Icon name="notification" size={24} tintColor="#fff" />
+      <Icon name="notification" size={24} tintColor={colors.textOnPrimary} />
       {unreadNotifications > 0 && (
         <View style={styles.notificationBadge}>
           <Text style={styles.notificationBadgeText}>
@@ -96,8 +108,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       leftComponent={headerLeftComponent}
       rightComponent={headerRightComponent}
       showMenuButton={false}
+      statusBarStyle="light-content"
+      safeAreaTop={true}
     >
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -107,7 +121,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Today's Overview
           </Text>
-          
+
           <View style={styles.statsContainer}>
             <StatCard
               title="Projects"
@@ -117,7 +131,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             />
             <StatCard
               title="Active"
-              value={userProjects.filter(p => p.status === 'Development').length}
+              value={
+                userProjects.filter(p => p.status === 'Development').length
+              }
               icon="dashboard"
               color={colors.success}
             />
@@ -141,7 +157,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Quick Actions
           </Text>
-          
+
           <View style={styles.quickActionsGrid}>
             <QuickActionCard
               title="View Projects"
@@ -150,7 +166,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               color={colors.primary}
               onPress={() => navigation.navigate('Projects')}
             />
-            
+
             <QuickActionCard
               title="Dashboard"
               subtitle="Analytics & insights"
@@ -158,7 +174,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               color={colors.secondary}
               onPress={() => navigation.navigate('Dashboard')}
             />
-            
+
             <QuickActionCard
               title="Notifications"
               subtitle={`${unreadNotifications} unread`}
@@ -166,7 +182,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               color={colors.warning}
               onPress={() => navigation.navigate('Notifications')}
             />
-            
+
             <QuickActionCard
               title="Profile"
               subtitle="Account settings"
@@ -182,7 +198,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Recent Activity
           </Text>
-          
+
           <Card variant="elevated" style={styles.activityCard}>
             <View style={styles.activityItem}>
               <Icon name="project" size={20} tintColor={colors.primary} />
@@ -190,14 +206,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 {userProjects.length} projects in your workspace
               </Text>
             </View>
-            
+
             <View style={styles.activityItem}>
               <Icon name="notification" size={20} tintColor={colors.warning} />
               <Text style={[styles.activityText, { color: colors.text }]}>
                 {unreadNotifications} new notifications
               </Text>
             </View>
-            
+
             <View style={styles.activityItem}>
               <Icon name="status" size={20} tintColor={colors.success} />
               <Text style={[styles.activityText, { color: colors.text }]}>
@@ -211,19 +227,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   );
 };
 
+export default HomeScreen;
+
 const styles = StyleSheet.create({
   greetingContainer: {
     flex: 1,
   },
   greeting: {
     fontSize: 16,
-    color: '#fff',
     opacity: 0.9,
   },
   userName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginTop: 4,
   },
   notificationButton: {
@@ -337,5 +353,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-
-export default HomeScreen;

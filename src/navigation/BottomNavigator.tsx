@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
+  Image,
 } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import LinearGradient from 'react-native-linear-gradient';
@@ -19,6 +20,7 @@ import ProjectStackNavigator from './ProjectStackNavigator';
 import AdminDashboard from '../screens/Admin/AdminDashboard';
 import DeveloperDashboard from '../screens/Developer/DeveloperDashboard';
 import HomeScreen from '../screens/HomeScreen';
+import { COLORS } from '../theme';
 
 const Tab = createBottomTabNavigator();
 const { width: WINDOW_WIDTH } = Dimensions.get('window');
@@ -140,22 +142,57 @@ function CustomTabBar({ state, navigation }: CustomTabBarProps) {
   );
 }
 
-// Create a wrapper component for Dashboard to handle role-based rendering
 const DashboardScreen = () => {
   const user = useAppSelector(state => state.user);
   const isAdmin = user?.role === 'admin';
   return isAdmin ? <AdminDashboard /> : <DeveloperDashboard />;
 };
 
+const HeaderLogo = () => (
+  <View style={styles.headerTitleContainer}>
+    <Image
+      source={require('../assets/images/4.png')}
+      style={styles.logo}
+      resizeMode="contain"
+    />
+    <Text style={styles.appName}>collApp</Text>
+  </View>
+);
+
+const MenuButton = ({ navigation }: { navigation: any }) => {
+  const { colors } = useTheme();
+  return (
+    <TouchableOpacity
+      style={styles.menuButton}
+      onPress={() => navigation.toggleDrawer()}
+      activeOpacity={0.7}
+    >
+      <Icon name="menu" size={26} tintColor={colors.primary} />
+    </TouchableOpacity>
+  );
+};
+
 function BottomNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarShowLabel: false,
-      }}
-      tabBar={props => <CustomTabBar {...props} />}
       initialRouteName="Home"
+      tabBar={props => <CustomTabBar {...props} />}
+      screenOptions={({ navigation }) => ({
+        headerShown: true,
+        headerTitle: '',
+        headerLeft: () => <HeaderLogo />,
+        headerRight: () => <MenuButton navigation={navigation} />,
+        headerStyle: {
+          backgroundColor: COLORS.background,
+          shadowColor: '#000',
+          shadowOpacity: 0.1,
+          shadowRadius: 10,
+          elevation: 5,
+          height: Platform.OS === 'ios' ? 90 : 70,
+          shadowOffset: { width: 0, height: 2 },
+        },
+        headerTintColor: COLORS.primary,
+      })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Projects" component={ProjectStackNavigator} />
@@ -169,6 +206,25 @@ function BottomNavigator() {
 export default BottomNavigator;
 
 const styles = StyleSheet.create({
+  logo: {
+    width: 28,
+    height: 28,
+    marginRight: 8,
+  },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 16,
+  },
+  appName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  menuButton: {
+    marginRight: 16,
+    padding: 6,
+  },
   container: {
     position: 'absolute',
     bottom: 0,
