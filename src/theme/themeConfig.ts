@@ -6,12 +6,12 @@
 
 // === BRAND COLORS ===
 export const BRAND_COLORS = {
-  primary: '#4423a9',
-  primaryDark: '#3d1f96',
-  primaryLight: '#5845b7',
-  secondary: '#68b0cb',
-  accent: '#6445f6',
-  highlight: '#0b32e8',
+  primary: '#6a01f6',
+  primaryDark: '#5a00d6',
+  primaryLight: '#7d1aff',
+  secondary: '#9945ff',
+  accent: '#8b5cf6',
+  highlight: '#a855f7',
 } as const;
 
 // === SEMANTIC COLORS ===
@@ -204,7 +204,7 @@ export const LIGHT_THEME = {
   gradients: {
     primary: [BRAND_COLORS.primary, BRAND_COLORS.primaryLight] as string[],
     secondary: [BRAND_COLORS.secondary, BRAND_COLORS.accent] as string[],
-    background: ['#ffffff', '#f8fafc'] as string[],
+    background: ['#ffffff', '#fafafa'] as string[],
     overlay: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)'] as string[],
   },
 } as const;
@@ -214,7 +214,7 @@ export const DARK_THEME = {
   // Brand colors
   primary: BRAND_COLORS.primaryLight,
   primaryDark: BRAND_COLORS.primary,
-  primaryLight: '#6c63ff',
+  primaryLight: BRAND_COLORS.highlight,
   secondary: BRAND_COLORS.secondary,
   accent: BRAND_COLORS.accent,
 
@@ -258,8 +258,8 @@ export const DARK_THEME = {
 
   // Gradients
   gradients: {
-    primary: [BRAND_COLORS.primaryLight, BRAND_COLORS.accent] as string[],
-    secondary: [BRAND_COLORS.secondary, BRAND_COLORS.highlight] as string[],
+    primary: [BRAND_COLORS.primaryLight, BRAND_COLORS.highlight] as string[],
+    secondary: [BRAND_COLORS.secondary, BRAND_COLORS.accent] as string[],
     background: ['#0f172a', '#1e293b'] as string[],
     overlay: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)'] as string[],
   },

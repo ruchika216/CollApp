@@ -5,14 +5,13 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   Dimensions,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../theme/useTheme';
 import { useAppSelector } from '../store/hooks';
 import Icon from '../components/common/Icon';
 import Card from '../components/ui/Card';
+import ScreenLayout from '../components/layout/ScreenLayout';
 import { spacing, borderRadius } from '../constants/spacing';
 
 const { width } = Dimensions.get('window');
@@ -22,7 +21,7 @@ interface HomeScreenProps {
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const { colors, gradients } = useTheme();
+  const { colors } = useTheme();
   const user = useAppSelector(state => state.user.user);
   const projects = useAppSelector(state => state.projects.projects);
   const notifications = useAppSelector(state => state.notifications.notifications);
@@ -69,39 +68,35 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     </View>
   );
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-      
-      {/* Header */}
-      <LinearGradient
-        colors={gradients.primary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.userName}>{user?.displayName?.split(' ')[0] || 'User'}! 👋</Text>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => navigation.navigate('Notifications')}
-          >
-            <Icon name="notification" size={24} tintColor="#fff" />
-            {unreadNotifications > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>
-                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+  const headerLeftComponent = (
+    <View style={styles.greetingContainer}>
+      <Text style={styles.greeting}>{getGreeting()},</Text>
+      <Text style={styles.userName}>{user?.name?.split(' ')[0] || 'User'}! 👋</Text>
+    </View>
+  );
 
+  const headerRightComponent = (
+    <TouchableOpacity
+      style={styles.notificationButton}
+      onPress={() => navigation.navigate('Notifications')}
+    >
+      <Icon name="notification" size={24} tintColor="#fff" />
+      {unreadNotifications > 0 && (
+        <View style={styles.notificationBadge}>
+          <Text style={styles.notificationBadgeText}>
+            {unreadNotifications > 9 ? '9+' : unreadNotifications}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  return (
+    <ScreenLayout
+      leftComponent={headerLeftComponent}
+      rightComponent={headerRightComponent}
+      showMenuButton={false}
+    >
       <ScrollView 
         style={styles.content}
         showsVerticalScrollIndicator={false}
@@ -212,25 +207,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </Card>
         </View>
       </ScrollView>
-    </View>
+    </ScreenLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
+  greetingContainer: {
     flex: 1,
   },
   greeting: {

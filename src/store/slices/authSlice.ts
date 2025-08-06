@@ -24,8 +24,9 @@ export const signInWithGoogle = createAsyncThunk(
   'auth/signInWithGoogle',
   async (_, { rejectWithValue }) => {
     try {
-      // Firebase auth logic will be implemented here
-      throw new Error('Not implemented yet');
+      const { signInWithGoogle: signIn } = await import('../../services/auth/googleAuth');
+      const result = await signIn();
+      return result.appUser;
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -36,8 +37,9 @@ export const signOut = createAsyncThunk(
   'auth/signOut',
   async (_, { rejectWithValue }) => {
     try {
-      // Firebase auth logic will be implemented here
-      throw new Error('Not implemented yet');
+      const { signOutGoogle } = await import('../../services/auth/googleAuth');
+      await signOutGoogle();
+      return null;
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -48,8 +50,9 @@ export const checkAuthState = createAsyncThunk(
   'auth/checkAuthState',
   async (_, { rejectWithValue }) => {
     try {
-      // Check if user is already authenticated
-      throw new Error('Not implemented yet');
+      const { getCurrentUser } = await import('../../services/auth/googleAuth');
+      const user = await getCurrentUser();
+      return user;
     } catch (error: any) {
       return rejectWithValue(error.message);
     }

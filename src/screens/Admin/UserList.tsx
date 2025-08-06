@@ -26,19 +26,15 @@ const UserList = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Users</Text>
-      <FlatList
-        data={users}
-        keyExtractor={(item) => item.uid}
-        renderItem={({ item }) => (
-          <View style={styles.userItem}>
-            <View>
-              <Text style={styles.userName}>{item.displayName}</Text>
-              <Text style={styles.userEmail}>{item.email}</Text>
-            </View>
-            <Button title="View Details" onPress={() => handleViewDetails(item)} />
+      {users.slice(0, 3).map((item) => (
+        <View key={item.uid} style={styles.userItem}>
+          <View>
+            <Text style={styles.userName}>{item.displayName}</Text>
+            <Text style={styles.userEmail}>{item.email}</Text>
           </View>
-        )}
-      />
+          <Button title="View Details" onPress={() => handleViewDetails(item)} />
+        </View>
+      ))}
       <Modal
         visible={modalVisible}
         animationType="slide"

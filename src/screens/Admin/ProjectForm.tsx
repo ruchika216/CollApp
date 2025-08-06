@@ -114,6 +114,7 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
           files: [],
           images: [],
           comments: [],
+          subTasks: [],
           progress: 0,
           actualHours: 0,
         } as Omit<Project, 'id' | 'createdAt' | 'updatedAt'>;

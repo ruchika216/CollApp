@@ -13,7 +13,6 @@ import {
   Image,
   Text,
   Switch,
-  Pressable,
   StyleSheet,
   Platform,
 } from 'react-native';
@@ -21,16 +20,18 @@ import Icon from '../components/common/Icon';
 
 // Navigation & Screens
 import BottomNavigator from './BottomNavigator';
+import RouteProtection from '../components/auth/RouteProtection';
 
 // Theme & State Management
 import { useTheme } from '../theme/useTheme';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { clearUser } from '../store/slices/userSlice';
-import { signOutGoogle } from '../services/auth';
+import { clearUser, signOut } from '../store/slices/userSlice';
+import { CommonActions } from '@react-navigation/native';
 
 // Types
 type DrawerParamList = {
   Dashboard: undefined;
+  Settings: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -39,13 +40,19 @@ const Drawer = createDrawerNavigator<DrawerParamList>();
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const dispatch = useAppDispatch();
   const { colors, isDark, toggleTheme } = useTheme();
-  const user = useAppSelector(state => state.user);
+  const user = useAppSelector(state => state.user.user);
 
   const handleSignOut = async () => {
     try {
-      await signOutGoogle();
+      await dispatch(signOut()).unwrap();
       dispatch(clearUser());
-      props.navigation.navigate('Login' as never);
+      // Reset navigation stack and go to login
+      props.navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Login' as never }],
+        })
+      );
     } catch (error) {
       console.error('Sign-out failed:', error);
     }
@@ -70,7 +77,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             ]}
           >
             <Text style={[styles.profileImageText, { color: colors.text }]}>
-              {user?.name?.[0]?.toUpperCase() || '?'}
+              {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
             </Text>
           </View>
         )}
@@ -114,81 +121,40 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 // Main Drawer Navigator
 export default function DrawerNavigator() {
   return (
-    <Drawer.Navigator
-      drawerContent={props => <CustomDrawerContent {...props} />}
-      screenOptions={({ navigation }) => ({
-        headerStyle: styles.header,
-        headerTitleStyle: styles.headerTitle,
-        drawerActiveBackgroundColor: '#4356af20',
-        drawerActiveTintColor: '#4356af',
-        drawerInactiveTintColor: '#333',
-        headerLeft: () => (
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../assets/images/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
-        ),
-        headerRight: () => (
-          <Pressable
-            onPress={() => navigation.openDrawer()}
-            style={({ pressed }) => [
-              styles.menuButton,
-              pressed && styles.menuButtonPressed,
-            ]}
-          >
-            <Icon name="menu" size={28} tintColor="#333" />
-          </Pressable>
-        ),
-      })}
-    >
-      <Drawer.Screen
-        name="Dashboard"
-        component={BottomNavigator}
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <Icon name="dashboard" size={size} tintColor={color} />
-          ),
+    <RouteProtection requireApproval={true}>
+      <Drawer.Navigator
+        drawerContent={props => <CustomDrawerContent {...props} />}
+        screenOptions={{
+          headerShown: false,
+          drawerActiveBackgroundColor: '#4356af20',
+          drawerActiveTintColor: '#4356af',
+          drawerInactiveTintColor: '#333',
         }}
-      />
-      <Drawer.Screen
-        name="Settings"
-        component={BottomNavigator}
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <Icon name="settings" size={size} tintColor={color} />
-          ),
-        }}
-      />
-    </Drawer.Navigator>
+      >
+        <Drawer.Screen
+          name="Dashboard"
+          component={BottomNavigator}
+          options={{
+            drawerIcon: ({ color, size }) => (
+              <Icon name="dashboard" size={size} tintColor={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="Settings"
+          component={BottomNavigator}
+          options={{
+            drawerIcon: ({ color, size }) => (
+              <Icon name="settings" size={size} tintColor={color} />
+            ),
+          }}
+        />
+      </Drawer.Navigator>
+    </RouteProtection>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  headerTitle: {
-    display: 'none',
-  },
-  logoContainer: {
-    marginLeft: 16,
-  },
-  logo: {
-    width: 70,
-    height: 70,
-  },
-  menuButton: {
-    marginRight: 16,
-    padding: 8,
-    borderRadius: 20,
-  },
-  menuButtonPressed: {
-    opacity: 0.7,
-  },
   profileSection: {
     padding: 16,
     borderBottomWidth: 1,

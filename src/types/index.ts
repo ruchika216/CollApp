@@ -29,6 +29,17 @@ export interface ProjectComment {
   createdAt: string;
 }
 
+export interface SubTask {
+  id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  assignedTo?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -40,6 +51,7 @@ export interface Project {
   status: 'Pending' | 'Development' | 'Done' | 'Deployment' | 'Fixing Bug' | 'Review' | 'Testing';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   comments: ProjectComment[];
+  subTasks: SubTask[];
   assignedTo: string; // User ID
   assignedUser?: User; // Populated user data
   createdBy: string; // Admin user ID
@@ -59,5 +71,11 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   projectId?: string;
-  actionType?: 'project_assigned' | 'status_changed' | 'comment_added' | 'file_uploaded';
+  actionType?: 'project_assigned' | 'status_changed' | 'comment_added' | 'file_uploaded' | 'user_approval_needed' | 'account_approved';
+  metadata?: {
+    newUserId?: string;
+    newUserEmail?: string;
+    newUserName?: string;
+    [key: string]: any;
+  };
 }

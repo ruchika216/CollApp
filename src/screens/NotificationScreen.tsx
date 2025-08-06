@@ -5,12 +5,10 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   RefreshControl,
   Alert,
   FlatList,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { setNotifications, markAsRead, clearNotifications } from '../store/slices/notificationSlice';
@@ -24,6 +22,7 @@ import { Notification } from '../types';
 import Icon from '../components/common/Icon';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import ScreenLayout from '../components/layout/ScreenLayout';
 import { spacing, borderRadius } from '../constants/spacing';
 
 interface NotificationScreenProps {
@@ -31,7 +30,7 @@ interface NotificationScreenProps {
 }
 
 const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) => {
-  const { colors, gradients } = useTheme();
+  const { colors } = useTheme();
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.user.user);
   const notifications = useAppSelector(state => state.notifications.notifications);
@@ -39,13 +38,16 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
 
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Load notifications on component mount
   useEffect(() => {
     loadNotifications();
-  }, [user]);
+  }, []);
 
   const loadNotifications = async () => {
     if (!user?.uid) return;
-
+    
     try {
       const userNotifications = await getUserNotifications(user.uid);
       dispatch(setNotifications(userNotifications));
@@ -61,6 +63,8 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
   };
 
   const handleMarkAsRead = async (notificationId: string) => {
+    if (!user?.uid) return;
+    
     try {
       await markNotificationAsRead(notificationId);
       dispatch(markAsRead(notificationId));
@@ -71,15 +75,14 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
 
   const handleMarkAllAsRead = async () => {
     if (!user?.uid) return;
-
+    
     try {
       await markAllNotificationsAsRead(user.uid);
-      dispatch(clearNotifications());
-      await loadNotifications();
-      Alert.alert('Success', 'All notifications marked as read');
+      notifications
+        .filter(n => !n.read)
+        .forEach(n => dispatch(markAsRead(n.id)));
     } catch (error) {
       console.error('Error marking all as read:', error);
-      Alert.alert('Error', 'Failed to mark all notifications as read');
     }
   };
 
@@ -95,10 +98,10 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
           onPress: async () => {
             try {
               await deleteNotification(notificationId);
-              await loadNotifications();
+              // Remove from local state
+              dispatch(setNotifications(notifications.filter(n => n.id !== notificationId)));
             } catch (error) {
               console.error('Error deleting notification:', error);
-              Alert.alert('Error', 'Failed to delete notification');
             }
           },
         },
@@ -106,76 +109,64 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
     );
   };
 
-  const handleNotificationPress = (notification: Notification) => {
-    if (!notification.read) {
-      handleMarkAsRead(notification.id);
-    }
-
-    // Navigate based on notification type
-    if (notification.projectId) {
-      navigation.navigate('ProjectScreen', { projectId: notification.projectId });
-    }
-  };
-
-  const getNotificationIcon = (type: Notification['type'], actionType?: string) => {
-    switch (actionType) {
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
       case 'project_assigned':
         return 'project';
-      case 'status_changed':
+      case 'status_update':
         return 'status';
       case 'comment_added':
         return 'comment';
-      case 'file_uploaded':
+      case 'file_shared':
         return 'file';
       default:
         switch (type) {
-          case 'success':
+          case 'project_completed':
             return 'check';
-          case 'warning':
+          case 'priority_changed':
             return 'priority';
-          case 'error':
+          case 'deadline_reminder':
             return 'close';
-          case 'info':
           default:
             return 'notification';
         }
     }
   };
 
-  const getNotificationColor = (type: Notification['type']) => {
+  const getNotificationColor = (type: string) => {
     switch (type) {
-      case 'success':
+      case 'project_assigned':
+      case 'project_completed':
         return colors.success;
-      case 'warning':
+      case 'priority_changed':
         return colors.warning;
-      case 'error':
+      case 'deadline_reminder':
         return colors.error;
-      case 'info':
       default:
         return colors.info;
     }
   };
 
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const getTimeAgo = (timestamp: any) => {
     const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-    if (diffInHours < 1) {
-      const diffInMinutes = Math.floor(diffInHours * 60);
+    const notificationTime = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    const diffInMinutes = Math.floor((now.getTime() - notificationTime.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 60) {
       return `${diffInMinutes} min${diffInMinutes !== 1 ? 's' : ''} ago`;
-    } else if (diffInHours < 24) {
-      const hours = Math.floor(diffInHours);
-      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
-    } else if (diffInHours < 48) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-      });
     }
+    const hours = Math.floor(diffInMinutes / 60);
+    if (hours < 24) {
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    }
+    if (hours < 48) {
+      return 'Yesterday';
+    }
+    return notificationTime.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: notificationTime.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    });
   };
 
   const filteredNotifications = notifications.filter(notification => {
@@ -184,76 +175,74 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         return !notification.read;
       case 'read':
         return notification.read;
-      case 'all':
       default:
         return true;
     }
   });
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const renderNotification = ({ item: notification }: { item: Notification }) => (
+  const renderNotification = ({ item }: { item: Notification }) => (
     <Card
       variant="outlined"
       style={[
         styles.notificationCard,
-        !notification.read && { backgroundColor: `${colors.primary}05` },
+        !item.read && { backgroundColor: colors.primary + '08' },
       ]}
-      onPress={() => handleNotificationPress(notification)}
+      onPress={() => {
+        if (!item.read) {
+          handleMarkAsRead(item.id);
+        }
+        
+        // Navigate based on notification type
+        if (item.data?.projectId) {
+          navigation.navigate('ProjectDetail', { projectId: item.data.projectId });
+        }
+      }}
     >
       <View style={styles.notificationContent}>
-        <View style={styles.notificationHeader}>
-          <View style={styles.notificationLeft}>
-            <View
-              style={[
-                styles.iconContainer,
-                { backgroundColor: `${getNotificationColor(notification.type)}20` },
-              ]}
-            >
-              <Icon
-                name={getNotificationIcon(notification.type, notification.actionType)}
-                size={20}
-                tintColor={getNotificationColor(notification.type)}
-              />
-            </View>
-            <View style={styles.notificationInfo}>
-              <Text
-                style={[
-                  styles.notificationTitle,
-                  { color: colors.text },
-                  !notification.read && { fontWeight: 'bold' },
-                ]}
-                numberOfLines={1}
-              >
-                {notification.title}
-              </Text>
-              <Text
-                style={[
-                  styles.notificationMessage,
-                  { color: colors.textSecondary },
-                  !notification.read && { color: colors.text },
-                ]}
-                numberOfLines={2}
-              >
-                {notification.message}
-              </Text>
-              <Text style={[styles.notificationTime, { color: colors.textLight }]}>
-                {formatDateTime(notification.createdAt)}
-              </Text>
-            </View>
+        <View style={styles.notificationLeft}>
+          <View
+            style={[
+              styles.notificationIcon,
+              { backgroundColor: getNotificationColor(item.type) + '20' },
+            ]}
+          >
+            <Icon
+              name={getNotificationIcon(item.type)}
+              size={20}
+              tintColor={getNotificationColor(item.type)}
+            />
           </View>
           
-          <View style={styles.notificationActions}>
-            {!notification.read && (
-              <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
-            )}
-            <TouchableOpacity
-              onPress={() => handleDeleteNotification(notification.id)}
-              style={styles.deleteButton}
+          <View style={styles.notificationText}>
+            <Text
+              style={[
+                styles.notificationTitle,
+                { color: colors.text },
+                !item.read && { fontWeight: 'bold' },
+              ]}
             >
-              <Icon name="close" size={16} tintColor={colors.textLight} />
-            </TouchableOpacity>
+              {item.title}
+            </Text>
+            <Text style={[styles.notificationBody, { color: colors.textSecondary }]}>
+              {item.body}
+            </Text>
+            <Text style={[styles.notificationTime, { color: colors.textLight }]}>
+              {getTimeAgo(item.createdAt)}
+            </Text>
           </View>
+        </View>
+
+        <View style={styles.notificationActions}>
+          {!item.read && (
+            <View style={[styles.unreadIndicator, { backgroundColor: colors.primary }]} />
+          )}
+          
+          <TouchableOpacity
+            onPress={() => handleDeleteNotification(item.id)}
+            style={styles.deleteButton}
+          >
+            <Icon name="close" size={16} tintColor={colors.textLight} />
+          </TouchableOpacity>
         </View>
       </View>
     </Card>
@@ -262,56 +251,21 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Icon name="notification" size={64} tintColor={colors.textLight} />
-      <Text style={[styles.emptyTitle, { color: colors.text }]}>
-        {filter === 'unread' ? 'No unread notifications' : 'No notifications'}
+      <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+        No notifications yet
       </Text>
-      <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-        {filter === 'unread'
-          ? 'All caught up! Check back later for new updates.'
+      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+        {filter === 'unread' 
+          ? 'All caught up! No unread notifications.'
+          : filter === 'read' 
+          ? 'No read notifications to show.'
           : 'You\'ll see project updates, assignments, and other important information here.'}
       </Text>
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-      
-      {/* Header */}
-      <LinearGradient
-        colors={gradients.primary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Icon name="back" size={24} tintColor="#fff" />
-          </TouchableOpacity>
-          
-          <View style={styles.headerTitle}>
-            <Text style={styles.headerTitleText}>Notifications</Text>
-            {unreadCount > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
-              </View>
-            )}
-          </View>
-          
-          {unreadCount > 0 && (
-            <TouchableOpacity
-              onPress={handleMarkAllAsRead}
-              style={styles.markAllButton}
-            >
-              <Icon name="check" size={20} tintColor="#fff" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </LinearGradient>
-
+    <ScreenLayout title="Notifications">
       {/* Filter Tabs */}
       <View style={[styles.filterContainer, { backgroundColor: colors.surface }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -332,8 +286,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
                 <Text
                   style={[
                     styles.filterTabText,
-                    { color: colors.text },
-                    filter === tab.key && { color: '#fff' },
+                    { color: filter === tab.key ? colors.textOnPrimary : colors.text },
                   ]}
                 >
                   {tab.label}
@@ -343,7 +296,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
                     style={[
                       styles.filterTabBadge,
                       {
-                        backgroundColor: filter === tab.key ? '#fff' : colors.primary,
+                        backgroundColor: filter === tab.key ? colors.textOnPrimary : colors.primary,
                       },
                     ]}
                   >
@@ -351,7 +304,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
                       style={[
                         styles.filterTabBadgeText,
                         {
-                          color: filter === tab.key ? colors.primary : '#fff',
+                          color: filter === tab.key ? colors.primary : colors.textOnPrimary,
                         },
                       ]}
                     >
@@ -377,90 +330,38 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         }
         ListEmptyComponent={renderEmptyState}
       />
-    </View>
+    </ScreenLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 16,
-  },
-  headerTitleText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  unreadBadge: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: 8,
-    minWidth: 24,
-    alignItems: 'center',
-  },
-  unreadBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#4423a9',
-  },
-  markAllButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   filterContainer: {
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   filterTabs: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   filterTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    gap: spacing.xs,
   },
   filterTabText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   filterTabBadge: {
-    borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    borderRadius: 10,
     minWidth: 20,
     alignItems: 'center',
   },
@@ -470,15 +371,13 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: spacing.lg,
-    flexGrow: 1,
+    paddingBottom: 100,
   },
   notificationCard: {
     marginBottom: spacing.md,
+    padding: spacing.lg,
   },
   notificationContent: {
-    padding: spacing.md,
-  },
-  notificationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
@@ -486,66 +385,57 @@ const styles = StyleSheet.create({
   notificationLeft: {
     flexDirection: 'row',
     flex: 1,
-    marginRight: spacing.md,
+    gap: spacing.md,
   },
-  iconContainer: {
+  notificationIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.md,
   },
-  notificationInfo: {
+  notificationText: {
     flex: 1,
   },
   notificationTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
-  notificationMessage: {
+  notificationBody: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   notificationTime: {
     fontSize: 12,
   },
   notificationActions: {
-    alignItems: 'center',
-    gap: spacing.sm,
+    alignItems: 'flex-end',
+    gap: spacing.xs,
   },
-  unreadDot: {
+  unreadIndicator: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
   deleteButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: spacing.xs,
   },
   emptyState: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.xl,
     paddingVertical: spacing.xxxl,
+    paddingHorizontal: spacing.lg,
   },
-  emptyTitle: {
+  emptyStateTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
-    textAlign: 'center',
   },
-  emptySubtext: {
+  emptyStateText: {
     fontSize: 16,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
   },
 });
 

@@ -4,11 +4,11 @@ import {
   Text,
   View,
   Image,
-  SafeAreaView,
   ScrollView,
 } from 'react-native';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { setUser } from '../store/slices/userSlice';
+import ScreenLayout from '../components/layout/ScreenLayout';
 
 const ProfileScreen = () => {
   // Get user details from Redux store
@@ -32,7 +32,7 @@ const ProfileScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout title="Profile">
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileHeader}>
           {photoURL ? (
@@ -52,7 +52,7 @@ const ProfileScreen = () => {
 
         {/* Add more profile sections here */}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 };
 

@@ -1,71 +1,291 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, Button, StyleSheet } from 'react-native';
-import { firestore } from '../../firebase/firebaseConfig';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
+import { useTheme } from '../../theme/useTheme';
+import { getPendingUsers } from '../../firebase/firestore';
+import { approveUser, rejectUser } from '../../services/auth/firestore';
 import { User } from '../../types';
+import Icon from '../../components/common/Icon';
+import { useAppSelector } from '../../store/hooks';
 
 const PendingUsers = () => {
+  const { colors, shadows } = useTheme();
+  const currentUser = useAppSelector(state => state.user.user);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = firestore
-      .collection('users')
-      .where('approved', '==', false)
-      .onSnapshot(snapshot => {
-        const users = snapshot.docs.map(doc => doc.data() as User);
-        setPendingUsers(users);
-      });
-
-    return () => unsubscribe();
+    loadPendingUsers();
   }, []);
 
-  const approveUser = async (uid: string) => {
-    await firestore.collection('users').doc(uid).update({ approved: true });
+  const loadPendingUsers = async () => {
+    try {
+      setLoading(true);
+      const users = await getPendingUsers();
+      setPendingUsers(users);
+    } catch (error) {
+      console.error('Error loading pending users:', error);
+      Alert.alert('Error', 'Failed to load pending users');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadPendingUsers();
+    setRefreshing(false);
+  };
+
+  const handleApprove = async (user: User) => {
+    Alert.alert(
+      'Approve User',
+      `Are you sure you want to approve ${user.name || user.email}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          style: 'default',
+          onPress: async () => {
+            try {
+              if (!currentUser?.uid) {
+                Alert.alert('Error', 'Unable to identify current admin user');
+                return;
+              }
+              await approveUser(user.uid, currentUser.uid);
+              setPendingUsers(prev => prev.filter(u => u.uid !== user.uid));
+              Alert.alert('Success', 'User approved successfully and notified');
+            } catch (error) {
+              console.error('Error approving user:', error);
+              Alert.alert('Error', 'Failed to approve user');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReject = async (user: User) => {
+    Alert.alert(
+      'Reject User',
+      `Are you sure you want to reject ${user.name || user.email}? This will permanently delete their account.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await rejectUser(user.uid);
+              setPendingUsers(prev => prev.filter(u => u.uid !== user.uid));
+              Alert.alert('Success', 'User rejected successfully');
+            } catch (error) {
+              console.error('Error rejecting user:', error);
+              Alert.alert('Error', 'Failed to reject user');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const UserCard = ({ user }: { user: User }) => (
+    <View style={[styles.userCard, { backgroundColor: colors.card }, shadows.sm]}>
+      <View style={styles.userInfo}>
+        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+          <Text style={styles.avatarText}>
+            {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.userDetails}>
+          <Text style={[styles.userName, { color: colors.text }]}>
+            {user.name || 'Unknown User'}
+          </Text>
+          <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
+            {user.email}
+          </Text>
+          <View style={styles.roleContainer}>
+            <View style={[styles.roleBadge, { backgroundColor: `${colors.info}20` }]}>
+              <Text style={[styles.roleText, { color: colors.info }]}>
+                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+      
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.approveButton, { backgroundColor: colors.success }]}
+          onPress={() => handleApprove(user)}
+        >
+          <Icon name="checkmark" size={20} tintColor="#fff" />
+          <Text style={styles.actionButtonText}>Approve</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.actionButton, styles.rejectButton, { backgroundColor: colors.error }]}
+          onPress={() => handleReject(user)}
+        >
+          <Icon name="close" size={20} tintColor="#fff" />
+          <Text style={styles.actionButtonText}>Reject</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+          Loading pending users...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Pending Approvals</Text>
-      <FlatList
-        data={pendingUsers}
-        keyExtractor={item => item.uid}
-        renderItem={({ item }) => (
-          <View style={styles.userItem}>
-            <View>
-              <Text style={styles.userName}>{item.displayName}</Text>
-              <Text style={styles.userEmail}>{item.email}</Text>
-            </View>
-            <Button title="Approve" onPress={() => approveUser(item.uid)} />
-          </View>
-        )}
-        ListEmptyComponent={<Text>No users are currently pending approval.</Text>}
-      />
+      {pendingUsers.length === 0 ? (
+        <View style={[styles.emptyContainer, { backgroundColor: colors.card }, shadows.sm]}>
+          <Icon name="checkmark" size={48} tintColor={colors.success} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>All Clear!</Text>
+          <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
+            No users are currently pending approval.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={pendingUsers}
+          keyExtractor={item => item.uid}
+          renderItem={({ item }) => <UserCard user={item} />}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
+          contentContainerStyle={styles.listContainer}
+        />
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
+    flex: 1,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  userItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  centerContent: {
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  listContainer: {
+    paddingVertical: 8,
+  },
+  userCard: {
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  userInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  userDetails: {
+    flex: 1,
   },
   userName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginBottom: 4,
   },
   userEmail: {
-    color: 'gray',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  roleContainer: {
+    flexDirection: 'row',
+  },
+  roleBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  roleText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  approveButton: {},
+  rejectButton: {},
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: 20,
+    padding: 40,
+    borderRadius: 16,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

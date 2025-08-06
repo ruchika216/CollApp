@@ -101,7 +101,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
   const ProjectCard = ({ project }: { project: Project }) => (
     <TouchableOpacity
       style={[styles.projectCard, { backgroundColor: colors.card }, shadows.sm]}
-      onPress={() => navigation.navigate('ProjectDetails', { projectId: project.id })}
+      onPress={() => navigation.navigate('ProjectDetail', { projectId: project.id })}
       activeOpacity={0.7}
     >
       <View style={styles.projectHeader}>
@@ -173,7 +173,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.userName}>{user?.displayName || 'Developer'}</Text>
+            <Text style={styles.userName}>{user?.name || 'Developer'}</Text>
           </View>
           <View style={styles.headerActions}>
             <ThemeToggle size={20} style={styles.themeToggle} />
@@ -194,6 +194,35 @@ const DeveloperDashboard = ({ navigation }: any) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+          <TouchableOpacity
+            style={[styles.quickActionCard, { backgroundColor: colors.card }, shadows.sm]}
+            onPress={() => navigation.navigate('Projects', { screen: 'DeveloperProjects' })}
+          >
+            <LinearGradient
+              colors={gradients.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.quickActionGradient}
+            >
+              <View style={styles.quickActionContent}>
+                <View style={styles.quickActionLeft}>
+                  <Icon name="project" size={32} tintColor="#fff" />
+                  <View style={styles.quickActionText}>
+                    <Text style={styles.quickActionTitle}>Manage Projects</Text>
+                    <Text style={styles.quickActionSubtitle}>
+                      View details, update status, add subtasks & comments
+                    </Text>
+                  </View>
+                </View>
+                <Icon name="arrow-right" size={20} tintColor="#fff" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
         {/* Stats Overview */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>My Projects Overview</Text>
@@ -227,7 +256,16 @@ const DeveloperDashboard = ({ navigation }: any) => {
 
         {/* Active Projects */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Projects</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Projects</Text>
+            <TouchableOpacity
+              style={[styles.viewAllButton, { backgroundColor: colors.primary }]}
+              onPress={() => navigation.navigate('Projects', { screen: 'DeveloperProjects' })}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+              <Icon name="arrow-right" size={16} tintColor="#fff" />
+            </TouchableOpacity>
+          </View>
           {userProjects.length === 0 ? (
             <EmptyState />
           ) : (
@@ -307,10 +345,60 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 16,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  viewAllText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  quickActionCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  quickActionGradient: {
+    padding: 20,
+  },
+  quickActionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  quickActionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  quickActionText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  quickActionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  quickActionSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 18,
   },
   statsGrid: {
     flexDirection: 'row',

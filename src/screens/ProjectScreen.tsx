@@ -144,7 +144,7 @@ const ProjectScreen: React.FC<ProjectScreenProps> = ({ route, navigation }) => {
       const comment: Omit<ProjectComment, 'id' | 'createdAt'> = {
         text: newComment.trim(),
         userId: user.uid,
-        userName: user.displayName || user.email || 'Unknown User',
+        userName: user.name || user.email || 'Unknown User',
       };
 
       const addedComment = await addCommentToProject(project.id, comment);
@@ -270,7 +270,7 @@ const ProjectScreen: React.FC<ProjectScreenProps> = ({ route, navigation }) => {
             <View style={styles.metaRow}>
               <Icon name="user" size={16} tintColor={colors.textSecondary} />
               <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-                Assigned to: {assignedUser?.displayName || assignedUser?.email || 'Unknown'}
+                Assigned to: {assignedUser?.name || assignedUser?.email || 'Unknown'}
               </Text>
             </View>
             

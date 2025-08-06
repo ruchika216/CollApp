@@ -14,16 +14,17 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import { setProjects, setLoading } from '../../store/slices/projectSlice';
-import { getProjects, getUsers, getPendingUsers } from '../../firebase/firestore';
+import { getProjects } from '../../firebase/firestore';
 import Icon from '../../components/common/Icon';
 import ProjectList from './ProjectList';
 import UserList from './UserList';
 import PendingUsers from './PendingUsers';
+import ThemeToggle from '../../components/common/ThemeToggle';
 
 const { width } = Dimensions.get('window');
 
 const AdminDashboard = ({ navigation }: any) => {
-  const { colors, gradients, theme } = useTheme();
+  const { colors, gradients, shadows, isDark } = useTheme();
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.user.user);
   const projects = useAppSelector(state => state.projects.projects);
@@ -67,7 +68,7 @@ const AdminDashboard = ({ navigation }: any) => {
         colors={[color, `${color}80`]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.statCard, theme.shadow.medium]}
+        style={[styles.statCard, shadows.md]}
       >
         <View style={styles.statContent}>
           <View style={styles.statHeader}>
@@ -82,7 +83,7 @@ const AdminDashboard = ({ navigation }: any) => {
 
   const QuickAction = ({ title, icon, onPress, color }: any) => (
     <TouchableOpacity
-      style={[styles.quickAction, { backgroundColor: colors.card }, theme.shadow.small]}
+      style={[styles.quickAction, { backgroundColor: colors.card }, shadows.sm]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -107,14 +108,17 @@ const AdminDashboard = ({ navigation }: any) => {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.userName}>{user?.displayName || 'Admin'}</Text>
+            <Text style={styles.userName}>{user?.name || 'Admin'}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => navigation.navigate('Notification')}
-          >
-            <Icon name="notification" size={24} tintColor="#fff" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <ThemeToggle size={20} style={styles.themeToggle} />
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={() => navigation.navigate('Notification')}
+            >
+              <Icon name="notification" size={24} tintColor="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
@@ -241,6 +245,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginTop: 4,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  themeToggle: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   notificationButton: {
     width: 44,

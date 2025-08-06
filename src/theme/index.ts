@@ -14,11 +14,11 @@ export { TYPOGRAPHY } from './themeConfig';
 // Legacy exports for backward compatibility
 export const COLORS = {
   // Brand colors
-  primary: '#4423a9',
-  primaryDark: '#3d1f96',
-  primaryLight: '#5845b7',
-  secondary: '#68b0cb',
-  accent: '#6445f6',
+  primary: '#6a01f6',
+  primaryDark: '#5a00d6',
+  primaryLight: '#7d1aff',
+  secondary: '#9945ff',
+  accent: '#8b5cf6',
   
   // Semantic colors
   success: '#22c55e',
@@ -28,7 +28,7 @@ export const COLORS = {
   
   // Light theme colors for default export
   background: '#ffffff',
-  surface: '#f8fafc',
+  surface: '#fafafa',
   text: '#1e293b',
   textSecondary: '#64748b',
   border: '#e2e8f0',

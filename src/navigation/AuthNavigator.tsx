@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
@@ -6,7 +6,12 @@ import type { NativeStackNavigationOptions } from '@react-navigation/native-stac
 import SplashScreen from '../screens/SplashScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
+import PendingApprovalScreen from '../screens/PendingApprovalScreen';
 import DrawerNavigator from './DrawerNavigator';
+
+// Redux
+import { useAppDispatch } from '../store/hooks';
+import { checkAuthState } from '../store/slices/authSlice';
 
 const Stack = createNativeStackNavigator();
 
@@ -20,6 +25,13 @@ const defaultScreenOptions: NativeStackNavigationOptions = {
 };
 
 export default function AuthNavigator() {
+  const dispatch = useAppDispatch();
+
+  // Check auth state on app start
+  useEffect(() => {
+    dispatch(checkAuthState());
+  }, [dispatch]);
+
   return (
     <Stack.Navigator
       initialRouteName="Splash"
@@ -40,6 +52,12 @@ export default function AuthNavigator() {
       <Stack.Screen
         name="Login"
         component={LoginScreen}
+        options={{ gestureEnabled: false }}
+      />
+
+      <Stack.Screen
+        name="PendingApproval"
+        component={PendingApprovalScreen}
         options={{ gestureEnabled: false }}
       />
 

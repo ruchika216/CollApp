@@ -2,6 +2,8 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { auth } from '../../firebase/firebaseConfig';
+import { createOrUpdateUser } from './firestore';
+import { User } from '../../types';
 
 // configure once at module load
 GoogleSignin.configure({
@@ -10,9 +12,18 @@ GoogleSignin.configure({
 });
 
 /**
- * Sign in with Google + Firebase.
+ * Complete sign-in result with user data
  */
-export async function signInWithGoogle(): Promise<FirebaseAuthTypes.UserCredential> {
+export interface SignInResult {
+  firebaseUser: FirebaseAuthTypes.User;
+  appUser: User;
+  isNewUser: boolean;
+}
+
+/**
+ * Sign in with Google + Firebase and create/update user in Firestore
+ */
+export async function signInWithGoogle(): Promise<SignInResult> {
   try {
     // 1) ensure Play Services on Android
     await GoogleSignin.hasPlayServices({
@@ -33,7 +44,21 @@ export async function signInWithGoogle(): Promise<FirebaseAuthTypes.UserCredenti
 
     // 5) exchange for a Firebase credential & sign in
     const credential = auth.GoogleAuthProvider.credential(idToken);
-    return auth().signInWithCredential(credential);
+    const userCredential = await auth().signInWithCredential(credential);
+    
+    if (!userCredential.user) {
+      throw new Error('No user returned from Firebase authentication.');
+    }
+
+    // 6) Create or update user in Firestore
+    const isNewUser = userCredential.additionalUserInfo?.isNewUser || false;
+    const appUser = await createOrUpdateUser(userCredential.user);
+
+    return {
+      firebaseUser: userCredential.user,
+      appUser,
+      isNewUser,
+    };
   } catch (error: any) {
     // map known errors to friendlier messages
     switch (error.code) {
@@ -59,4 +84,21 @@ export async function signInWithGoogle(): Promise<FirebaseAuthTypes.UserCredenti
 export async function signOutGoogle(): Promise<void> {
   await GoogleSignin.signOut();
   await auth().signOut();
+}
+
+/**
+ * Check if user is currently signed in
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    const firebaseUser = auth().currentUser;
+    if (!firebaseUser) return null;
+    
+    // Get the app user data from Firestore
+    const appUser = await createOrUpdateUser(firebaseUser);
+    return appUser;
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
 }

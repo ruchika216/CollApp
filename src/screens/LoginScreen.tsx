@@ -1,6 +1,6 @@
 // // src/screens/LoginScreen.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   View,
@@ -17,17 +17,10 @@ import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-import { useDispatch } from 'react-redux';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { auth } from '../firebase/firebaseConfig';
-import {
-  signInWithGoogle,
-  checkUserExists,
-  getUserRole,
-} from '../services/auth';
-import { saveUserToFirestore } from '../services/userFirestore';
-import { setUser } from '../store/slices/userSlice';
+import { useAppDispatch } from '../store/hooks';
+import { signInWithGoogle, setUser } from '../store/slices/userSlice';
 import { useTheme } from '../theme/useTheme';
 
 const { width } = Dimensions.get('window');
@@ -38,60 +31,41 @@ type Props = {
 
 export default function LoginScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { colors, gradients, isDark } = useTheme();
-
-  // Redirect if already signed in
-  useEffect(() => {
-    const unsub = auth().onAuthStateChanged(user => {
-      if (user) navigation.replace('Main');
-    });
-    return unsub;
-  }, [navigation]);
 
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
 
-      // 1) Google → Firebase
-      const userCred = await signInWithGoogle();
-      const uid = userCred.user.uid;
+      // Use Redux thunk to handle Google sign-in
+      const result = await dispatch(signInWithGoogle()).unwrap();
 
-      // 2) Firestore: does user exist?
-      const exists = await checkUserExists(uid);
-      let role: 'admin' | 'developer' | 'scrum' = 'developer';
-      let isNew = false;
-
-      if (exists) {
-        const fetched = await getUserRole(uid);
-        if (fetched) role = fetched;
+      // Navigate based on user approval status
+      if (!result.approved) {
+        navigation.replace('PendingApproval');
       } else {
-        isNew = true;
+        navigation.replace('Main');
       }
 
-      // 3) build user object
-      const userData = {
-        uid,
-        name: userCred.user.displayName || '',
-        email: userCred.user.email || '',
-        photoURL: userCred.user.photoURL || '',
-        role,
-      };
-
-      // 4) persist in Firestore
-      await saveUserToFirestore(userData);
-
-      // 5) store in Redux
-      dispatch(setUser(userData));
-
-      // 6) navigate based on role
-      navigation.replace(role === 'admin' ? 'AdminDashboard' : 'Main');
-
-      // 7) welcome message for new users
-      if (isNew) {
+      // Show welcome message for new users (if they're approved)
+      if (result.approved) {
+        const isNewUser = !result.createdAt || 
+          (new Date().getTime() - new Date(result.createdAt).getTime()) < 60000; // Less than 1 minute old
+        
+        if (isNewUser) {
+          Alert.alert(
+            'Welcome!',
+            result.role === 'admin' 
+              ? 'Welcome, Admin! You have full access to the system.'
+              : 'Welcome to the team! Your account has been approved.',
+            [{ text: 'OK' }],
+          );
+        }
+      } else {
         Alert.alert(
-          'Welcome!',
-          "You've signed up as a developer. Ask an Admin to verify your account.",
+          'Account Created',
+          'Your account has been created and is pending admin approval. You will be notified once approved.',
           [{ text: 'OK' }],
         );
       }
