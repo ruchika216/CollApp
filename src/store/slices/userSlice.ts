@@ -3,6 +3,8 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { signInWithGoogle as googleSignIn, signOutGoogle, getCurrentUser } from '../../services/auth/googleAuth';
 import { createOrUpdateUser, approveUser as firestoreApproveUser, rejectUser as firestoreRejectUser, getUserById } from '../../services/auth/firestore';
+import firestoreService from '../../firebase/firestoreService';
+import { User } from '../../types';
 
 // User interface with exact fields requested
 export interface UserData {
@@ -19,6 +21,11 @@ export interface UserState {
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  // Admin functionality
+  allUsers: User[];
+  approvedUsers: User[];
+  pendingUsers: User[];
+  selectedUser: User | null;
 }
 
 const initialState: UserState = {
@@ -26,6 +33,10 @@ const initialState: UserState = {
   loading: false,
   error: null,
   isAuthenticated: false,
+  allUsers: [],
+  approvedUsers: [],
+  pendingUsers: [],
+  selectedUser: null,
 };
 
 // Async Thunks
@@ -196,6 +207,93 @@ export const refreshUserData = createAsyncThunk(
   }
 );
 
+/**
+ * Fetch Pending Users (Admin)
+ */
+export const fetchPendingUsers = createAsyncThunk(
+  'user/fetchPendingUsers',
+  async (_, { rejectWithValue }) => {
+    try {
+      const pendingUsers = await firestoreService.getPendingUsers();
+      return pendingUsers;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to fetch pending users');
+    }
+  }
+);
+
+/**
+ * Approve User (Admin)
+ */
+export const approveUser = createAsyncThunk(
+  'user/approveUser',
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      await firestoreService.approveUser(userId);
+      return userId;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to approve user');
+    }
+  }
+);
+
+/**
+ * Reject User (Admin)
+ */
+export const rejectUser = createAsyncThunk(
+  'user/rejectUser',
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      await firestoreRejectUser(userId);
+      return userId;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to reject user');
+    }
+  }
+);
+
+/**
+ * Fetch All Users (for dropdowns, etc.)
+ */
+export const fetchAllUsers = createAsyncThunk(
+  'user/fetchAllUsers',
+  async (_, { rejectWithValue }) => {
+    try {
+      const allUsers = await firestoreService.getAllUsers();
+      return allUsers;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to fetch all users');
+    }
+  }
+);
+
+/**
+ * Fetch Approved Users (for task assignments)
+ */
+export const fetchApprovedUsers = createAsyncThunk(
+  'user/fetchApprovedUsers',
+  async (_, { rejectWithValue }) => {
+    try {
+      console.log('fetchApprovedUsers: Starting fetch...');
+      let approvedUsers = await firestoreService.getApprovedUsers();
+      console.log('fetchApprovedUsers: Fetched approved users:', approvedUsers);
+      console.log('fetchApprovedUsers: Number of approved users:', approvedUsers.length);
+      
+      // If no approved users found, fetch all users as fallback for development
+      if (approvedUsers.length === 0) {
+        console.log('fetchApprovedUsers: No approved users found, fetching all users as fallback...');
+        approvedUsers = await firestoreService.getAllUsers();
+        console.log('fetchApprovedUsers: Fetched all users as fallback:', approvedUsers);
+      }
+      
+      return approvedUsers;
+    } catch (error: any) {
+      console.error('fetchApprovedUsers: Error occurred:', error);
+      return rejectWithValue(error.message || 'Failed to fetch approved users');
+    }
+  }
+);
+
 const userSlice = createSlice({
   name: 'user',
   initialState,
@@ -232,6 +330,22 @@ const userSlice = createSlice({
     },
     clearError(state) {
       state.error = null;
+    },
+    // Admin actions
+    setPendingUsers(state, action: PayloadAction<User[]>) {
+      state.pendingUsers = action.payload;
+    },
+    setAllUsers(state, action: PayloadAction<User[]>) {
+      state.allUsers = action.payload;
+    },
+    setApprovedUsers(state, action: PayloadAction<User[]>) {
+      state.approvedUsers = action.payload;
+    },
+    setSelectedUser(state, action: PayloadAction<User | null>) {
+      state.selectedUser = action.payload;
+    },
+    removePendingUser(state, action: PayloadAction<string>) {
+      state.pendingUsers = state.pendingUsers.filter(user => user.uid !== action.payload);
     },
   },
   extraReducers: (builder) => {
@@ -333,6 +447,85 @@ const userSlice = createSlice({
       .addCase(refreshUserData.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      
+      // Fetch Pending Users
+      .addCase(fetchPendingUsers.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPendingUsers.fulfilled, (state, action) => {
+        state.loading = false;
+        state.pendingUsers = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchPendingUsers.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      
+      // Approve User
+      .addCase(approveUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(approveUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.pendingUsers = state.pendingUsers.filter(user => user.uid !== action.payload);
+        state.error = null;
+      })
+      .addCase(approveUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      
+      // Reject User
+      .addCase(rejectUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(rejectUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.pendingUsers = state.pendingUsers.filter(user => user.uid !== action.payload);
+        state.error = null;
+      })
+      .addCase(rejectUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      
+      // Fetch All Users
+      .addCase(fetchAllUsers.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAllUsers.fulfilled, (state, action) => {
+        state.loading = false;
+        state.allUsers = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchAllUsers.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      
+      // Fetch Approved Users
+      .addCase(fetchApprovedUsers.pending, (state) => {
+        console.log('fetchApprovedUsers.pending: Setting loading state...');
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchApprovedUsers.fulfilled, (state, action) => {
+        console.log('fetchApprovedUsers.fulfilled: Updating state with users:', action.payload);
+        state.loading = false;
+        state.approvedUsers = action.payload;
+        state.error = null;
+        console.log('fetchApprovedUsers.fulfilled: State updated. approvedUsers length:', state.approvedUsers.length);
+      })
+      .addCase(fetchApprovedUsers.rejected, (state, action) => {
+        console.log('fetchApprovedUsers.rejected: Error occurred:', action.payload);
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
@@ -344,7 +537,12 @@ export const {
   updateApprovalStatus,
   setLoading,
   setError,
-  clearError
+  clearError,
+  setPendingUsers,
+  setAllUsers,
+  setApprovedUsers,
+  setSelectedUser,
+  removePendingUser
 } = userSlice.actions;
 
 export default userSlice.reducer;

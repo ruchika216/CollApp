@@ -10,18 +10,20 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '../../theme/useTheme';
-import { getPendingUsers } from '../../firebase/firestore';
-import { approveUser, rejectUser } from '../../services/auth/firestore';
 import { User } from '../../types';
 import Icon from '../../components/common/Icon';
-import { useAppSelector } from '../../store/hooks';
+import UserApprovalCard from '../../components/admin/UserApprovalCard';
+import { useAppSelector, useAppDispatch } from '../../store/hooks';
+import { fetchPendingUsers, approveUser, rejectUser } from '../../store/slices/userSlice';
 
 const PendingUsers = () => {
   const { colors, shadows } = useTheme();
-  const currentUser = useAppSelector(state => state.user.user);
-  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const currentUser = useAppSelector(state => state.auth.user);
+  const pendingUsers = useAppSelector(state => state.user.pendingUsers);
+  const loading = useAppSelector(state => state.user.loading);
   const [refreshing, setRefreshing] = useState(false);
+  const [processingUsers, setProcessingUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadPendingUsers();
@@ -29,14 +31,10 @@ const PendingUsers = () => {
 
   const loadPendingUsers = async () => {
     try {
-      setLoading(true);
-      const users = await getPendingUsers();
-      setPendingUsers(users);
+      await dispatch(fetchPendingUsers()).unwrap();
     } catch (error) {
       console.error('Error loading pending users:', error);
       Alert.alert('Error', 'Failed to load pending users');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -47,101 +45,39 @@ const PendingUsers = () => {
   };
 
   const handleApprove = async (user: User) => {
-    Alert.alert(
-      'Approve User',
-      `Are you sure you want to approve ${user.name || user.email}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve',
-          style: 'default',
-          onPress: async () => {
-            try {
-              if (!currentUser?.uid) {
-                Alert.alert('Error', 'Unable to identify current admin user');
-                return;
-              }
-              await approveUser(user.uid, currentUser.uid);
-              setPendingUsers(prev => prev.filter(u => u.uid !== user.uid));
-              Alert.alert('Success', 'User approved successfully and notified');
-            } catch (error) {
-              console.error('Error approving user:', error);
-              Alert.alert('Error', 'Failed to approve user');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      setProcessingUsers(prev => new Set(prev).add(user.uid));
+      await dispatch(approveUser(user.uid)).unwrap();
+      Alert.alert('Success', 'User approved successfully and notified');
+    } catch (error: any) {
+      console.error('Error approving user:', error);
+      Alert.alert('Error', error?.message || 'Failed to approve user');
+    } finally {
+      setProcessingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(user.uid);
+        return newSet;
+      });
+    }
   };
 
   const handleReject = async (user: User) => {
-    Alert.alert(
-      'Reject User',
-      `Are you sure you want to reject ${user.name || user.email}? This will permanently delete their account.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await rejectUser(user.uid);
-              setPendingUsers(prev => prev.filter(u => u.uid !== user.uid));
-              Alert.alert('Success', 'User rejected successfully');
-            } catch (error) {
-              console.error('Error rejecting user:', error);
-              Alert.alert('Error', 'Failed to reject user');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      setProcessingUsers(prev => new Set(prev).add(user.uid));
+      await dispatch(rejectUser(user.uid)).unwrap();
+      Alert.alert('Success', 'User rejected successfully');
+    } catch (error: any) {
+      console.error('Error rejecting user:', error);
+      Alert.alert('Error', error?.message || 'Failed to reject user');
+    } finally {
+      setProcessingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(user.uid);
+        return newSet;
+      });
+    }
   };
 
-  const UserCard = ({ user }: { user: User }) => (
-    <View style={[styles.userCard, { backgroundColor: colors.card }, shadows.sm]}>
-      <View style={styles.userInfo}>
-        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-          <Text style={styles.avatarText}>
-            {(user.name || user.email || 'U').charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={styles.userDetails}>
-          <Text style={[styles.userName, { color: colors.text }]}>
-            {user.name || 'Unknown User'}
-          </Text>
-          <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
-            {user.email}
-          </Text>
-          <View style={styles.roleContainer}>
-            <View style={[styles.roleBadge, { backgroundColor: `${colors.info}20` }]}>
-              <Text style={[styles.roleText, { color: colors.info }]}>
-                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-      
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.approveButton, { backgroundColor: colors.success }]}
-          onPress={() => handleApprove(user)}
-        >
-          <Icon name="checkmark" size={20} tintColor="#fff" />
-          <Text style={styles.actionButtonText}>Approve</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.actionButton, styles.rejectButton, { backgroundColor: colors.error }]}
-          onPress={() => handleReject(user)}
-        >
-          <Icon name="close" size={20} tintColor="#fff" />
-          <Text style={styles.actionButtonText}>Reject</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   if (loading) {
     return (
@@ -168,7 +104,14 @@ const PendingUsers = () => {
         <FlatList
           data={pendingUsers}
           keyExtractor={item => item.uid}
-          renderItem={({ item }) => <UserCard user={item} />}
+          renderItem={({ item }) => (
+            <UserApprovalCard
+              user={item}
+              onApprove={() => handleApprove(item)}
+              onReject={() => handleReject(item)}
+              isLoading={processingUsers.has(item.uid)}
+            />
+          )}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl

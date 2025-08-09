@@ -8,7 +8,11 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import DocumentPicker from 'react-native-document-picker';
+import { 
+  pick,
+  DocumentPickerResponse, 
+  types 
+} from '@react-native-documents/picker';
 import ImagePicker from 'react-native-image-crop-picker';
 import { useTheme } from '../../theme/useTheme';
 import { spacing, borderRadius } from '../../constants/spacing';
@@ -43,12 +47,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   const pickDocument = async () => {
     try {
-      const results = await DocumentPicker.pick({
-        type: [DocumentPicker.types.allFiles],
+      const results = await pick({
+        type: [types.allFiles],
         allowMultiSelection: true,
       });
 
-      const newFiles = results.map(result => ({
+      const newFiles = results.map((result: DocumentPickerResponse) => ({
         name: result.name || 'Unknown file',
         uri: result.uri,
         type: result.type || 'application/octet-stream',
@@ -63,8 +67,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
       const updatedFiles = [...selectedFiles, ...newFiles];
       setSelectedFiles(updatedFiles);
       onFilesSelected(updatedFiles);
-    } catch (err) {
-      if (!DocumentPicker.isCancel(err)) {
+    } catch (err: any) {
+      // Check if the error is due to user cancellation
+      if (err?.code !== 'DOCUMENT_PICKER_CANCELED') {
         Alert.alert('Error', 'Failed to pick document');
       }
     }

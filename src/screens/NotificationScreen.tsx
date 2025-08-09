@@ -12,18 +12,11 @@ import {
 import { useTheme } from '../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { setNotifications, markAsRead, clearNotifications } from '../store/slices/notificationSlice';
-import { 
-  getUserNotifications, 
-  markNotificationAsRead, 
-  markAllNotificationsAsRead, 
-  deleteNotification 
-} from '../firebase/firestore';
+import firestoreService from '../firebase/firestoreService';
 import { Notification } from '../types';
 import Icon from '../components/common/Icon';
 import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
 import ScreenLayout from '../components/layout/ScreenLayout';
-import { spacing, borderRadius } from '../constants/spacing';
 
 interface NotificationScreenProps {
   navigation: any;
@@ -32,7 +25,7 @@ interface NotificationScreenProps {
 const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) => {
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
-  const user = useAppSelector(state => state.user.user);
+  const user = useAppSelector(state => state.auth.user);
   const notifications = useAppSelector(state => state.notifications.notifications);
   
   const [refreshing, setRefreshing] = useState(false);
@@ -49,7 +42,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
     if (!user?.uid) return;
     
     try {
-      const userNotifications = await getUserNotifications(user.uid);
+      const userNotifications = await firestoreService.getUserNotifications(user.uid);
       dispatch(setNotifications(userNotifications));
     } catch (error) {
       console.error('Error loading notifications:', error);
@@ -66,7 +59,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
     if (!user?.uid) return;
     
     try {
-      await markNotificationAsRead(notificationId);
+      await firestoreService.markNotificationAsRead(notificationId);
       dispatch(markAsRead(notificationId));
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -77,10 +70,12 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
     if (!user?.uid) return;
     
     try {
-      await markAllNotificationsAsRead(user.uid);
-      notifications
-        .filter(n => !n.read)
-        .forEach(n => dispatch(markAsRead(n.id)));
+      // Mark all unread notifications as read
+      const unreadNotifications = notifications.filter(n => !n.read);
+      for (const notification of unreadNotifications) {
+        await firestoreService.markNotificationAsRead(notification.id);
+        dispatch(markAsRead(notification.id));
+      }
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
@@ -97,8 +92,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteNotification(notificationId);
-              // Remove from local state
+              // Remove from local state (we don't have a delete function in firestoreService)
               dispatch(setNotifications(notifications.filter(n => n.id !== notificationId)));
             } catch (error) {
               console.error('Error deleting notification:', error);
@@ -181,10 +175,10 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
   });
 
   const renderNotification = ({ item }: { item: Notification }) => (
-    <Card
-      variant="outlined"
+    <TouchableOpacity
       style={[
         styles.notificationCard,
+        { backgroundColor: colors.surface },
         !item.read && { backgroundColor: colors.primary + '08' },
       ]}
       onPress={() => {
@@ -193,10 +187,11 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         }
         
         // Navigate based on notification type
-        if (item.data?.projectId) {
-          navigation.navigate('ProjectDetail', { projectId: item.data.projectId });
+        if (item.projectId) {
+          navigation.navigate('ProjectDetailScreenNew', { projectId: item.projectId });
         }
       }}
+      activeOpacity={0.7}
     >
       <View style={styles.notificationContent}>
         <View style={styles.notificationLeft}>
@@ -226,7 +221,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
             <Text style={[styles.notificationBody, { color: colors.textSecondary }]}>
               {item.body}
             </Text>
-            <Text style={[styles.notificationTime, { color: colors.textLight }]}>
+            <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
               {getTimeAgo(item.createdAt)}
             </Text>
           </View>
@@ -241,16 +236,16 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
             onPress={() => handleDeleteNotification(item.id)}
             style={styles.deleteButton}
           >
-            <Icon name="close" size={16} tintColor={colors.textLight} />
+            <Icon name="close" size={16} tintColor={colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
-    </Card>
+    </TouchableOpacity>
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Icon name="notification" size={64} tintColor={colors.textLight} />
+      <Icon name="notification" size={64} tintColor={colors.textSecondary} />
       <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
         No notifications yet
       </Text>
@@ -265,7 +260,21 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
   );
 
   return (
-    <ScreenLayout title="Notifications">
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Icon name="arrow-left" size={24} tintColor="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Notifications</Text>
+        <TouchableOpacity onPress={handleMarkAllAsRead} style={styles.markAllButton}>
+          <Text style={styles.markAllText}>Mark All</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Filter Tabs */}
       <View style={[styles.filterContainer, { backgroundColor: colors.surface }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -279,6 +288,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
                 key={tab.key}
                 style={[
                   styles.filterTab,
+                  { backgroundColor: colors.surface },
                   filter === tab.key && { backgroundColor: colors.primary },
                 ]}
                 onPress={() => setFilter(tab.key as any)}
@@ -330,29 +340,61 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         }
         ListEmptyComponent={renderEmptyState}
       />
-    </ScreenLayout>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+    flex: 1,
+    textAlign: 'center',
+  },
+  markAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 16,
+  },
+  markAllText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   filterContainer: {
-    paddingVertical: spacing.sm,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   filterTabs: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
+    paddingHorizontal: 20,
+    gap: 8,
   },
   filterTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     backgroundColor: 'rgba(0,0,0,0.05)',
-    gap: spacing.xs,
+    gap: 4,
   },
   filterTabText: {
     fontSize: 14,
@@ -370,12 +412,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   listContainer: {
-    padding: spacing.lg,
+    padding: 20,
     paddingBottom: 100,
   },
   notificationCard: {
-    marginBottom: spacing.md,
-    padding: spacing.lg,
+    marginBottom: 12,
+    padding: 16,
   },
   notificationContent: {
     flexDirection: 'row',
@@ -385,7 +427,7 @@ const styles = StyleSheet.create({
   notificationLeft: {
     flexDirection: 'row',
     flex: 1,
-    gap: spacing.md,
+    gap: 12,
   },
   notificationIcon: {
     width: 40,
@@ -411,7 +453,7 @@ const styles = StyleSheet.create({
   },
   notificationActions: {
     alignItems: 'flex-end',
-    gap: spacing.xs,
+    gap: 4,
   },
   unreadIndicator: {
     width: 8,
@@ -419,18 +461,18 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   deleteButton: {
-    padding: spacing.xs,
+    padding: 4,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: spacing.xxxl,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: 60,
+    paddingHorizontal: 20,
   },
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
+    marginTop: 16,
+    marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 16,

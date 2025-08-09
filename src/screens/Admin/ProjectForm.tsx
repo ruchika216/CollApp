@@ -9,7 +9,9 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useDispatch } from 'react-redux';
 import { useTheme } from '../../theme/useTheme';
@@ -29,6 +31,7 @@ interface Props {
 const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
   const dispatch = useDispatch();
   const { colors, theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const currentUser = useAppSelector(state => state.user.user);
   
   const [title, setTitle] = useState(project?.title || '');
@@ -137,7 +140,15 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor={colors.primary} 
+        translucent={Platform.OS === 'ios'}
+      />
+      <View style={[styles.header, { 
+        backgroundColor: colors.primary,
+        paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 16
+      }]}>
         <TouchableOpacity onPress={onClose} style={styles.backButton}>
           <Icon name="back" size={24} tintColor="#fff" />
         </TouchableOpacity>
@@ -331,8 +342,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.15,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   backButton: {
     width: 40,

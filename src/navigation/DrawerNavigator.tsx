@@ -1,4 +1,5 @@
 import React from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   createDrawerNavigator,
   DrawerContentScrollView,
@@ -15,12 +16,31 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { clearUser, signOut } from '../store/slices/userSlice';
 import { CommonActions } from '@react-navigation/native';
 
+// Import the new screens
+import TaskScreen from '../screens/TaskScreen';
+import MeetingScreen from '../screens/MeetingScreen';
+import ReportScreen from '../screens/ReportScreen';
+import NotificationScreen from '../screens/NotificationScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import ProjectDetailScreenNew from '../screens/Project/ProjectDetailScreen';
+
 type DrawerParamList = {
   Dashboard: undefined;
   Settings: undefined;
 };
 
+type RootStackParamList = {
+  Main: undefined;
+  TaskScreen: undefined;
+  MeetingScreen: undefined;
+  ReportScreen: undefined;
+  NotificationScreen: undefined;
+  SettingsScreen: undefined;
+  ProjectDetailScreenNew: { projectId: string };
+};
+
 const Drawer = createDrawerNavigator<DrawerParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const dispatch = useAppDispatch();
@@ -110,54 +130,78 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   );
 }
 
-export default function DrawerNavigator() {
+function MainDrawerNavigator() {
   const { isDark } = useTheme();
   return (
+    <Drawer.Navigator
+      drawerContent={props => <CustomDrawerContent {...props} />}
+      screenOptions={{
+        headerShown: false,
+        drawerActiveBackgroundColor: isDark ? '#28214b80' : '#dcd6ff60',
+        drawerActiveTintColor: isDark ? '#ae9cff' : '#4611f8',
+        drawerInactiveTintColor: isDark ? '#ae9cff' : '#6a60b8',
+        drawerLabelStyle: {
+          fontWeight: '600',
+          fontSize: 15,
+          color: isDark ? '#eae6ff' : '#211e40',
+        },
+        drawerStyle: {
+          backgroundColor: isDark ? '#181533' : '#fff',
+          width: 280,
+          borderTopRightRadius: 32,
+          borderBottomRightRadius: 32,
+          elevation: 15,
+          shadowColor: isDark ? '#2a2572' : '#4611f8',
+          shadowOpacity: isDark ? 0.35 : 0.2,
+          shadowRadius: 20,
+          shadowOffset: { width: 0, height: 8 },
+        },
+      }}
+    >
+      <Drawer.Screen
+        name="Dashboard"
+        component={BottomNavigator}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Icon name="dashboard" size={size} tintColor={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <Icon name="settings" size={size} tintColor={color} />
+          ),
+        }}
+      />
+    </Drawer.Navigator>
+  );
+}
+
+export default function DrawerNavigator() {
+  return (
     <RouteProtection requireApproval={true}>
-      <Drawer.Navigator
-        drawerContent={props => <CustomDrawerContent {...props} />}
+      <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          drawerActiveBackgroundColor: isDark ? '#28214b80' : '#dcd6ff60',
-          drawerActiveTintColor: isDark ? '#ae9cff' : '#4611f8',
-          drawerInactiveTintColor: isDark ? '#ae9cff' : '#6a60b8',
-          drawerLabelStyle: {
-            fontWeight: '600',
-            fontSize: 15,
-            color: isDark ? '#eae6ff' : '#211e40',
-          },
-          drawerStyle: {
-            backgroundColor: isDark ? '#181533' : '#fff',
-            width: 280,
-            borderTopRightRadius: 32,
-            borderBottomRightRadius: 32,
-            elevation: 15,
-            shadowColor: isDark ? '#2a2572' : '#4611f8',
-            shadowOpacity: isDark ? 0.35 : 0.2,
-            shadowRadius: 20,
-            shadowOffset: { width: 0, height: 8 },
-          },
         }}
       >
-        <Drawer.Screen
-          name="Dashboard"
-          component={BottomNavigator}
-          options={{
-            drawerIcon: ({ color, size }) => (
-              <Icon name="dashboard" size={size} tintColor={color} />
-            ),
-          }}
+        <Stack.Screen name="Main" component={MainDrawerNavigator} />
+        <Stack.Screen name="TaskScreen" component={TaskScreen} />
+        <Stack.Screen name="MeetingScreen" component={MeetingScreen} />
+        <Stack.Screen name="ReportScreen" component={ReportScreen} />
+        <Stack.Screen
+          name="NotificationScreen"
+          component={NotificationScreen}
         />
-        <Drawer.Screen
-          name="Settings"
-          component={BottomNavigator}
-          options={{
-            drawerIcon: ({ color, size }) => (
-              <Icon name="settings" size={size} tintColor={color} />
-            ),
-          }}
+        <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+        <Stack.Screen
+          name="ProjectDetailScreenNew"
+          component={ProjectDetailScreenNew}
         />
-      </Drawer.Navigator>
+      </Stack.Navigator>
     </RouteProtection>
   );
 }

@@ -1,22 +1,7 @@
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Project, ProjectComment, ProjectFile, SubTask } from '../../types';
-import {
-  getProjects,
-  getUserProjects,
-  getProjectById,
-  addProjectToFirestore,
-  updateProjectInFirestore,
-  deleteProjectFromFirestore,
-  addCommentToProject,
-  addSubTaskToProject,
-  updateSubTaskInProject,
-  deleteSubTaskFromProject,
-  addFileToProjectFiles,
-  addImageToProject,
-  removeFileFromProject,
-  removeImageFromProject
-} from '../../firebase/firestore';
+import firestoreService from '../../firebase/firestoreService';
 import { uploadFileToStorage } from '../../services/fileUpload';
 
 interface ProjectState {
@@ -54,7 +39,7 @@ export const fetchProjects = createAsyncThunk(
   'projects/fetchProjects',
   async (_, { rejectWithValue }) => {
     try {
-      const projects = await getProjects();
+      const projects = await firestoreService.getProjects();
       return projects;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch projects');
@@ -69,7 +54,7 @@ export const fetchUserProjects = createAsyncThunk(
   'projects/fetchUserProjects',
   async (userId: string, { rejectWithValue }) => {
     try {
-      const projects = await getUserProjects(userId);
+      const projects = await firestoreService.getProjects({ assignedTo: userId });
       return projects;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch user projects');
@@ -84,7 +69,7 @@ export const fetchProjectById = createAsyncThunk(
   'projects/fetchProjectById',
   async (projectId: string, { rejectWithValue }) => {
     try {
-      const project = await getProjectById(projectId);
+      const project = await firestoreService.getProject(projectId);
       if (!project) {
         throw new Error('Project not found');
       }
@@ -102,7 +87,7 @@ export const createProject = createAsyncThunk(
   'projects/createProject',
   async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
     try {
-      const newProject = await addProjectToFirestore(projectData);
+      const newProject = await firestoreService.createProject(projectData);
       return newProject;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to create project');
@@ -117,8 +102,8 @@ export const updateProjectAsync = createAsyncThunk(
   'projects/updateProject',
   async ({ projectId, updates }: { projectId: string; updates: Partial<Project> }, { rejectWithValue }) => {
     try {
-      await updateProjectInFirestore(projectId, updates);
-      const updatedProject = await getProjectById(projectId);
+      await firestoreService.updateProject(projectId, updates);
+      const updatedProject = await firestoreService.getProject(projectId);
       if (!updatedProject) {
         throw new Error('Failed to fetch updated project');
       }
@@ -136,7 +121,7 @@ export const deleteProjectAsync = createAsyncThunk(
   'projects/deleteProject',
   async (projectId: string, { rejectWithValue }) => {
     try {
-      await deleteProjectFromFirestore(projectId);
+      await firestoreService.deleteProject(projectId);
       return projectId;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to delete project');

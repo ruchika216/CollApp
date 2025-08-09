@@ -1,0 +1,278 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Allow read access to own data, and approved users can read other approved users
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId || 
+                      (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       resource.data.approved == true));
+      
+      // Allow user to create their own document during sign-up
+      // Simplified to avoid circular dependency during initial user creation
+      allow create: if isAuthenticated() && 
+                       request.auth.uid == userId;
+      
+      // Allow users to update their own profile
+      // Simplified rules to avoid circular dependency issues
+      allow update: if isAuthenticated() && request.auth.uid == userId ||
+                       // Admin can update any user
+                       (isAuthenticated() && 
+                        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Only admins can delete users (for rejecting pending approvals)
+      allow delete: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Projects collection
+    match /projects/{projectId} {
+      // Allow read access to approved users
+      allow read: if isAuthenticated() && 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+      
+      // Only admins can create projects
+      allow create: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+                       request.data.createdBy == request.auth.uid;
+      
+      // Admins can update any project, developers can update projects they're assigned to
+      allow update: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+                        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer' && 
+                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                         request.auth.uid in resource.data.assignedTo &&
+                         // Developers can only update specific fields
+                         request.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['description', 'files', 'images', 'comments', 
+                                    'subTasks', 'actualHours', 'progress', 'updatedAt'])));
+      
+      // Only admins can delete projects
+      allow delete: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Activities collection
+    match /activities/{activityId} {
+      // Allow read access to approved users who are in the relatedUsers array
+      allow read: if isAuthenticated() && 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                     request.auth.uid in resource.data.relatedUsers;
+      
+      // Allow approved users to create activities
+      allow create: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       request.data.userId == request.auth.uid;
+      
+      // Allow users to mark activities as read by updating readBy array
+      allow update: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       request.auth.uid in resource.data.relatedUsers &&
+                       // Only allow updating readBy field
+                       request.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
+                       request.auth.uid in request.data.readBy;
+      
+      // Only admins can delete activities
+      allow delete: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      // Allow read access to the notification recipient
+      allow read: if isAuthenticated() && 
+                     request.auth.uid == resource.data.userId;
+      
+      // Allow system/admin to create notifications
+      allow create: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Allow recipient to update their notifications (mark as read)
+      allow update: if isAuthenticated() && 
+                       request.auth.uid == resource.data.userId &&
+                       // Only allow updating the read status
+                       request.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      
+      // Allow user to delete their own notifications
+      allow delete: if isAuthenticated() && 
+                       request.auth.uid == resource.data.userId;
+    }
+
+    // Tasks collection
+    match /tasks/{taskId} {
+      // Allow read access to all approved users (both admins and developers)
+      allow read: if isAuthenticated() && 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+      
+      // Only admins can create tasks
+      allow create: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+                       request.data.createdBy == request.auth.uid;
+      
+      // Admins can update any task, assigned developers can update specific fields
+      allow update: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+                        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer' &&
+                         request.auth.uid in resource.data.assignedTo &&
+                         // Developer can only update these specific fields
+                         request.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['status', 'updatedAt', 'updatedBy', 'developerComment', 
+                                    'commentedAt', 'commentedBy', 'comments', 'lastCommentAt'])));
+      
+      // Only admins can delete tasks
+      allow delete: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Meetings collection
+    match /meetings/{meetingId} {
+      // Allow read access to approved users - more permissive for queries to work
+      allow read: if isAuthenticated() && 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+      
+      // Only admins can create meetings
+      allow create: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Only admins can update meetings
+      allow update: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Only admins can delete meetings
+      allow delete: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Reports collection
+    match /reports/{reportId} {
+      // Allow read access to approved users - more permissive for queries to work
+      allow read: if isAuthenticated() && 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+      
+      // Only admins can create reports
+      allow create: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Only admins can update reports
+      allow update: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      // Only admins can delete reports
+      allow delete: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Comments subcollection (if used separately)
+    match /comments/{commentId} {
+      // Allow read access to approved users
+      allow read: if isAuthenticated() && 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+      
+      // Allow approved users to create comments
+      allow create: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       request.data.userId == request.auth.uid;
+      
+      // Allow comment author or admin to update comments
+      allow update: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       (request.auth.uid == resource.data.userId || 
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Allow comment author or admin to delete comments
+      allow delete: if isAuthenticated() && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       (request.auth.uid == resource.data.userId || 
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+  }
+}
+
+// Storage Rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isApproved() {
+      return isAuthenticated() && 
+             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.approved == true;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.approved == true &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Project files and images
+    match /projects/{projectId}/{fileType}/{fileName} {
+      // Allow read access to approved users
+      allow read: if isApproved();
+      
+      // Allow write access to approved users for project files
+      // File size limit: 10MB for files, 5MB for images
+      allow write: if isApproved() && 
+                      (fileType == 'files' && request.resource.size < 10 * 1024 * 1024) ||
+                      (fileType == 'images' && request.resource.size < 5 * 1024 * 1024);
+      
+      // Allow delete access to admin or file uploader
+      allow delete: if isAdmin();
+    }
+
+    // User avatars
+    match /users/{userId}/avatar/{fileName} {
+      // Allow read access to approved users
+      allow read: if isApproved();
+      
+      // Allow write access to own avatar (max 2MB)
+      allow write: if isAuthenticated() && 
+                      request.auth.uid == userId &&
+                      request.resource.size < 2 * 1024 * 1024;
+      
+      // Allow delete access to own avatar or admin
+      allow delete: if isAuthenticated() && 
+                       (request.auth.uid == userId || isAdmin());
+    }
+  }
+}

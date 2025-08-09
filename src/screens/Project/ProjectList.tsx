@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -16,11 +15,18 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
-import { setProjects, deleteProject, setLoading } from '../../store/slices/projectSlice';
-import { getProjects, deleteProjectFromFirestore } from '../../firebase/firestore';
+import {
+  setProjects,
+  deleteProject,
+  setLoading,
+} from '../../store/slices/projectSlice';
+import {
+  getProjects,
+  deleteProjectFromFirestore,
+} from '../../firebase/firestore';
 import { Project } from '../../types';
 import Icon from '../../components/common/Icon';
-import ProjectForm from './ProjectForm';
+import ProjectForm from '../Admin/ProjectForm';
 
 const { width } = Dimensions.get('window');
 
@@ -29,7 +35,7 @@ const ProjectList = ({ navigation, route }: any) => {
   const dispatch = useAppDispatch();
   const projects = useAppSelector(state => state.projects.projects);
   const loading = useAppSelector(state => state.projects.loading);
-  
+
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,7 +83,7 @@ const ProjectList = ({ navigation, route }: any) => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -97,30 +103,43 @@ const ProjectList = ({ navigation, route }: any) => {
 
   const getStatusColor = (status: Project['status']) => {
     switch (status) {
-      case 'Pending': return colors.warning;
-      case 'Development': return colors.info;
-      case 'Review': return colors.secondary;
-      case 'Testing': return colors.warning;
-      case 'Done': return colors.success;
-      case 'Deployment': return colors.primary;
-      case 'Fixing Bug': return colors.error;
-      default: return colors.textSecondary;
+      case 'Pending':
+        return colors.warning;
+      case 'Development':
+        return colors.info;
+      case 'Review':
+        return colors.secondary;
+      case 'Testing':
+        return colors.warning;
+      case 'Done':
+        return colors.success;
+      case 'Deployment':
+        return colors.primary;
+      case 'Fixing Bug':
+        return colors.error;
+      default:
+        return colors.textSecondary;
     }
   };
 
   const getPriorityColor = (priority: Project['priority']) => {
     switch (priority) {
-      case 'Low': return colors.success;
-      case 'Medium': return colors.warning;
-      case 'High': return colors.error;
-      case 'Critical': return '#ff4757';
-      default: return colors.textSecondary;
+      case 'Low':
+        return colors.success;
+      case 'Medium':
+        return colors.warning;
+      case 'High':
+        return colors.error;
+      case 'Critical':
+        return '#ff4757';
+      default:
+        return colors.textSecondary;
     }
   };
 
   const filteredProjects = projects.filter(project => {
     if (!filter) return true;
-    
+
     switch (filter) {
       case 'active':
         return ['Development', 'Review', 'Testing'].includes(project.status);
@@ -141,39 +160,71 @@ const ProjectList = ({ navigation, route }: any) => {
     >
       <View style={styles.projectHeader}>
         <View style={styles.projectTitleRow}>
-          <Text style={[styles.projectTitle, { color: colors.text }]} numberOfLines={1}>
+          <Text
+            style={[styles.projectTitle, { color: colors.text }]}
+            numberOfLines={1}
+          >
             {project.title}
           </Text>
           <View style={styles.projectActions}>
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: `${colors.primary}20` }]}
+              style={[
+                styles.actionButton,
+                { backgroundColor: `${colors.primary}20` },
+              ]}
               onPress={() => handleEdit(project)}
             >
               <Icon name="edit" size={16} tintColor={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: `${colors.error}20` }]}
+              style={[
+                styles.actionButton,
+                { backgroundColor: `${colors.error}20` },
+              ]}
               onPress={() => handleDelete(project)}
             >
               <Icon name="delete" size={16} tintColor={colors.error} />
             </TouchableOpacity>
           </View>
         </View>
-        
-        <Text style={[styles.projectDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+
+        <Text
+          style={[styles.projectDescription, { color: colors.textSecondary }]}
+          numberOfLines={2}
+        >
           {project.description}
         </Text>
       </View>
 
       <View style={styles.projectMeta}>
         <View style={styles.badges}>
-          <View style={[styles.badge, { backgroundColor: `${getStatusColor(project.status)}20` }]}>
-            <Text style={[styles.badgeText, { color: getStatusColor(project.status) }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: `${getStatusColor(project.status)}20` },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: getStatusColor(project.status) },
+              ]}
+            >
               {project.status}
             </Text>
           </View>
-          <View style={[styles.badge, { backgroundColor: `${getPriorityColor(project.priority)}20` }]}>
-            <Text style={[styles.badgeText, { color: getPriorityColor(project.priority) }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: `${getPriorityColor(project.priority)}20` },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: getPriorityColor(project.priority) },
+              ]}
+            >
               {project.priority}
             </Text>
           </View>
@@ -186,7 +237,7 @@ const ProjectList = ({ navigation, route }: any) => {
               {project.assignedUser?.displayName || 'Unassigned'}
             </Text>
           </View>
-          
+
           <View style={styles.infoItem}>
             <Icon name="calendar" size={14} tintColor={colors.textSecondary} />
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
@@ -199,11 +250,19 @@ const ProjectList = ({ navigation, route }: any) => {
           <Text style={[styles.progressText, { color: colors.textSecondary }]}>
             Progress: {project.progress}%
           </Text>
-          <View style={[styles.progressBar, { backgroundColor: `${colors.primary}20` }]}>
+          <View
+            style={[
+              styles.progressBar,
+              { backgroundColor: `${colors.primary}20` },
+            ]}
+          >
             <View
               style={[
                 styles.progressFill,
-                { backgroundColor: colors.primary, width: `${project.progress}%` }
+                {
+                  backgroundColor: colors.primary,
+                  width: `${project.progress}%`,
+                },
               ]}
             />
           </View>
@@ -233,7 +292,7 @@ const ProjectList = ({ navigation, route }: any) => {
             <View style={styles.placeholder} />
           </View>
         </LinearGradient>
-        
+
         <View style={[styles.centerContent, { flex: 1 }]}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
@@ -247,7 +306,7 @@ const ProjectList = ({ navigation, route }: any) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-      
+
       <LinearGradient
         colors={gradients.primary}
         start={{ x: 0, y: 0 }}
@@ -262,10 +321,7 @@ const ProjectList = ({ navigation, route }: any) => {
             <Icon name="back" size={24} tintColor="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Projects</Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={handleAdd}
-          >
+          <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
             <Icon name="add" size={24} tintColor="#fff" />
           </TouchableOpacity>
         </View>
@@ -273,11 +329,23 @@ const ProjectList = ({ navigation, route }: any) => {
 
       <View style={styles.content}>
         {filteredProjects.length === 0 ? (
-          <View style={[styles.emptyContainer, { backgroundColor: colors.card }, shadows.sm]}>
+          <View
+            style={[
+              styles.emptyContainer,
+              { backgroundColor: colors.card },
+              shadows.sm,
+            ]}
+          >
             <Icon name="project" size={48} tintColor={colors.primary} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Projects Found</Text>
-            <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
-              {filter ? `No ${filter} projects at the moment.` : 'Start by creating your first project.'}
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              No Projects Found
+            </Text>
+            <Text
+              style={[styles.emptyMessage, { color: colors.textSecondary }]}
+            >
+              {filter
+                ? `No ${filter} projects at the moment.`
+                : 'Start by creating your first project.'}
             </Text>
             <TouchableOpacity
               style={[styles.createButton, { backgroundColor: colors.primary }]}

@@ -12,14 +12,42 @@ export const BRAND_COLORS = {
   secondary: '#9945ff',
   accent: '#8b5cf6',
   highlight: '#a855f7',
+  // Enhanced indigo and blue variants
+  indigo: '#4f46e5',
+  indigoDark: '#3730a3',
+  indigoLight: '#6366f1',
+  blue: '#3b82f6',
+  blueDark: '#1e40af',
+  blueLight: '#60a5fa',
+  sky: '#0ea5e9',
+  skyDark: '#0284c7',
+  skyLight: '#38bdf8',
+  // Additional modern colors
+  teal: '#14b8a6',
+  tealDark: '#0f766e',
+  tealLight: '#5eead4',
+  emerald: '#10b981',
+  emeraldDark: '#065f46',
+  emeraldLight: '#6ee7b7',
+  violet: '#8b5cf6',
+  violetDark: '#5b21b6',
+  violetLight: '#c4b5fd',
 } as const;
 
 // === SEMANTIC COLORS ===
 export const SEMANTIC_COLORS = {
-  success: '#22c55e',
+  success: '#10b981',
+  successLight: '#6ee7b7',
+  successDark: '#065f46',
   warning: '#f59e0b',
+  warningLight: '#fbbf24',
+  warningDark: '#92400e',
   error: '#ef4444',
+  errorLight: '#fca5a5',
+  errorDark: '#991b1b',
   info: '#06b6d4',
+  infoLight: '#67e8f9',
+  infoDark: '#0e7490',
 } as const;
 
 // === TYPOGRAPHY ===
@@ -71,6 +99,23 @@ export const SPACING = {
   '5xl': 48,
   '6xl': 56,
   '7xl': 64,
+  '8xl': 80,
+  '9xl': 96,
+  '10xl': 128,
+  // Component specific spacing
+  button: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginVertical: 8,
+  },
+  card: {
+    padding: 16,
+    margin: 12,
+  },
+  screen: {
+    horizontal: 20,
+    vertical: 16,
+  },
 } as const;
 
 // === BORDER RADIUS ===
@@ -164,9 +209,17 @@ export const LIGHT_THEME = {
 
   // Semantic colors
   success: SEMANTIC_COLORS.success,
+  successLight: SEMANTIC_COLORS.successLight,
+  successDark: SEMANTIC_COLORS.successDark,
   warning: SEMANTIC_COLORS.warning,
+  warningLight: SEMANTIC_COLORS.warningLight,
+  warningDark: SEMANTIC_COLORS.warningDark,
   error: SEMANTIC_COLORS.error,
+  errorLight: SEMANTIC_COLORS.errorLight,
+  errorDark: SEMANTIC_COLORS.errorDark,
   info: SEMANTIC_COLORS.info,
+  infoLight: SEMANTIC_COLORS.infoLight,
+  infoDark: SEMANTIC_COLORS.infoDark,
 
   // Background colors
   background: '#ffffff',
@@ -206,6 +259,16 @@ export const LIGHT_THEME = {
     secondary: [BRAND_COLORS.secondary, BRAND_COLORS.accent] as string[],
     background: ['#ffffff', '#fafafa'] as string[],
     overlay: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)'] as string[],
+    // Enhanced gradients with indigo and blue
+    indigo: [BRAND_COLORS.indigo, BRAND_COLORS.indigoLight] as string[],
+    indigoDeep: [BRAND_COLORS.indigoDark, BRAND_COLORS.indigo] as string[],
+    blue: [BRAND_COLORS.blue, BRAND_COLORS.blueLight] as string[],
+    blueDeep: [BRAND_COLORS.blueDark, BRAND_COLORS.blue] as string[],
+    sky: [BRAND_COLORS.sky, BRAND_COLORS.skyLight] as string[],
+    skyDeep: [BRAND_COLORS.skyDark, BRAND_COLORS.sky] as string[],
+    // Premium app name gradients
+    appName: [BRAND_COLORS.primary, BRAND_COLORS.indigo, BRAND_COLORS.blue] as string[],
+    appNameLight: [BRAND_COLORS.primaryLight, BRAND_COLORS.indigoLight, BRAND_COLORS.blueLight] as string[],
   },
 } as const;
 
@@ -218,11 +281,19 @@ export const DARK_THEME = {
   secondary: BRAND_COLORS.secondary,
   accent: BRAND_COLORS.accent,
 
-  // Semantic colors
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  info: '#06b6d4',
+  // Semantic colors  
+  success: SEMANTIC_COLORS.success,
+  successLight: SEMANTIC_COLORS.successLight,
+  successDark: SEMANTIC_COLORS.successDark,
+  warning: SEMANTIC_COLORS.warning,
+  warningLight: SEMANTIC_COLORS.warningLight,
+  warningDark: SEMANTIC_COLORS.warningDark,
+  error: SEMANTIC_COLORS.error,
+  errorLight: SEMANTIC_COLORS.errorLight,
+  errorDark: SEMANTIC_COLORS.errorDark,
+  info: SEMANTIC_COLORS.info,
+  infoLight: SEMANTIC_COLORS.infoLight,
+  infoDark: SEMANTIC_COLORS.infoDark,
 
   // Background colors
   background: '#0f172a',
@@ -262,6 +333,16 @@ export const DARK_THEME = {
     secondary: [BRAND_COLORS.secondary, BRAND_COLORS.accent] as string[],
     background: ['#0f172a', '#1e293b'] as string[],
     overlay: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)'] as string[],
+    // Enhanced gradients with indigo and blue
+    indigo: [BRAND_COLORS.indigoLight, BRAND_COLORS.indigo] as string[],
+    indigoDeep: [BRAND_COLORS.indigo, BRAND_COLORS.indigoDark] as string[],
+    blue: [BRAND_COLORS.blueLight, BRAND_COLORS.blue] as string[],
+    blueDeep: [BRAND_COLORS.blue, BRAND_COLORS.blueDark] as string[],
+    sky: [BRAND_COLORS.skyLight, BRAND_COLORS.sky] as string[],
+    skyDeep: [BRAND_COLORS.sky, BRAND_COLORS.skyDark] as string[],
+    // Premium app name gradients for dark mode
+    appName: [BRAND_COLORS.primaryLight, BRAND_COLORS.indigoLight, BRAND_COLORS.blueLight] as string[],
+    appNameLight: [BRAND_COLORS.highlight, BRAND_COLORS.indigoLight, BRAND_COLORS.skyLight] as string[],
   },
 } as const;
 

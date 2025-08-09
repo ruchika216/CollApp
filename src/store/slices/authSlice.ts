@@ -8,6 +8,7 @@ export interface AuthState {
   error: string | null;
   isFirstTime: boolean;
   onboardingCompleted: boolean;
+  approvalStatus: 'pending' | 'approved' | 'rejected' | null;
 }
 
 const initialState: AuthState = {
@@ -17,6 +18,7 @@ const initialState: AuthState = {
   error: null,
   isFirstTime: true,
   onboardingCompleted: false,
+  approvalStatus: null,
 };
 
 // Async thunks for authentication
@@ -82,11 +84,15 @@ const authSlice = createSlice({
     setIsFirstTime: (state, action: PayloadAction<boolean>) => {
       state.isFirstTime = action.payload;
     },
+    setApprovalStatus: (state, action: PayloadAction<'pending' | 'approved' | 'rejected' | null>) => {
+      state.approvalStatus = action.payload;
+    },
     resetAuth: (state) => {
       state.isAuthenticated = false;
       state.user = null;
       state.loading = false;
       state.error = null;
+      state.approvalStatus = null;
     },
   },
   extraReducers: (builder) => {
@@ -101,6 +107,7 @@ const authSlice = createSlice({
         state.user = action.payload;
         state.isAuthenticated = true;
         state.error = null;
+        state.approvalStatus = action.payload?.approved ? 'approved' : 'pending';
       })
       .addCase(signInWithGoogle.rejected, (state, action) => {
         state.loading = false;
@@ -145,6 +152,7 @@ export const {
   clearError,
   setOnboardingCompleted,
   setIsFirstTime,
+  setApprovalStatus,
   resetAuth,
 } = authSlice.actions;
 

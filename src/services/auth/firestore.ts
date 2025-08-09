@@ -38,10 +38,11 @@ export async function createOrUpdateUser(firebaseUser: FirebaseAuthTypes.User): 
         throw new Error('User data is corrupted');
       }
       
-      const updatedUser = {
+      const updatedUser: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
+        name: firebaseUser.displayName || firebaseUser.email || 'Unknown User',
         photoURL: firebaseUser.photoURL,
         providerId: firebaseUser.providerId,
         role: existingData.role,
@@ -49,13 +50,18 @@ export async function createOrUpdateUser(firebaseUser: FirebaseAuthTypes.User): 
         projects: existingData.projects || [],
         createdAt: existingData.createdAt,
         updatedAt: timestamp,
+        isOnline: true,
+        lastSeen: timestamp,
       };
       
       await userRef.update({
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
+        name: firebaseUser.displayName || firebaseUser.email || 'Unknown User',
         photoURL: firebaseUser.photoURL,
         updatedAt: timestamp,
+        isOnline: true,
+        lastSeen: timestamp,
       });
       
       return updatedUser;
@@ -68,6 +74,7 @@ export async function createOrUpdateUser(firebaseUser: FirebaseAuthTypes.User): 
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
+        name: firebaseUser.displayName || firebaseUser.email || 'Unknown User',
         photoURL: firebaseUser.photoURL,
         providerId: firebaseUser.providerId,
         role,
@@ -75,6 +82,8 @@ export async function createOrUpdateUser(firebaseUser: FirebaseAuthTypes.User): 
         projects: [],
         createdAt: timestamp,
         updatedAt: timestamp,
+        isOnline: true,
+        lastSeen: timestamp,
       };
       
       await userRef.set(newUser);
@@ -107,7 +116,7 @@ async function createNewUserNotification(user: User): Promise<void> {
       return notificationRef.set({
         id: notificationRef.id,
         title: 'New User Registration',
-        message: `${user.displayName || user.email} has registered and needs approval`,
+        message: `${user.name || user.email} has registered and needs approval`,
         type: 'info',
         userId: adminDoc.id,
         read: false,

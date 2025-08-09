@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -12,9 +13,9 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
-import { setUserProjects, setLoading } from '../../store/slices/projectSlice';
-import { getUserProjects } from '../../firebase/firestore';
+import { fetchUserProjects } from '../../store/slices/projectSlice';
 import Icon from '../../components/common/Icon';
+import NotificationButton from '../../components/common/NotificationButton';
 import { Project } from '../../types';
 import { getStatusColor, getPriorityColor } from '../../theme/themeUtils';
 import ThemeToggle from '../../components/common/ThemeToggle';
@@ -24,7 +25,7 @@ const { width } = Dimensions.get('window');
 const DeveloperDashboard = ({ navigation }: any) => {
   const { colors, gradients, shadows, isDark } = useTheme();
   const dispatch = useAppDispatch();
-  const user = useAppSelector(state => state.user.user);
+  const user = useAppSelector(state => state.auth.user);
   const userProjects = useAppSelector(state => state.projects.userProjects);
   const loading = useAppSelector(state => state.projects.loading);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,10 +33,10 @@ const DeveloperDashboard = ({ navigation }: any) => {
   const stats = useMemo(() => {
     const totalProjects = userProjects.length;
     const activeProjects = userProjects.filter(p => 
-      ['Development', 'Review', 'Testing'].includes(p.status)
+      ['In Progress', 'Review', 'Testing'].includes(p.status)
     ).length;
     const completedProjects = userProjects.filter(p => p.status === 'Done').length;
-    const pendingProjects = userProjects.filter(p => p.status === 'Pending').length;
+    const pendingProjects = userProjects.filter(p => p.status === 'To Do').length;
     const overdue = userProjects.filter(p => 
       new Date(p.endDate) < new Date() && p.status !== 'Done'
     ).length;
@@ -53,17 +54,22 @@ const DeveloperDashboard = ({ navigation }: any) => {
     loadUserProjects();
   }, [user]);
 
+  // Refresh data when screen comes into focus (after project updates)
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        loadUserProjects();
+      }
+    }, [user])
+  );
+
   const loadUserProjects = async () => {
     if (!user) return;
     
     try {
-      dispatch(setLoading(true));
-      const projects = await getUserProjects(user.uid);
-      dispatch(setUserProjects(projects));
+      await dispatch(fetchUserProjects(user.uid)).unwrap();
     } catch (error) {
       console.error('Error loading user projects:', error);
-    } finally {
-      dispatch(setLoading(false));
     }
   };
 
@@ -101,7 +107,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
   const ProjectCard = ({ project }: { project: Project }) => (
     <TouchableOpacity
       style={[styles.projectCard, { backgroundColor: colors.card }, shadows.sm]}
-      onPress={() => navigation.navigate('ProjectDetail', { projectId: project.id })}
+      onPress={() => navigation.navigate('ProjectDetailScreen', { projectId: project.id, project })}
       activeOpacity={0.7}
     >
       <View style={styles.projectHeader}>
@@ -177,12 +183,11 @@ const DeveloperDashboard = ({ navigation }: any) => {
           </View>
           <View style={styles.headerActions}>
             <ThemeToggle size={20} style={styles.themeToggle} />
-            <TouchableOpacity
-              style={styles.notificationButton}
-              onPress={() => navigation.navigate('Notification')}
-            >
-              <Icon name="notification" size={24} tintColor="#fff" />
-            </TouchableOpacity>
+            <NotificationButton
+              onPress={() => navigation.navigate('NotificationScreen')}
+              size={20}
+              tintColor="#fff"
+            />
           </View>
         </View>
       </LinearGradient>
@@ -199,7 +204,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
           <TouchableOpacity
             style={[styles.quickActionCard, { backgroundColor: colors.card }, shadows.sm]}
-            onPress={() => navigation.navigate('Projects', { screen: 'DeveloperProjects' })}
+            onPress={() => navigation.navigate('ProjectListScreen', { userSpecific: true })}
           >
             <LinearGradient
               colors={gradients.primary}
@@ -246,9 +251,9 @@ const DeveloperDashboard = ({ navigation }: any) => {
               icon="status"
             />
             <StatCard
-              title="Overdue"
-              value={stats.overdue}
-              color={colors.error}
+              title="To Do"
+              value={stats.pendingProjects}
+              color={colors.warning}
               icon="calendar"
             />
           </View>
@@ -260,7 +265,7 @@ const DeveloperDashboard = ({ navigation }: any) => {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Projects</Text>
             <TouchableOpacity
               style={[styles.viewAllButton, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('Projects', { screen: 'DeveloperProjects' })}
+              onPress={() => navigation.navigate('ProjectListScreen', { userSpecific: true })}
             >
               <Text style={styles.viewAllText}>View All</Text>
               <Icon name="arrow-right" size={16} tintColor="#fff" />

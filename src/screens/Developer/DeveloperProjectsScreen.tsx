@@ -30,6 +30,7 @@ import {
 } from '../../store/slices/projectSlice';
 import { validateFile } from '../../services/fileUpload';
 import Icon from '../../components/common/Icon';
+import NotificationButton from '../../components/common/NotificationButton';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -639,9 +640,11 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
             <Icon name="arrow-left" size={24} tintColor="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Projects</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Notification')} style={styles.notificationButton}>
-            <Icon name="notification" size={24} tintColor="#fff" />
-          </TouchableOpacity>
+          <NotificationButton
+            onPress={() => navigation.navigate('NotificationScreen')}
+            size={20}
+            tintColor="#fff"
+          />
         </View>
       </LinearGradient>
 
