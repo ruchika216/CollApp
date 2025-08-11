@@ -68,5 +68,12 @@
         </array>
     </dict>
 </array>
+<key>UIAppFonts</key>
+  <array>
+    <string>DynaPuff-Regular.ttf</string>
+    <string>DynaPuff-Medium.ttf</string>
+    <string>DynaPuff-SemiBold.ttf</string>
+    <string>DynaPuff-Bold.ttf</string>
+  </array>
 </dict>
 </plist>

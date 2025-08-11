@@ -9,6 +9,7 @@ import {
   Dimensions,
   StatusBar,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
@@ -87,27 +88,63 @@ const DeveloperDashboard = ({ navigation }: any) => {
 
   const StatCard = ({ title, value, color, icon, onPress }: any) => (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-      <LinearGradient
-        colors={[color, `${color}80`]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.statCard, shadows.md]}
-      >
-        <View style={styles.statContent}>
-          <View style={styles.statHeader}>
-            <Icon name={icon} size={20} tintColor="#fff" />
-            <Text style={styles.statValue}>{value}</Text>
+      <View style={[styles.statCard, shadows.md, {
+        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+        borderColor: isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(59, 130, 246, 0.2)',
+        borderWidth: 1,
+      }]}>
+        <LinearGradient
+          colors={[
+            isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(59, 130, 246, 0.1)', 
+            isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(147, 51, 234, 0.08)'
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.statCardGradient}
+        >
+          <View style={styles.statContent}>
+            <View style={styles.statHeader}>
+              <View style={[styles.statIconContainer, {
+                backgroundColor: isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(59, 130, 246, 0.2)',
+                borderColor: isDark ? 'rgba(99, 102, 241, 0.5)' : 'rgba(59, 130, 246, 0.3)',
+                borderWidth: 1,
+              }]}>
+                <Icon name={icon} size={18} tintColor={isDark ? '#818cf8' : '#3b82f6'} />
+              </View>
+              <Text style={[styles.statValue, {
+                color: isDark ? '#e0e7ff' : '#1e293b',
+                textShadowColor: isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(59, 130, 246, 0.2)',
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 2,
+              }]}>{value}</Text>
+            </View>
+            <Text style={[styles.statTitle, {
+              color: isDark ? '#c7d2fe' : '#475569'
+            }]}>{title}</Text>
           </View>
-          <Text style={styles.statTitle}>{title}</Text>
-        </View>
-      </LinearGradient>
+        </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 
   const ProjectCard = ({ project }: { project: Project }) => (
     <TouchableOpacity
-      style={[styles.projectCard, { backgroundColor: colors.card }, shadows.sm]}
-      onPress={() => navigation.navigate('ProjectDetailScreen', { projectId: project.id, project })}
+      style={[styles.projectCard, {
+        backgroundColor: isDark ? 'rgba(30, 41, 59, 0.8)' : 'rgba(248, 250, 252, 0.9)',
+        borderColor: isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(59, 130, 246, 0.15)',
+        borderWidth: 1,
+      }, shadows.sm]}
+      onPress={() => {
+        console.log('Navigating to project:', project.title, 'ID:', project.id);
+        
+        if (!project.id) {
+          console.error('ERROR: Project ID is missing!', project);
+          Alert.alert('Error', 'Project ID is missing. Cannot navigate to project details.');
+          return;
+        }
+        
+        navigation.navigate('ProjectDetailScreenNew', { projectId: project.id });
+      }}
       activeOpacity={0.7}
     >
       <View style={styles.projectHeader}>
@@ -120,11 +157,23 @@ const DeveloperDashboard = ({ navigation }: any) => {
           </Text>
         </View>
         <View style={styles.projectMeta}>
-          <View style={[styles.statusBadge, { backgroundColor: getProjectStatusColor(project.status) }]}>
-            <Text style={styles.statusText}>{project.status}</Text>
+          <View style={[styles.statusBadge, {
+            backgroundColor: isDark ? 'rgba(99, 102, 241, 0.25)' : 'rgba(59, 130, 246, 0.15)',
+            borderColor: isDark ? 'rgba(99, 102, 241, 0.4)' : 'rgba(59, 130, 246, 0.3)',
+            borderWidth: 1,
+          }]}>
+            <Text style={[styles.statusText, {
+              color: isDark ? '#818cf8' : '#3b82f6'
+            }]}>{project.status}</Text>
           </View>
-          <View style={[styles.priorityBadge, { backgroundColor: `${getProjectPriorityColor(project.priority)}20` }]}>
-            <Text style={[styles.priorityText, { color: getProjectPriorityColor(project.priority) }]}>
+          <View style={[styles.priorityBadge, {
+            backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(147, 51, 234, 0.1)',
+            borderColor: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(147, 51, 234, 0.2)',
+            borderWidth: 1,
+          }]}>
+            <Text style={[styles.priorityText, {
+              color: isDark ? '#c4b5fd' : '#7c3aed'
+            }]}>
               {project.priority}
             </Text>
           </View>
@@ -134,15 +183,28 @@ const DeveloperDashboard = ({ navigation }: any) => {
       <View style={styles.projectFooter}>
         <View style={styles.progressSection}>
           <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Progress</Text>
-          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-            <View 
+          <View style={[styles.progressBar, {
+            backgroundColor: isDark ? 'rgba(99, 102, 241, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+            borderColor: isDark ? 'rgba(99, 102, 241, 0.2)' : 'rgba(59, 130, 246, 0.15)',
+            borderWidth: 1,
+          }]}>
+            <LinearGradient
+              colors={[
+                isDark ? '#6366f1' : '#3b82f6',
+                isDark ? '#8b5cf6' : '#6366f1'
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={[
                 styles.progressFill, 
-                { backgroundColor: colors.primary, width: `${project.progress}%` }
+                { width: `${project.progress}%` }
               ]} 
             />
           </View>
-          <Text style={[styles.progressText, { color: colors.text }]}>{project.progress}%</Text>
+          <Text style={[styles.progressText, { 
+            color: isDark ? '#e0e7ff' : '#1e293b',
+            fontWeight: '700'
+          }]}>{project.progress}%</Text>
         </View>
         
         <View style={styles.dateSection}>
@@ -166,20 +228,43 @@ const DeveloperDashboard = ({ navigation }: any) => {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+    <View style={[styles.container, { 
+      backgroundColor: isDark 
+        ? 'rgba(15, 23, 42, 0.95)' 
+        : 'rgba(241, 245, 249, 0.98)' 
+    }]}>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor={isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(59, 130, 246, 0.8)'} 
+      />
       
       {/* Header */}
       <LinearGradient
-        colors={gradients.primary}
+        colors={isDark 
+          ? ['rgba(30, 41, 59, 0.95)', 'rgba(99, 102, 241, 0.2)', 'rgba(139, 92, 246, 0.15)']
+          : ['rgba(59, 130, 246, 0.8)', 'rgba(147, 51, 234, 0.7)', 'rgba(99, 102, 241, 0.9)']
+        }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.header}
+        style={[styles.header, {
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.3)',
+        }]}
       >
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.userName}>{user?.name || 'Developer'}</Text>
+            <Text style={[styles.welcomeText, {
+              color: isDark ? '#c7d2fe' : '#ffffff',
+              textShadowColor: isDark ? 'rgba(99, 102, 241, 0.5)' : 'rgba(0, 0, 0, 0.3)',
+              textShadowOffset: { width: 0, height: 1 },
+              textShadowRadius: 2,
+            }]}>Welcome back,</Text>
+            <Text style={[styles.userName, {
+              color: isDark ? '#e0e7ff' : '#ffffff',
+              textShadowColor: isDark ? 'rgba(99, 102, 241, 0.7)' : 'rgba(0, 0, 0, 0.4)',
+              textShadowOffset: { width: 0, height: 2 },
+              textShadowRadius: 4,
+            }]}>{user?.name || 'Developer'}</Text>
           </View>
           <View style={styles.headerActions}>
             <ThemeToggle size={20} style={styles.themeToggle} />
@@ -203,11 +288,18 @@ const DeveloperDashboard = ({ navigation }: any) => {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
           <TouchableOpacity
-            style={[styles.quickActionCard, { backgroundColor: colors.card }, shadows.sm]}
+            style={[styles.quickActionCard, {
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.9)' : 'rgba(248, 250, 252, 0.95)',
+              borderColor: isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(59, 130, 246, 0.2)',
+              borderWidth: 1,
+            }, shadows.sm]}
             onPress={() => navigation.navigate('ProjectListScreen', { userSpecific: true })}
           >
             <LinearGradient
-              colors={gradients.primary}
+              colors={[
+                isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(59, 130, 246, 0.15)',
+                isDark ? 'rgba(139, 92, 246, 0.25)' : 'rgba(147, 51, 234, 0.12)'
+              ]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.quickActionGradient}
@@ -216,13 +308,20 @@ const DeveloperDashboard = ({ navigation }: any) => {
                 <View style={styles.quickActionLeft}>
                   <Icon name="project" size={32} tintColor="#fff" />
                   <View style={styles.quickActionText}>
-                    <Text style={styles.quickActionTitle}>Manage Projects</Text>
-                    <Text style={styles.quickActionSubtitle}>
+                    <Text style={[styles.quickActionTitle, {
+                      color: isDark ? '#e0e7ff' : '#1e293b',
+                      textShadowColor: isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(59, 130, 246, 0.2)',
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 2,
+                    }]}>Manage Projects</Text>
+                    <Text style={[styles.quickActionSubtitle, {
+                      color: isDark ? '#c7d2fe' : '#475569'
+                    }]}>
                       View details, update status, add subtasks & comments
                     </Text>
                   </View>
                 </View>
-                <Icon name="arrow-right" size={20} tintColor="#fff" />
+                <Icon name="arrow-right" size={20} tintColor={isDark ? '#818cf8' : '#3b82f6'} />
               </View>
             </LinearGradient>
           </TouchableOpacity>
@@ -315,13 +414,11 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: 16,
-    color: '#fff',
     opacity: 0.9,
   },
   userName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginTop: 4,
   },
   headerActions: {
@@ -397,12 +494,10 @@ const styles = StyleSheet.create({
   quickActionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 4,
   },
   quickActionSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
     lineHeight: 18,
   },
   statsGrid: {
@@ -414,7 +509,17 @@ const styles = StyleSheet.create({
     width: (width - 50) / 2,
     marginBottom: 12,
     borderRadius: 16,
+    overflow: 'hidden',
+  },
+  statCardGradient: {
     padding: 16,
+  },
+  statIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statContent: {
     alignItems: 'flex-start',
@@ -429,12 +534,10 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
   },
   statTitle: {
     fontSize: 14,
-    color: '#fff',
-    opacity: 0.9,
+    fontWeight: '600',
   },
   projectCard: {
     padding: 16,
@@ -462,19 +565,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
   },
   statusText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#fff',
   },
   priorityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
   },
   priorityText: {
     fontSize: 12,
@@ -494,8 +596,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   progressBar: {
-    height: 6,
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 4,
   },

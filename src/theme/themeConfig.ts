@@ -1,40 +1,13 @@
-// =======================
-// CENTRALIZED THEME CONFIG
-// =======================
-// This is the SINGLE source of truth for all theme properties
-// Change colors, fonts, spacing, and other design tokens here
-
-// === BRAND COLORS ===
+// Brand Colors
 export const BRAND_COLORS = {
   primary: '#6a01f6',
   primaryDark: '#5a00d6',
   primaryLight: '#7d1aff',
   secondary: '#9945ff',
   accent: '#8b5cf6',
-  highlight: '#a855f7',
-  // Enhanced indigo and blue variants
-  indigo: '#4f46e5',
-  indigoDark: '#3730a3',
-  indigoLight: '#6366f1',
-  blue: '#3b82f6',
-  blueDark: '#1e40af',
-  blueLight: '#60a5fa',
-  sky: '#0ea5e9',
-  skyDark: '#0284c7',
-  skyLight: '#38bdf8',
-  // Additional modern colors
-  teal: '#14b8a6',
-  tealDark: '#0f766e',
-  tealLight: '#5eead4',
-  emerald: '#10b981',
-  emeraldDark: '#065f46',
-  emeraldLight: '#6ee7b7',
-  violet: '#8b5cf6',
-  violetDark: '#5b21b6',
-  violetLight: '#c4b5fd',
 } as const;
 
-// === SEMANTIC COLORS ===
+// Semantic Colors
 export const SEMANTIC_COLORS = {
   success: '#10b981',
   successLight: '#6ee7b7',
@@ -50,14 +23,45 @@ export const SEMANTIC_COLORS = {
   infoDark: '#0e7490',
 } as const;
 
-// === TYPOGRAPHY ===
+// Typography with DynaPuff fonts
 export const TYPOGRAPHY = {
   fontFamily: {
+    // System fonts (fallback)
     regular: 'System',
     medium: 'System',
     bold: 'System',
     light: 'System',
+
+    // DynaPuff fonts
+    dynaPuffRegular: 'DynaPuff-Regular',
+    dynaPuffMedium: 'DynaPuff-Medium',
+    dynaPuffSemiBold: 'DynaPuff-SemiBold',
+    dynaPuffBold: 'DynaPuff-Bold',
+
+    // DynaPuff fonts - iOS specific names
+    dynaPuffRegular:
+      Platform.OS === 'ios' ? 'DynaPuff-Regular' : 'DynaPuff-Regular',
+    dynaPuffMedium:
+      Platform.OS === 'ios' ? 'DynaPuff-Medium' : 'DynaPuff-Medium',
+    dynaPuffSemiBold:
+      Platform.OS === 'ios' ? 'DynaPuff-SemiBold' : 'DynaPuff-SemiBold',
+    dynaPuffBold: Platform.OS === 'ios' ? 'DynaPuff-Bold' : 'DynaPuff-Bold',
+
+    // Primary font choices
+    primary: Platform.OS === 'ios' ? 'DynaPuff-Regular' : 'DynaPuff-Regular',
+    primaryMedium:
+      Platform.OS === 'ios' ? 'DynaPuff-Medium' : 'DynaPuff-Medium',
+    primaryBold: Platform.OS === 'ios' ? 'DynaPuff-Bold' : 'DynaPuff-Bold',
+    secondary: 'System',
+
+    // Heading fonts
+    heading: Platform.OS === 'ios' ? 'DynaPuff-Bold' : 'DynaPuff-Bold',
+    subheading:
+      Platform.OS === 'ios' ? 'DynaPuff-SemiBold' : 'DynaPuff-SemiBold',
+    body: Platform.OS === 'ios' ? 'DynaPuff-Regular' : 'DynaPuff-Regular',
+    caption: 'System',
   },
+
   fontSize: {
     xs: 10,
     sm: 12,
@@ -86,7 +90,7 @@ export const TYPOGRAPHY = {
   },
 } as const;
 
-// === SPACING ===
+// Spacing
 export const SPACING = {
   xs: 4,
   sm: 8,
@@ -100,9 +104,8 @@ export const SPACING = {
   '6xl': 56,
   '7xl': 64,
   '8xl': 80,
-  '9xl': 96,
-  '10xl': 128,
-  // Component specific spacing
+
+  // Component spacing
   button: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -118,7 +121,7 @@ export const SPACING = {
   },
 } as const;
 
-// === BORDER RADIUS ===
+// Border Radius
 export const BORDER_RADIUS = {
   none: 0,
   xs: 4,
@@ -132,7 +135,7 @@ export const BORDER_RADIUS = {
   full: 9999,
 } as const;
 
-// === SHADOWS ===
+// Shadows
 export const SHADOWS = {
   none: {
     shadowColor: 'transparent',
@@ -169,16 +172,9 @@ export const SHADOWS = {
     shadowRadius: 16,
     elevation: 8,
   },
-  '2xl': {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 12,
-  },
 } as const;
 
-// === ICON SIZES ===
+// Icon Sizes
 export const ICON_SIZES = {
   xs: 12,
   sm: 16,
@@ -190,7 +186,7 @@ export const ICON_SIZES = {
   '3xl': 48,
 } as const;
 
-// === ANIMATION TIMING ===
+// Animation
 export const ANIMATION = {
   fast: 150,
   normal: 250,
@@ -198,7 +194,7 @@ export const ANIMATION = {
   slower: 600,
 } as const;
 
-// === LIGHT THEME ===
+// Light Theme
 export const LIGHT_THEME = {
   // Brand colors
   primary: BRAND_COLORS.primary,
@@ -233,7 +229,6 @@ export const LIGHT_THEME = {
   textSecondary: '#64748b',
   textLight: '#94a3b8',
   textOnPrimary: '#ffffff',
-  subtext: '#64748b', // Alias for textSecondary
 
   // Border colors
   border: '#e2e8f0',
@@ -257,31 +252,21 @@ export const LIGHT_THEME = {
   gradients: {
     primary: [BRAND_COLORS.primary, BRAND_COLORS.primaryLight] as string[],
     secondary: [BRAND_COLORS.secondary, BRAND_COLORS.accent] as string[],
-    background: ['#ffffff', '#fafafa'] as string[],
+    background: ['#ffffff', '#f8fafc'] as string[],
     overlay: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)'] as string[],
-    // Enhanced gradients with indigo and blue
-    indigo: [BRAND_COLORS.indigo, BRAND_COLORS.indigoLight] as string[],
-    indigoDeep: [BRAND_COLORS.indigoDark, BRAND_COLORS.indigo] as string[],
-    blue: [BRAND_COLORS.blue, BRAND_COLORS.blueLight] as string[],
-    blueDeep: [BRAND_COLORS.blueDark, BRAND_COLORS.blue] as string[],
-    sky: [BRAND_COLORS.sky, BRAND_COLORS.skyLight] as string[],
-    skyDeep: [BRAND_COLORS.skyDark, BRAND_COLORS.sky] as string[],
-    // Premium app name gradients
-    appName: [BRAND_COLORS.primary, BRAND_COLORS.indigo, BRAND_COLORS.blue] as string[],
-    appNameLight: [BRAND_COLORS.primaryLight, BRAND_COLORS.indigoLight, BRAND_COLORS.blueLight] as string[],
   },
 } as const;
 
-// === DARK THEME ===
+// Dark Theme
 export const DARK_THEME = {
   // Brand colors
   primary: BRAND_COLORS.primaryLight,
   primaryDark: BRAND_COLORS.primary,
-  primaryLight: BRAND_COLORS.highlight,
+  primaryLight: BRAND_COLORS.primaryLight,
   secondary: BRAND_COLORS.secondary,
   accent: BRAND_COLORS.accent,
 
-  // Semantic colors  
+  // Semantic colors
   success: SEMANTIC_COLORS.success,
   successLight: SEMANTIC_COLORS.successLight,
   successDark: SEMANTIC_COLORS.successDark,
@@ -307,7 +292,6 @@ export const DARK_THEME = {
   textSecondary: '#cbd5e1',
   textLight: '#94a3b8',
   textOnPrimary: '#ffffff',
-  subtext: '#cbd5e1', // Alias for textSecondary
 
   // Border colors
   border: '#475569',
@@ -329,24 +313,14 @@ export const DARK_THEME = {
 
   // Gradients
   gradients: {
-    primary: [BRAND_COLORS.primaryLight, BRAND_COLORS.highlight] as string[],
+    primary: [BRAND_COLORS.primaryLight, BRAND_COLORS.primary] as string[],
     secondary: [BRAND_COLORS.secondary, BRAND_COLORS.accent] as string[],
     background: ['#0f172a', '#1e293b'] as string[],
     overlay: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)'] as string[],
-    // Enhanced gradients with indigo and blue
-    indigo: [BRAND_COLORS.indigoLight, BRAND_COLORS.indigo] as string[],
-    indigoDeep: [BRAND_COLORS.indigo, BRAND_COLORS.indigoDark] as string[],
-    blue: [BRAND_COLORS.blueLight, BRAND_COLORS.blue] as string[],
-    blueDeep: [BRAND_COLORS.blue, BRAND_COLORS.blueDark] as string[],
-    sky: [BRAND_COLORS.skyLight, BRAND_COLORS.sky] as string[],
-    skyDeep: [BRAND_COLORS.sky, BRAND_COLORS.skyDark] as string[],
-    // Premium app name gradients for dark mode
-    appName: [BRAND_COLORS.primaryLight, BRAND_COLORS.indigoLight, BRAND_COLORS.blueLight] as string[],
-    appNameLight: [BRAND_COLORS.highlight, BRAND_COLORS.indigoLight, BRAND_COLORS.skyLight] as string[],
   },
 } as const;
 
-// === COMPLETE THEME OBJECT ===
+// Complete Theme Object
 export const COMPLETE_THEME = {
   light: {
     colors: LIGHT_THEME,
@@ -354,7 +328,6 @@ export const COMPLETE_THEME = {
     spacing: SPACING,
     borderRadius: BORDER_RADIUS,
     shadows: SHADOWS,
-    shadow: SHADOWS, // Alias for shadows
     iconSizes: ICON_SIZES,
     animation: ANIMATION,
   },
@@ -364,18 +337,17 @@ export const COMPLETE_THEME = {
     spacing: SPACING,
     borderRadius: BORDER_RADIUS,
     shadows: SHADOWS,
-    shadow: SHADOWS, // Alias for shadows
     iconSizes: ICON_SIZES,
     animation: ANIMATION,
   },
 } as const;
 
-// === TYPES ===
+// Types
 export type ThemeMode = 'light' | 'dark';
 export type Theme = typeof COMPLETE_THEME.light;
 export type ThemeColors = typeof LIGHT_THEME;
 export type IconSize = keyof typeof ICON_SIZES;
 
-// === EXPORTS ===
+// Exports
 export const themes = COMPLETE_THEME;
 export default COMPLETE_THEME;

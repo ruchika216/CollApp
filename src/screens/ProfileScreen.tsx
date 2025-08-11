@@ -16,6 +16,7 @@ import { fetchUserTasks } from '../store/slices/taskSlice';
 import { fetchUserProjects } from '../store/slices/projectSlice';
 import Icon from '../components/common/Icon';
 import { Task, Project } from '../types';
+import { ProjectHeader } from './Project/components';
 
 interface ProfileScreenProps {
   navigation: any;
@@ -29,7 +30,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const user = useAppSelector(state => state.auth.user);
   const userTasks = useAppSelector(state => state.tasks.userTasks);
   const userProjects = useAppSelector(state => state.projects.userProjects);
-  
+
   const [stats, setStats] = useState({
     totalTasks: 0,
     completedTasks: 0,
@@ -48,34 +49,34 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   useEffect(() => {
     // Calculate stats
     const totalTasks = userTasks.length;
-    const completedTasks = userTasks.filter(task => task.status === 'Done').length;
-    const activeTasks = userTasks.filter(task => task.status === 'In Progress').length;
+    const completedTasks = userTasks.filter(
+      task => task.status === 'Done',
+    ).length;
+    const activeTasks = userTasks.filter(
+      task => task.status === 'In Progress',
+    ).length;
     const totalProjects = userProjects.length;
 
     setStats({
       totalTasks,
-      completedTasks, 
+      completedTasks,
       activeTasks,
       totalProjects,
     });
   }, [userTasks, userProjects]);
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: () => {
-            dispatch(signOut());
-            navigation.navigate('Login');
-          },
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: () => {
+          dispatch(signOut());
+          navigation.navigate('Login');
         },
-      ]
-    );
+      },
+    ]);
   };
 
   if (!user) {
@@ -93,7 +94,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      {/* <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -104,22 +105,45 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <TouchableOpacity onPress={handleSignOut} style={styles.signOutButton}>
           <Icon name="logout" size={24} tintColor="#fff" />
         </TouchableOpacity>
-      </View>
+      </View> */}
+      <ProjectHeader
+        title="Profile"
+        subtitle={user.name || user.email}
+        onBack={() => navigation.goBack()}
+        onAddSubtask={handleSignOut} // or leave out if you don’t want add button
+        showAddButton={false}
+      />
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Profile Header */}
-        <View style={[styles.profileCard, { backgroundColor: colors.surface }, shadows.md]}>
+        <View
+          style={[
+            styles.profileCard,
+            { backgroundColor: colors.surface },
+            shadows.md,
+          ]}
+        >
           <View style={styles.avatarContainer}>
             {user.photoURL ? (
               <Image source={{ uri: user.photoURL }} style={styles.avatar} />
             ) : (
-              <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
+              <View
+                style={[
+                  styles.avatarPlaceholder,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
                 <Text style={styles.avatarText}>
                   {user.name?.charAt(0) || user.email?.charAt(0) || '?'}
                 </Text>
               </View>
             )}
-            <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
+            <View
+              style={[styles.statusDot, { backgroundColor: colors.success }]}
+            />
           </View>
 
           <Text style={[styles.userName, { color: colors.text }]}>
@@ -128,12 +152,29 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
             {user.email}
           </Text>
-          <View style={[styles.roleBadge, { backgroundColor: user.role === 'admin' ? colors.error : colors.primary }]}>
+          <View
+            style={[
+              styles.roleBadge,
+              {
+                backgroundColor:
+                  user.role === 'admin' ? colors.error : colors.primary,
+              },
+            ]}
+          >
             <Text style={styles.roleText}>
               {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
             </Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: user.approved ? colors.success : colors.warning }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: user.approved
+                  ? colors.success
+                  : colors.warning,
+              },
+            ]}
+          >
             <Text style={styles.statusText}>
               {user.approved ? 'Approved' : 'Pending Approval'}
             </Text>
@@ -142,80 +183,159 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: colors.surface }, shadows.sm]}>
+          <View
+            style={[
+              styles.statCard,
+              { backgroundColor: colors.surface },
+              shadows.sm,
+            ]}
+          >
             <Icon name="check" size={32} tintColor={colors.success} />
-            <Text style={[styles.statNumber, { color: colors.text }]}>{stats.completedTasks}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Completed Tasks</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>
+              {stats.completedTasks}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Completed Tasks
+            </Text>
           </View>
-          
-          <View style={[styles.statCard, { backgroundColor: colors.surface }, shadows.sm]}>
+
+          <View
+            style={[
+              styles.statCard,
+              { backgroundColor: colors.surface },
+              shadows.sm,
+            ]}
+          >
             <Icon name="time" size={32} tintColor={colors.primary} />
-            <Text style={[styles.statNumber, { color: colors.text }]}>{stats.activeTasks}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Active Tasks</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>
+              {stats.activeTasks}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Active Tasks
+            </Text>
           </View>
-          
-          <View style={[styles.statCard, { backgroundColor: colors.surface }, shadows.sm]}>
+
+          <View
+            style={[
+              styles.statCard,
+              { backgroundColor: colors.surface },
+              shadows.sm,
+            ]}
+          >
             <Icon name="project" size={32} tintColor={colors.warning} />
-            <Text style={[styles.statNumber, { color: colors.text }]}>{stats.totalProjects}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Projects</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>
+              {stats.totalProjects}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Projects
+            </Text>
           </View>
         </View>
 
         {/* Recent Activity Section */}
-        <View style={[styles.section, { backgroundColor: colors.surface }, shadows.sm]}>
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: colors.surface },
+            shadows.sm,
+          ]}
+        >
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Tasks</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Recent Tasks
+            </Text>
             <TouchableOpacity onPress={() => navigation.navigate('TaskScreen')}>
-              <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
+              <Text style={[styles.viewAllText, { color: colors.primary }]}>
+                View All
+              </Text>
             </TouchableOpacity>
           </View>
-          
-          {userTasks.slice(0, 3).map((task) => (
+
+          {userTasks.slice(0, 3).map(task => (
             <View key={task.id} style={styles.taskItem}>
               <View style={styles.taskInfo}>
-                <Text style={[styles.taskTitle, { color: colors.text }]} numberOfLines={1}>
+                <Text
+                  style={[styles.taskTitle, { color: colors.text }]}
+                  numberOfLines={1}
+                >
                   {task.title}
                 </Text>
-                <Text style={[styles.taskDescription, { color: colors.textSecondary }]} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.taskDescription,
+                    { color: colors.textSecondary },
+                  ]}
+                  numberOfLines={1}
+                >
                   {task.description}
                 </Text>
               </View>
-              <View style={[
-                styles.taskStatus,
-                { backgroundColor: getStatusColor(task.status) + '20' }
-              ]}>
-                <Text style={[styles.taskStatusText, { color: getStatusColor(task.status) }]}>
+              <View
+                style={[
+                  styles.taskStatus,
+                  { backgroundColor: getStatusColor(task.status) + '20' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.taskStatusText,
+                    { color: getStatusColor(task.status) },
+                  ]}
+                >
                   {task.status}
                 </Text>
               </View>
             </View>
           ))}
-          
+
           {userTasks.length === 0 && (
-            <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.emptyMessage, { color: colors.textSecondary }]}
+            >
               No tasks assigned to you
             </Text>
           )}
         </View>
 
         {/* Account Information */}
-        <View style={[styles.section, { backgroundColor: colors.surface }, shadows.sm]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Information</Text>
-          
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: colors.surface },
+            shadows.sm,
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Account Information
+          </Text>
+
           <View style={styles.infoItem}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>User ID</Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>{user.uid}</Text>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
+              User ID
+            </Text>
+            <Text style={[styles.infoValue, { color: colors.text }]}>
+              {user.uid}
+            </Text>
           </View>
-          
+
           <View style={styles.infoItem}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Account Status</Text>
-            <Text style={[styles.infoValue, { color: user.approved ? colors.success : colors.warning }]}>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
+              Account Status
+            </Text>
+            <Text
+              style={[
+                styles.infoValue,
+                { color: user.approved ? colors.success : colors.warning },
+              ]}
+            >
               {user.approved ? 'Active' : 'Pending Approval'}
             </Text>
           </View>
-          
+
           <View style={styles.infoItem}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Role</Text>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
+              Role
+            </Text>
             <Text style={[styles.infoValue, { color: colors.text }]}>
               {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}
             </Text>
@@ -230,11 +350,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   function getStatusColor(status: string) {
     switch (status) {
       case 'To Do':
-      case 'Pending': return colors.warning;
-      case 'In Progress': return colors.primary;
-      case 'Done': return colors.success;
-      case 'Testing': return colors.info;
-      default: return colors.textSecondary;
+      case 'Pending':
+        return colors.warning;
+      case 'In Progress':
+        return colors.primary;
+      case 'Done':
+        return colors.success;
+      case 'Testing':
+        return colors.info;
+      default:
+        return colors.textSecondary;
     }
   }
 };

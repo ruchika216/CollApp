@@ -126,7 +126,15 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
   };
 
   const handleProjectPress = (project: Project) => {
-    navigation.navigate('ProjectDetailScreen', { projectId: project.id, project });
+    console.log('Navigating to project:', project.title, 'ID:', project.id);
+    
+    if (!project.id) {
+      console.error('ERROR: Project ID is missing!', project);
+      Alert.alert('Error', 'Project ID is missing. Cannot navigate to project details.');
+      return;
+    }
+    
+    navigation.navigate('ProjectDetailScreenNew', { projectId: project.id });
   };
 
   const getStatusColor = (status: Project['status']) => {

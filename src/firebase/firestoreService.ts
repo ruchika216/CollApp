@@ -3,6 +3,15 @@ import storage from '@react-native-firebase/storage';
 import { COLLECTIONS, STORAGE_PATHS } from './firebaseConfig';
 import { User, Project, Activity, Notification, ProjectComment, SubTask, Task, Meeting, Report } from '../types';
 
+// Helper function to ensure document data includes the document ID
+function mapDocToData<T extends { id: string }>(doc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>): T {
+  const data = doc.data() as T;
+  return {
+    ...data,
+    id: doc.id, // Always ensure the document ID is included
+  };
+}
+
 class FirestoreService {
   // User operations
   async createUser(userData: Omit<User, 'createdAt' | 'updatedAt'>): Promise<User> {
@@ -39,7 +48,13 @@ class FirestoreService {
       .orderBy('createdAt', 'desc')
       .get();
 
-    return snapshot.docs.map(doc => doc.data() as User);
+    return snapshot.docs.map(doc => {
+        const data = doc.data() as User;
+        return {
+          ...data,
+          uid: data.uid || doc.id, // Users use uid as ID, fallback to doc.id
+        };
+      });
   }
 
   async getApprovedUsers(): Promise<User[]> {
@@ -96,7 +111,13 @@ class FirestoreService {
       .orderBy('createdAt', 'desc')
       .get();
 
-    return snapshot.docs.map(doc => doc.data() as User);
+    return snapshot.docs.map(doc => {
+        const data = doc.data() as User;
+        return {
+          ...data,
+          uid: data.uid || doc.id, // Users use uid as ID, fallback to doc.id
+        };
+      });
   }
 
   async approveUser(uid: string): Promise<void> {
@@ -158,9 +179,23 @@ class FirestoreService {
     const updateData = {
       ...updates,
       updatedAt: firestore.Timestamp.now().toDate().toISOString(),
+      updatedBy: auth().currentUser?.uid,
     };
 
-    await firestore().collection(COLLECTIONS.PROJECTS).doc(projectId).update(updateData);
+    console.log('Updating project with data:', updateData);
+    
+    try {
+      await firestore().collection(COLLECTIONS.PROJECTS).doc(projectId).update(updateData);
+      console.log('Project updated successfully');
+      
+      // If assignedTo field is updated, sync with users collection
+      if (updates.assignedTo && Array.isArray(updates.assignedTo)) {
+        await this.syncProjectWithUsers(projectId, updates.assignedTo);
+      }
+    } catch (error) {
+      console.error('Error updating project:', error);
+      throw error;
+    }
 
     // If status changed, create activity
     if (updates.status) {
@@ -183,8 +218,22 @@ class FirestoreService {
   }
 
   async getProject(projectId: string): Promise<Project | null> {
-    const doc = await firestore().collection(COLLECTIONS.PROJECTS).doc(projectId).get();
-    return doc.exists ? (doc.data() as Project) : null;
+    try {
+      const doc = await firestore().collection(COLLECTIONS.PROJECTS).doc(projectId).get();
+      
+      if (doc.exists) {
+        const data = doc.data() as Project;
+        return {
+          ...data,
+          id: doc.id, // Ensure the document ID is included
+        };
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching project from Firestore:', error);
+      throw error;
+    }
   }
 
   async getProjects(filters?: { assignedTo?: string }): Promise<Project[]> {
@@ -195,11 +244,37 @@ class FirestoreService {
     }
 
     const snapshot = await query.get();
-    return snapshot.docs.map(doc => doc.data() as Project);
+    return snapshot.docs.map(doc => mapDocToData<Project>(doc));
   }
 
   async deleteProject(projectId: string): Promise<void> {
     await firestore().collection(COLLECTIONS.PROJECTS).doc(projectId).delete();
+  }
+
+  async syncProjectWithUsers(projectId: string, assignedUserIds: string[]): Promise<void> {
+    try {
+      console.log('Syncing project with users:', projectId, assignedUserIds);
+      
+      // Update each user's document to include this project in their projects array
+      const updatePromises = assignedUserIds.map(async (userId) => {
+        try {
+          await firestore().collection(COLLECTIONS.USERS).doc(userId).update({
+            projects: firestore.FieldValue.arrayUnion(projectId),
+            updatedAt: firestore.Timestamp.now().toDate().toISOString(),
+          });
+          console.log(`Updated user ${userId} with project ${projectId}`);
+        } catch (error) {
+          console.warn(`Failed to update user ${userId}:`, error);
+          // Don't throw here, continue with other users
+        }
+      });
+
+      await Promise.all(updatePromises);
+      console.log('Finished syncing project with users');
+    } catch (error) {
+      console.error('Error syncing project with users:', error);
+      // Don't throw here, the main project update should still succeed
+    }
   }
 
   // Comment operations
@@ -298,7 +373,7 @@ class FirestoreService {
     }
 
     const snapshot = await query.get();
-    return snapshot.docs.map(doc => doc.data() as Activity);
+    return snapshot.docs.map(doc => mapDocToData<Activity>(doc));
   }
 
   // Notification operations
@@ -323,7 +398,7 @@ class FirestoreService {
       .orderBy('createdAt', 'desc')
       .get();
 
-    return snapshot.docs.map(doc => doc.data() as Notification);
+    return snapshot.docs.map(doc => mapDocToData<Notification>(doc));
   }
 
   async markNotificationAsRead(notificationId: string): Promise<void> {
@@ -480,7 +555,7 @@ class FirestoreService {
 
   async getTask(taskId: string): Promise<Task | null> {
     const doc = await firestore().collection(COLLECTIONS.TASKS).doc(taskId).get();
-    return doc.exists ? (doc.data() as Task) : null;
+    return doc.exists ? { ...doc.data() as Task, id: doc.id } : null;
   }
 
   async getTasks(): Promise<Task[]> {
@@ -490,7 +565,7 @@ class FirestoreService {
         .orderBy('createdAt', 'desc')
         .get();
 
-      return snapshot.docs.map(doc => doc.data() as Task);
+      return snapshot.docs.map(doc => mapDocToData<Task>(doc));
     } catch (error) {
       console.warn('Error fetching all tasks:', error);
       return [];
@@ -505,7 +580,7 @@ class FirestoreService {
         .orderBy('createdAt', 'desc')
         .get();
 
-      return snapshot.docs.map(doc => doc.data() as Task);
+      return snapshot.docs.map(doc => mapDocToData<Task>(doc));
     } catch (error) {
       console.warn('Error fetching user tasks:', error);
       return [];
@@ -527,7 +602,7 @@ class FirestoreService {
         .where('assignedTo', 'array-contains', userId)
         .get();
 
-      const tasks = snapshot.docs.map(doc => doc.data() as Task);
+      const tasks = snapshot.docs.map(doc => mapDocToData<Task>(doc));
       
       // Filter by date in memory
       const filteredTasks = tasks.filter(task => {
@@ -589,7 +664,7 @@ class FirestoreService {
 
   async getMeeting(meetingId: string): Promise<Meeting | null> {
     const doc = await firestore().collection(COLLECTIONS.MEETINGS).doc(meetingId).get();
-    return doc.exists ? (doc.data() as Meeting) : null;
+    return doc.exists ? { ...doc.data() as Meeting, id: doc.id } : null;
   }
 
   async getMeetings(): Promise<Meeting[]> {
@@ -599,7 +674,7 @@ class FirestoreService {
         .orderBy('date', 'asc')
         .get();
 
-      return snapshot.docs.map(doc => doc.data() as Meeting);
+      return snapshot.docs.map(doc => mapDocToData<Meeting>(doc));
     } catch (error) {
       console.warn('Error fetching all meetings:', error);
       return [];
@@ -608,13 +683,33 @@ class FirestoreService {
 
   async getMeetingsForUser(userId: string): Promise<Meeting[]> {
     try {
-      const snapshot = await firestore()
+      // Get meetings assigned to user
+      const userMeetingsQuery = firestore()
         .collection(COLLECTIONS.MEETINGS)
         .where('assignedTo', 'array-contains', userId)
-        .orderBy('date', 'asc')
-        .get();
+        .orderBy('startTime', 'asc');
 
-      return snapshot.docs.map(doc => doc.data() as Meeting);
+      // Get meetings assigned to all
+      const allMeetingsQuery = firestore()
+        .collection(COLLECTIONS.MEETINGS)
+        .where('isAssignedToAll', '==', true)
+        .orderBy('startTime', 'asc');
+
+      const [userSnapshot, allSnapshot] = await Promise.all([
+        userMeetingsQuery.get(),
+        allMeetingsQuery.get()
+      ]);
+
+      const userMeetings = userSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+      const allMeetings = allSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+
+      // Combine and deduplicate
+      const combinedMeetings = [...userMeetings, ...allMeetings];
+      const uniqueMeetings = combinedMeetings.filter((meeting, index, self) => 
+        index === self.findIndex(m => m.id === meeting.id)
+      );
+
+      return uniqueMeetings.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
     } catch (error) {
       console.warn('Error fetching user meetings:', error);
       return [];
@@ -629,17 +724,32 @@ class FirestoreService {
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
-      // Get all user meetings first, then filter by date in memory
-      // This avoids compound index requirement
-      const snapshot = await firestore()
+      // Get meetings assigned to user
+      const userMeetingsQuery = firestore()
         .collection(COLLECTIONS.MEETINGS)
-        .where('assignedTo', 'array-contains', userId)
-        .get();
+        .where('assignedTo', 'array-contains', userId);
 
-      const meetings = snapshot.docs.map(doc => doc.data() as Meeting);
+      // Get meetings assigned to all
+      const allMeetingsQuery = firestore()
+        .collection(COLLECTIONS.MEETINGS)
+        .where('isAssignedToAll', '==', true);
+
+      const [userSnapshot, allSnapshot] = await Promise.all([
+        userMeetingsQuery.get(),
+        allMeetingsQuery.get()
+      ]);
+
+      const userMeetings = userSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+      const allMeetings = allSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+
+      // Combine and deduplicate
+      const combinedMeetings = [...userMeetings, ...allMeetings];
+      const uniqueMeetings = combinedMeetings.filter((meeting, index, self) => 
+        index === self.findIndex(m => m.id === meeting.id)
+      );
       
       // Filter by date in memory
-      const filteredMeetings = meetings.filter(meeting => {
+      const filteredMeetings = uniqueMeetings.filter(meeting => {
         const meetingDate = new Date(meeting.date);
         return meetingDate >= startOfDay && meetingDate <= endOfDay;
       });
@@ -708,7 +818,7 @@ class FirestoreService {
 
   async getReport(reportId: string): Promise<Report | null> {
     const doc = await firestore().collection(COLLECTIONS.REPORTS).doc(reportId).get();
-    return doc.exists ? (doc.data() as Report) : null;
+    return doc.exists ? { ...doc.data() as Report, id: doc.id } : null;
   }
 
   async getReports(): Promise<Report[]> {
@@ -717,45 +827,90 @@ class FirestoreService {
       .orderBy('createdAt', 'desc')
       .get();
 
-    return snapshot.docs.map(doc => doc.data() as Report);
+    return snapshot.docs.map(doc => mapDocToData<Report>(doc));
   }
 
   async getReportsForUser(userId: string): Promise<Report[]> {
-    const snapshot = await firestore()
-      .collection(COLLECTIONS.REPORTS)
-      .where('assignedTo', 'array-contains', userId)
-      .orderBy('createdAt', 'desc')
-      .get();
+    try {
+      // Get reports assigned to user
+      const userReportsQuery = firestore()
+        .collection(COLLECTIONS.REPORTS)
+        .where('assignedTo', 'array-contains', userId)
+        .orderBy('createdAt', 'desc');
 
-    return snapshot.docs.map(doc => doc.data() as Report);
+      // Get reports assigned to all
+      const allReportsQuery = firestore()
+        .collection(COLLECTIONS.REPORTS)
+        .where('isAssignedToAll', '==', true)
+        .orderBy('createdAt', 'desc');
+
+      const [userSnapshot, allSnapshot] = await Promise.all([
+        userReportsQuery.get(),
+        allReportsQuery.get()
+      ]);
+
+      const userReports = userSnapshot.docs.map(doc => mapDocToData<Report>(doc));
+      const allReports = allSnapshot.docs.map(doc => mapDocToData<Report>(doc));
+
+      // Combine and deduplicate
+      const combinedReports = [...userReports, ...allReports];
+      const uniqueReports = combinedReports.filter((report, index, self) => 
+        index === self.findIndex(r => r.id === report.id)
+      );
+
+      return uniqueReports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch (error) {
+      console.warn('Error fetching user reports:', error);
+      return [];
+    }
   }
 
   async getReportsByDate(userId: string, date: string): Promise<Report[]> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    try {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
 
-    // Get all user reports first, then filter by date in memory
-    // This avoids compound index requirement
-    const snapshot = await firestore()
-      .collection(COLLECTIONS.REPORTS)
-      .where('assignedTo', 'array-contains', userId)
-      .get();
+      // Get reports assigned to user
+      const userReportsQuery = firestore()
+        .collection(COLLECTIONS.REPORTS)
+        .where('assignedTo', 'array-contains', userId);
 
-    const reports = snapshot.docs.map(doc => doc.data() as Report);
-    
-    // Filter by date in memory
-    const filteredReports = reports.filter(report => {
-      const reportDate = new Date(report.startDate);
-      return reportDate >= startOfDay && reportDate <= endOfDay;
-    });
+      // Get reports assigned to all
+      const allReportsQuery = firestore()
+        .collection(COLLECTIONS.REPORTS)
+        .where('isAssignedToAll', '==', true);
 
-    // Sort by startDate
-    filteredReports.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+      const [userSnapshot, allSnapshot] = await Promise.all([
+        userReportsQuery.get(),
+        allReportsQuery.get()
+      ]);
 
-    return filteredReports;
+      const userReports = userSnapshot.docs.map(doc => mapDocToData<Report>(doc));
+      const allReports = allSnapshot.docs.map(doc => mapDocToData<Report>(doc));
+
+      // Combine and deduplicate
+      const combinedReports = [...userReports, ...allReports];
+      const uniqueReports = combinedReports.filter((report, index, self) => 
+        index === self.findIndex(r => r.id === report.id)
+      );
+      
+      // Filter by date in memory
+      const filteredReports = uniqueReports.filter(report => {
+        const reportDate = new Date(report.dueDate); // Changed from startDate to dueDate as reports use dueDate
+        return reportDate >= startOfDay && reportDate <= endOfDay;
+      });
+
+      // Sort by dueDate
+      filteredReports.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+
+      return filteredReports;
+    } catch (error) {
+      console.warn('Error fetching reports by date:', error);
+      return [];
+    }
   }
 
   async deleteReport(reportId: string): Promise<void> {
@@ -771,7 +926,7 @@ class FirestoreService {
     }
 
     return query.onSnapshot(snapshot => {
-      const projects = snapshot.docs.map(doc => doc.data() as Project);
+      const projects = snapshot.docs.map(doc => mapDocToData<Project>(doc));
       callback(projects);
     });
   }
@@ -787,7 +942,7 @@ class FirestoreService {
     }
 
     return query.onSnapshot(snapshot => {
-      const activities = snapshot.docs.map(doc => doc.data() as Activity);
+      const activities = snapshot.docs.map(doc => mapDocToData<Activity>(doc));
       callback(activities);
     });
   }
@@ -798,7 +953,7 @@ class FirestoreService {
       .where('userId', '==', userId)
       .orderBy('createdAt', 'desc')
       .onSnapshot(snapshot => {
-        const notifications = snapshot.docs.map(doc => doc.data() as Notification);
+        const notifications = snapshot.docs.map(doc => mapDocToData<Notification>(doc));
         callback(notifications);
       });
   }
@@ -809,7 +964,7 @@ class FirestoreService {
       .collection(COLLECTIONS.TASKS)
       .orderBy('createdAt', 'desc')
       .onSnapshot(snapshot => {
-        const tasks = snapshot.docs.map(doc => doc.data() as Task);
+        const tasks = snapshot.docs.map(doc => mapDocToData<Task>(doc));
         callback(tasks);
       });
   }
@@ -820,7 +975,7 @@ class FirestoreService {
       .where('assignedTo', 'array-contains', userId)
       .orderBy('createdAt', 'desc')
       .onSnapshot(snapshot => {
-        const tasks = snapshot.docs.map(doc => doc.data() as Task);
+        const tasks = snapshot.docs.map(doc => mapDocToData<Task>(doc));
         callback(tasks);
       });
   }
@@ -853,8 +1008,8 @@ class FirestoreService {
         allMeetingsQuery.get()
       ]);
 
-      const userMeetings = userSnapshot.docs.map(doc => doc.data() as Meeting);
-      const allMeetings = allSnapshot.docs.map(doc => doc.data() as Meeting);
+      const userMeetings = userSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+      const allMeetings = allSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
 
       // Combine and deduplicate
       const allUpcomingMeetings = [...userMeetings, ...allMeetings];
@@ -890,8 +1045,8 @@ class FirestoreService {
         allMeetingsQuery.get()
       ]);
 
-      const userMeetings = userSnapshot.docs.map(doc => doc.data() as Meeting);
-      const allMeetings = allSnapshot.docs.map(doc => doc.data() as Meeting);
+      const userMeetings = userSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+      const allMeetings = allSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
 
       // Combine and deduplicate
       const combinedMeetings = [...userMeetings, ...allMeetings];
@@ -921,7 +1076,7 @@ class FirestoreService {
       .orderBy('startTime', 'asc')
       .onSnapshot(
         snapshot => {
-          const allMeetings = snapshot.docs.map(doc => doc.data() as Meeting);
+          const allMeetings = snapshot.docs.map(doc => mapDocToData<Meeting>(doc));
           
           // Filter meetings for the user (assigned to user OR assigned to all)
           const userMeetings = allMeetings.filter(meeting => 

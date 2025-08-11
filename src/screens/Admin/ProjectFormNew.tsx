@@ -27,12 +27,20 @@ import Icon from '../../components/common/Icon';
 import firestoreService from '../../firebase/firestoreService';
 
 interface ProjectFormProps {
-  project?: Project | null;
-  onClose: () => void;
-  navigation?: any;
+  route: {
+    params: {
+      project?: Project | null;
+    };
+  };
+  navigation: any;
 }
 
-const ProjectFormNew: React.FC<ProjectFormProps> = ({ project, onClose, navigation }) => {
+const ProjectFormNew: React.FC<ProjectFormProps> = ({ route, navigation }) => {
+  const { project } = route.params || {};
+  
+  const onClose = () => {
+    navigation.goBack();
+  };
   const dispatch = useAppDispatch();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -56,6 +64,8 @@ const ProjectFormNew: React.FC<ProjectFormProps> = ({ project, onClose, navigati
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -275,6 +285,40 @@ const ProjectFormNew: React.FC<ProjectFormProps> = ({ project, onClose, navigati
   const statusOptions: Project['status'][] = ['To Do', 'In Progress', 'Review', 'Testing', 'Done', 'Deployment'];
   const categoryOptions = ['Web Development', 'Mobile App', 'UI/UX Design', 'Backend', 'DevOps', 'Testing', 'Research', 'Bug Fix', 'Feature', 'Other'];
 
+  const getStatusColor = (status: Project['status']) => {
+    switch (status) {
+      case 'To Do':
+        return theme.colors.warning;
+      case 'In Progress':
+        return theme.colors.primary;
+      case 'Done':
+        return theme.colors.success;
+      case 'Testing':
+        return theme.colors.info;
+      case 'Review':
+        return '#9C27B0';
+      case 'Deployment':
+        return '#FF5722';
+      default:
+        return theme.colors.textSecondary;
+    }
+  };
+
+  const getPriorityColor = (priority: Project['priority']) => {
+    switch (priority) {
+      case 'Critical':
+        return '#D32F2F';
+      case 'High':
+        return '#F57C00';
+      case 'Medium':
+        return '#1976D2';
+      case 'Low':
+        return '#388E3C';
+      default:
+        return theme.colors.textSecondary;
+    }
+  };
+
   const getAssignedUserNames = () => {
     const assignedUsers = users.filter(user => assignedTo.includes(user.uid));
     return assignedUsers.map(user => user.name || user.email).join(', ');
@@ -339,7 +383,7 @@ const ProjectFormNew: React.FC<ProjectFormProps> = ({ project, onClose, navigati
               <Text style={styles.assignButtonText}>
                 {assignedTo.length === 0 ? 'Select Developers' : getAssignedUserNames()}
               </Text>
-              <Icon name="chevron-down" size={20} color={theme.colors.textSecondary} />
+              <Icon name="arrow-down" size={20} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -363,16 +407,23 @@ const ProjectFormNew: React.FC<ProjectFormProps> = ({ project, onClose, navigati
           {/* Priority */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Priority</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={priority}
-                onValueChange={setPriority}
-                style={styles.picker}
+            <View style={styles.modernDropdownContainer}>
+              <TouchableOpacity 
+                style={[
+                  styles.modernDropdownButton,
+                  { backgroundColor: getPriorityColor(priority) }
+                ]}
+                onPress={() => setShowPriorityDropdown(true)}
               >
-                {priorityOptions.map(option => (
-                  <Picker.Item key={option} label={option} value={option} />
-                ))}
-              </Picker>
+                <View style={styles.modernDropdownContent}>
+                  <View style={[
+                    styles.priorityIndicator,
+                    { backgroundColor: getPriorityColor(priority) }
+                  ]} />
+                  <Text style={styles.modernDropdownText}>{priority}</Text>
+                  <Icon name="arrow-down" size={20} color="#fff" />
+                </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -380,16 +431,23 @@ const ProjectFormNew: React.FC<ProjectFormProps> = ({ project, onClose, navigati
           {project && (
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Status</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={status}
-                  onValueChange={setStatus}
-                  style={styles.picker}
+              <View style={styles.modernDropdownContainer}>
+                <TouchableOpacity 
+                  style={[
+                    styles.modernDropdownButton,
+                    { backgroundColor: getStatusColor(status) }
+                  ]}
+                  onPress={() => setShowStatusDropdown(true)}
                 >
-                  {statusOptions.map(option => (
-                    <Picker.Item key={option} label={option} value={option} />
-                  ))}
-                </Picker>
+                  <View style={styles.modernDropdownContent}>
+                    <View style={[
+                      styles.statusIndicator,
+                      { backgroundColor: getStatusColor(status) }
+                    ]} />
+                    <Text style={styles.modernDropdownText}>{status}</Text>
+                    <Icon name="arrow-down" size={20} color="#fff" />
+                  </View>
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -454,7 +512,7 @@ const ProjectFormNew: React.FC<ProjectFormProps> = ({ project, onClose, navigati
               style={styles.uploadButton}
               onPress={handleFileUpload}
             >
-              <Icon name="upload" size={24} color={theme.colors.primary} />
+              <Icon name="add" size={24} color={theme.colors.primary} />
               <Text style={styles.uploadButtonText}>Upload Files</Text>
             </TouchableOpacity>
           </View>
@@ -560,6 +618,94 @@ const ProjectFormNew: React.FC<ProjectFormProps> = ({ project, onClose, navigati
           }}
         />
       )}
+
+      {/* Priority Selection Modal */}
+      <Modal
+        visible={showPriorityDropdown}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPriorityDropdown(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPriorityDropdown(false)}
+        >
+          <View style={styles.dropdownModalContainer}>
+            <Text style={styles.dropdownModalTitle}>Select Priority</Text>
+            {priorityOptions.map(option => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.dropdownModalOption,
+                  priority === option && styles.dropdownModalOptionSelected
+                ]}
+                onPress={() => {
+                  setPriority(option);
+                  setShowPriorityDropdown(false);
+                }}
+              >
+                <View style={[
+                  styles.priorityIndicator,
+                  { backgroundColor: getPriorityColor(option) }
+                ]} />
+                <Text style={[
+                  styles.dropdownModalOptionText,
+                  priority === option && { color: getPriorityColor(option), fontWeight: '600' }
+                ]}>{option}</Text>
+                {priority === option && (
+                  <Icon name="check" size={16} color={getPriorityColor(option)} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Status Selection Modal */}
+      {project && (
+        <Modal
+          visible={showStatusDropdown}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowStatusDropdown(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowStatusDropdown(false)}
+          >
+            <View style={styles.dropdownModalContainer}>
+              <Text style={styles.dropdownModalTitle}>Select Status</Text>
+              {statusOptions.map(option => (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.dropdownModalOption,
+                    status === option && styles.dropdownModalOptionSelected
+                  ]}
+                  onPress={() => {
+                    setStatus(option);
+                    setShowStatusDropdown(false);
+                  }}
+                >
+                  <View style={[
+                    styles.statusIndicator,
+                    { backgroundColor: getStatusColor(option) }
+                  ]} />
+                  <Text style={[
+                    styles.dropdownModalOptionText,
+                    status === option && { color: getStatusColor(option), fontWeight: '600' }
+                  ]}>{option}</Text>
+                  {status === option && (
+                    <Icon name="check" size={16} color={getStatusColor(option)} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -664,6 +810,89 @@ const getStyles = (theme: any) =>
     picker: {
       height: 50,
       color: theme.colors.text,
+    },
+    
+    // Modern Dropdown Styles
+    modernDropdownContainer: {
+      position: 'relative',
+    },
+    modernDropdownButton: {
+      borderRadius: 12,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
+    },
+    modernDropdownContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    modernDropdownText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#fff',
+      flex: 1,
+      marginLeft: 12,
+    },
+    modernDropdownOptions: {
+      position: 'absolute',
+      top: 56,
+      left: 0,
+      right: 0,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      zIndex: 1000,
+      maxHeight: 200,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 8,
+        },
+      }),
+    },
+    modernDropdownOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    modernDropdownOptionSelected: {
+      backgroundColor: theme.colors.primary + '20',
+    },
+    modernDropdownOptionText: {
+      flex: 1,
+      fontSize: 16,
+      color: theme.colors.text,
+      marginLeft: 12,
+    },
+    priorityIndicator: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+    },
+    statusIndicator: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
     },
     dateRow: {
       flexDirection: 'row',
@@ -830,6 +1059,57 @@ const getStyles = (theme: any) =>
       color: '#fff',
       fontSize: 16,
       fontWeight: '600',
+    },
+    
+    // Dropdown Modal Styles
+    dropdownModalContainer: {
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 20,
+      borderRadius: 16,
+      padding: 16,
+      position: 'absolute',
+      bottom: 100,
+      left: 0,
+      right: 0,
+      maxHeight: 300,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.3,
+          shadowRadius: 16,
+        },
+        android: {
+          elevation: 16,
+        },
+      }),
+    },
+    dropdownModalTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 16,
+      textAlign: 'center',
+    },
+    dropdownModalOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 8,
+      marginBottom: 8,
+      backgroundColor: theme.colors.background,
+    },
+    dropdownModalOptionSelected: {
+      backgroundColor: theme.colors.primary + '20',
+      borderWidth: 1,
+      borderColor: theme.colors.primary + '50',
+    },
+    dropdownModalOptionText: {
+      flex: 1,
+      fontSize: 16,
+      color: theme.colors.text,
+      marginLeft: 12,
     },
   });
 

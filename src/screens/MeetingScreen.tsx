@@ -19,6 +19,8 @@ import { Meeting, User } from '../types';
 import firestoreService from '../firebase/firestoreService';
 import Icon from '../components/common/Icon';
 import Dropdown from '../components/common/Dropdown';
+import CustomChips from '../components/common/CustomChips';
+import MeetingCard from '../components/meetings/MeetingCard';
 
 const { width } = Dimensions.get('window');
 
@@ -48,9 +50,9 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
     agenda: '',
     date: new Date().toISOString().split('T')[0],
     time: '10:00',
-    type: 'Group' as 'Individual' | 'Group',
-    assignedTo: [] as string[],
-    assignedUser: '', // Single assignee
+    type: 'Individual' as 'Individual' | 'Team' | 'All Hands' | 'Project Review' | 'Client Meeting' | 'Training',
+    assignmentType: 'individual' as 'individual' | 'all',
+    assignedTo: [] as string[], // Multiple users when assignmentType is 'individual'
   });
 
   const isAdmin = user?.role === 'admin';
@@ -97,9 +99,20 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
   const generateDateRange = () => {
     const dates = [];
     const today = new Date();
+    const todayString = today.toISOString().split('T')[0];
     
-    // Generate 30 days: 15 before today, today, and 14 after today
-    for (let i = -15; i < 15; i++) {
+    // Start with today's date
+    dates.push(todayString);
+    
+    // Add future dates (next 20 days)
+    for (let i = 1; i <= 20; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date.toISOString().split('T')[0]);
+    }
+    
+    // Add past dates (previous 10 days) at the end
+    for (let i = -10; i < 0; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push(date.toISOString().split('T')[0]);
@@ -128,15 +141,15 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
   const openModal = (meeting?: Meeting) => {
     if (meeting) {
       setSelectedMeeting(meeting);
-      const meetingDate = new Date(meeting.date);
+      const meetingDate = new Date(meeting.startTime);
       setMeetingForm({
         title: meeting.title,
         agenda: meeting.agenda,
         date: meetingDate.toISOString().split('T')[0],
         time: meetingDate.toTimeString().slice(0, 5),
         type: meeting.type,
-        assignedTo: meeting.assignedTo,
-        assignedUser: meeting.assignedTo.length > 0 ? meeting.assignedTo[0] : '', // Use first assignee as single assignee
+        assignmentType: meeting.isAssignedToAll ? 'all' : 'individual',
+        assignedTo: meeting.isAssignedToAll ? [] : meeting.assignedTo,
       });
     } else {
       setSelectedMeeting(null);
@@ -151,9 +164,9 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
       agenda: '',
       date: selectedDate,
       time: '10:00',
-      type: 'Group',
+      type: 'Individual',
+      assignmentType: 'individual',
       assignedTo: [],
-      assignedUser: '',
     });
   };
 
@@ -162,23 +175,45 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
     return user?.name || user?.email?.split('@')[0] || 'Unknown User';
   };
 
+  const handleUserSelectionChange = (selectedUsers: string[]) => {
+    setMeetingForm({ ...meetingForm, assignedTo: selectedUsers });
+  };
+
   const handleSubmit = async () => {
-    if (!meetingForm.title.trim() || !meetingForm.agenda.trim() || !meetingForm.assignedUser.trim()) {
-      Alert.alert('Error', 'Please fill all required fields and assign to a user');
+    if (!meetingForm.title.trim() || !meetingForm.agenda.trim()) {
+      Alert.alert('Error', 'Please fill all required fields');
       return;
     }
 
-    if (!isAdmin) {
-      Alert.alert('Error', 'Only admins can create/edit meetings');
+    if (meetingForm.assignmentType === 'individual' && meetingForm.assignedTo.length === 0) {
+      Alert.alert('Error', 'Please select at least one user to assign the meeting to');
+      return;
+    }
+
+    if (!isAdmin && user?.role !== 'developer') {
+      Alert.alert('Error', 'Only admins and developers can create/edit meetings');
       return;
     }
 
     try {
       const meetingDateTime = new Date(`${meetingForm.date}T${meetingForm.time}:00`);
+      
+      // Determine assignment based on type
+      const isAssignedToAll = meetingForm.assignmentType === 'all';
+      const assignedTo = isAssignedToAll 
+        ? approvedUsers.map(user => user.uid) // Assign to all approved users
+        : meetingForm.assignedTo; // Assign to selected users
+      
       const meetingData = {
-        ...meetingForm,
-        assignedTo: [meetingForm.assignedUser], // Convert single assignee to array
-        date: meetingDateTime.toISOString(),
+        title: meetingForm.title,
+        agenda: meetingForm.agenda,
+        type: meetingForm.type,
+        startTime: meetingDateTime.toISOString(),
+        date: meetingForm.date,
+        isAssignedToAll,
+        assignedTo,
+        priority: 'Medium' as const,
+        status: 'Scheduled' as const,
         createdBy: user?.uid || '',
       };
       
@@ -202,8 +237,10 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
   };
 
   const handleDelete = (meeting: Meeting) => {
-    if (!isAdmin) {
-      Alert.alert('Error', 'Only admins can delete meetings');
+    const canDelete = isAdmin || (user?.role === 'developer' && meeting.createdBy === user?.uid);
+    
+    if (!canDelete) {
+      Alert.alert('Error', 'You can only delete meetings you created');
       return;
     }
 
@@ -287,44 +324,17 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
   };
 
   const renderMeetingItem = ({ item }: { item: Meeting }) => (
-    <View style={[styles.meetingCard, { backgroundColor: colors.surface }, shadows.sm]}>
-      <View style={styles.meetingHeader}>
-        <View style={styles.meetingTime}>
-          <Text style={[styles.timeText, { color: colors.info }]}>
-            {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </View>
-        <View style={styles.meetingContent}>
-          <Text style={[styles.meetingTitle, { color: colors.text }]} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={[styles.meetingAgenda, { color: colors.textSecondary }]} numberOfLines={2}>
-            {item.agenda}
-          </Text>
-        </View>
-        {isAdmin && (
-          <View style={styles.meetingActions}>
-            <TouchableOpacity onPress={() => openModal(item)} style={styles.actionButton}>
-              <Icon name="edit" size={16} tintColor={colors.info} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleDelete(item)} style={styles.actionButton}>
-              <Icon name="delete" size={16} tintColor={colors.error} />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-      
-      <View style={styles.meetingMeta}>
-        <View style={[styles.typeBadge, { backgroundColor: colors.info + '20' }]}>
-          <Text style={[styles.typeText, { color: colors.info }]}>
-            {item.type}
-          </Text>
-        </View>
-        <Text style={[styles.participantCount, { color: colors.textSecondary }]}>
-          {getAssigneeName(item.assignedTo[0]) || 'Unassigned'}
-        </Text>
-      </View>
-    </View>
+    <MeetingCard
+      meeting={item}
+      showActions={isAdmin}
+      showCountdown={true}
+      onEdit={() => openModal(item)}
+      onDelete={() => handleDelete(item)}
+      onPress={() => {
+        // Handle meeting card press - could navigate to meeting details
+        console.log('Meeting pressed:', item.title);
+      }}
+    />
   );
 
   return (
@@ -436,7 +446,11 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView 
+            style={styles.modalContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>Title *</Text>
               <TextInput
@@ -485,41 +499,70 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
               </View>
             </View>
 
-            <View style={styles.assigneeSection}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={[styles.inputLabel, { color: colors.text, flex: 1 }]}>Assignee *</Text>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>Assignment Type *</Text>
+              <Dropdown
+                data={[
+                  { label: 'Assign to specific user', value: 'individual' },
+                  { label: 'Assign to all users', value: 'all' },
+                ]}
+                selectedValue={meetingForm.assignmentType}
+                onSelect={(value) => setMeetingForm({ 
+                  ...meetingForm, 
+                  assignmentType: value as 'individual' | 'all',
+                  assignedTo: value === 'all' ? [] : meetingForm.assignedTo // Clear user selections if assigning to all
+                })}
+                placeholder="Select assignment type"
+              />
+            </View>
+
+            {meetingForm.assignmentType === 'individual' && (
+              <View style={styles.assigneeSection}>
+                <CustomChips
+                  items={approvedUsers.map(user => ({
+                    id: user.uid,
+                    label: user.name || user.email?.split('@')[0] || 'Unknown User',
+                    value: user.uid,
+                  }))}
+                  selectedItems={meetingForm.assignedTo}
+                  onSelectionChange={handleUserSelectionChange}
+                  placeholder={approvedUsers.length === 0 ? "Loading users..." : "Select users to assign"}
+                  disabled={approvedUsers.length === 0}
+                  label="Assignees *"
+                  maxChipsToShow={3}
+                />
                 {approvedUsers.length === 0 && (
                   <TouchableOpacity
                     onPress={loadApprovedUsers}
-                    style={{ padding: 4 }}
+                    style={styles.refreshUsersButton}
                   >
                     <Icon name="search" size={16} tintColor={colors.info} />
+                    <Text style={[styles.refreshUsersText, { color: colors.info }]}>Refresh Users</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              <Dropdown
-                data={approvedUsers.length === 0 ? [
-                  { label: 'No users available - Tap refresh', value: '' }
-                ] : approvedUsers.map(user => ({
-                  label: user.name || user.email?.split('@')[0] || 'Unknown User',
-                  value: user.uid,
-                }))}
-                selectedValue={meetingForm.assignedUser}
-                onSelect={(value) => {
-                  if (value !== '') {
-                    setMeetingForm({ ...meetingForm, assignedUser: value });
-                  }
-                }}
-                placeholder={approvedUsers.length === 0 ? "Loading users..." : "Select a user to assign"}
-                disabled={approvedUsers.length === 0}
-              />
-            </View>
+            )}
+
+            {meetingForm.assignmentType === 'all' && (
+              <View style={styles.inputGroup}>
+                <View style={[styles.allUsersInfo, { backgroundColor: colors.info + '20' }]}>
+                  <Icon name="team" size={20} tintColor={colors.info} />
+                  <Text style={[styles.allUsersText, { color: colors.info }]}>
+                    This meeting will be visible to all {approvedUsers.length} approved users
+                  </Text>
+                </View>
+              </View>
+            )}
 
             <Dropdown
               label="Meeting Type"
               data={[
                 { label: 'Individual', value: 'Individual' },
-                { label: 'Group', value: 'Group' },
+                { label: 'Team', value: 'Team' },
+                { label: 'All Hands', value: 'All Hands' },
+                { label: 'Project Review', value: 'Project Review' },
+                { label: 'Client Meeting', value: 'Client Meeting' },
+                { label: 'Training', value: 'Training' },
               ]}
               selectedValue={meetingForm.type}
               onSelect={(value) => setMeetingForm({ ...meetingForm, type: value as any })}
@@ -612,64 +655,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   meetingsContent: {
-    padding: 20,
     paddingBottom: 100,
-  },
-  meetingCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  meetingHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  meetingTime: {
-    width: 60,
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  timeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  meetingContent: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-  meetingTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  meetingAgenda: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  meetingActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 4,
-  },
-  meetingMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  typeBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  typeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  participantCount: {
-    fontSize: 12,
   },
   emptyState: {
     alignItems: 'center',
@@ -737,6 +723,7 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: 20,
+    paddingBottom: 40,
   },
   inputGroup: {
     marginBottom: 16,
@@ -768,6 +755,34 @@ const styles = StyleSheet.create({
   },
   assigneeSection: {
     marginBottom: 16,
+  },
+  refreshUsersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  refreshUsersText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  allUsersInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  allUsersText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+    flex: 1,
   },
 });
 

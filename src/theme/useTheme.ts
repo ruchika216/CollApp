@@ -1,14 +1,18 @@
+// useTheme.ts - Updated version
 import { useColorScheme } from 'react-native';
-import { themes, ThemeMode } from './themeConfig';
 import { useCallback } from 'react';
+import { themes, ThemeMode } from './themeConfig';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setTheme } from '../store/slices/themeSlice';
 
 export function useTheme() {
   const dispatch = useAppDispatch();
   const systemColorScheme = useColorScheme();
+
   const activeTheme: ThemeMode =
-    useAppSelector(state => state.theme.mode) || (systemColorScheme as ThemeMode) || 'light';
+    useAppSelector(state => state.theme.mode) ||
+    (systemColorScheme as ThemeMode) ||
+    'light';
 
   const toggleTheme = useCallback(() => {
     const newTheme: ThemeMode = activeTheme === 'dark' ? 'light' : 'dark';
@@ -18,29 +22,24 @@ export function useTheme() {
   const currentTheme = themes[activeTheme];
 
   return {
-    // Full theme object
+    // Theme object
     theme: currentTheme,
-    
-    // Individual theme properties for easy access
+
+    // Individual properties
     colors: currentTheme.colors,
-    gradients: currentTheme.colors.gradients,
+    gradients: currentTheme.colors.gradients, // ADD THIS LINE
     typography: currentTheme.typography,
     spacing: currentTheme.spacing,
     borderRadius: currentTheme.borderRadius,
     shadows: currentTheme.shadows,
-    shadow: currentTheme.shadows, // Alias for shadows
     iconSizes: currentTheme.iconSizes,
     animation: currentTheme.animation,
-    
+
     // State
     isDark: activeTheme === 'dark',
     mode: activeTheme,
-    
+
     // Actions
     toggleTheme,
-    
-    // Legacy support
-    COLORS: currentTheme.colors,
-    FONTS: currentTheme.typography.fontFamily,
   };
 }

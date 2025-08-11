@@ -23,6 +23,7 @@ import ReportScreen from '../screens/ReportScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProjectDetailScreenNew from '../screens/Project/ProjectDetailScreen';
+import ProjectFormNew from '../screens/Admin/ProjectFormNew';
 
 type DrawerParamList = {
   Dashboard: undefined;
@@ -37,6 +38,7 @@ type RootStackParamList = {
   NotificationScreen: undefined;
   SettingsScreen: undefined;
   ProjectDetailScreenNew: { projectId: string };
+  ProjectFormNew: { project?: any };
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -200,6 +202,10 @@ export default function DrawerNavigator() {
         <Stack.Screen
           name="ProjectDetailScreenNew"
           component={ProjectDetailScreenNew}
+        />
+        <Stack.Screen
+          name="ProjectFormNew"
+          component={ProjectFormNew}
         />
       </Stack.Navigator>
     </RouteProtection>

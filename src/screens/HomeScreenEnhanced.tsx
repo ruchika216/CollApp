@@ -8,17 +8,20 @@ import {
   Dimensions,
   Image,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { fetchProjects, fetchUserProjects } from '../store/slices/projectSlice';
 import { fetchTasks, fetchUserTasks, fetchTasksByDate, subscribeToTasks, unsubscribeFromTasks } from '../store/slices/taskSlice';
-import { fetchMeetings, fetchUserMeetings, fetchMeetingsByDate } from '../store/slices/meetingSlice';
+import { fetchMeetings, fetchUserMeetings, fetchMeetingsByDate, fetchUpcomingMeetings } from '../store/slices/meetingSlice';
 import { fetchApprovedUsers } from '../store/slices/userSlice';
 import Icon from '../components/common/Icon';
 import { User, Project, Task, Meeting } from '../types';
 import firestoreService from '../firebase/firestoreService';
 import ProjectCard from '../components/projects/ProjectCard';
+import MeetingCard from '../components/meetings/MeetingCard';
+import { filterUpcomingMeetings, filterTodaysMeetings } from '../utils/meetingUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -36,17 +39,21 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
   const userTasks = useAppSelector(state => state.tasks.userTasks);
   const allMeetings = useAppSelector(state => state.meetings.meetings);
   const userMeetings = useAppSelector(state => state.meetings.userMeetings);
+  const upcomingMeetings = useAppSelector(state => state.meetings.upcomingMeetings);
   const approvedUsers = useAppSelector(state => state.user.approvedUsers);
 
   const [todaysTasks, setTodaysTasks] = useState<Task[]>([]);
   const [todaysMeetings, setTodaysMeetings] = useState<Meeting[]>([]);
+  const [nextMeetings, setNextMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const isAdmin = user?.role === 'admin';
   const displayProjects = isAdmin ? projects : userProjects;
   const displayTasks = allTasks; // Show all tasks to all users
-  const displayMeetings = allMeetings; // Show all meetings to all users
+  const displayMeetings = isAdmin ? allMeetings : userMeetings; // Show appropriate meetings based on role
+  
+  
 
   useEffect(() => {
     loadHomeData();
@@ -68,7 +75,7 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
     if (user && user.approved) {
       loadTodaysData();
     }
-  }, [allTasks, allMeetings, user]);
+  }, [allTasks, allMeetings, upcomingMeetings, user]);
 
   const loadHomeData = async () => {
     if (!user) return;
@@ -85,7 +92,14 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
         
         // Load tasks based on user role
         dispatch(fetchTasks()).unwrap(),
-        dispatch(fetchMeetings()).unwrap(),
+        
+        // Load meetings based on user role
+        isAdmin 
+          ? dispatch(fetchMeetings()).unwrap()
+          : dispatch(fetchUserMeetings(user.uid)).unwrap(),
+        
+        // Load upcoming meetings with countdown
+        dispatch(fetchUpcomingMeetings({ userId: user.uid, limit: 5 })).unwrap(),
         
         // Load users
         dispatch(fetchApprovedUsers()).unwrap(),
@@ -113,24 +127,26 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
     try {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       
-      // Filter today's tasks and meetings from all tasks/meetings
+      // Filter today's tasks from all tasks
       const todaysTasksFiltered = displayTasks.filter(task => {
         const taskDate = new Date(task.startDate).toISOString().split('T')[0];
         return taskDate === today;
       });
       
-      const todaysMeetingsFiltered = displayMeetings.filter(meeting => {
-        const meetingDate = new Date(meeting.date).toISOString().split('T')[0];
-        return meetingDate === today;
-      });
+      // Use utility functions to filter meetings
+      const userSpecificMeetings = isAdmin ? displayMeetings : userMeetings;
+      const todaysMeetingsFiltered = filterTodaysMeetings(userSpecificMeetings);
+      const upcomingMeetingsFiltered = filterUpcomingMeetings(userSpecificMeetings, 5);
       
       setTodaysTasks(todaysTasksFiltered);
       setTodaysMeetings(todaysMeetingsFiltered);
+      setNextMeetings(upcomingMeetingsFiltered);
     } catch (error) {
       console.error('Error loading today\'s data:', error);
       // Set empty arrays as fallback
       setTodaysTasks([]);
       setTodaysMeetings([]);
+      setNextMeetings([]);
     }
   };
 
@@ -344,16 +360,25 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
         <View style={styles.cardTitleContainer}>
           <Icon name="calendar" size={24} color={colors.info} />
           <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Meetings & Reports
+            Today's Meetings
           </Text>
         </View>
+        <TouchableOpacity
+          style={styles.allTasksButton}
+          onPress={() => navigation.navigate('MeetingScreen')}
+        >
+          <Text style={[styles.allTasksText, { color: colors.primary }]}>
+            All Meetings
+          </Text>
+          <Icon name="arrow-right" size={16} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       {todaysMeetings.length === 0 ? (
         <View style={styles.emptyState}>
           <Icon name="calendar" size={32} color={colors.textSecondary} />
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            No meetings/reports today
+            No meetings scheduled for today
           </Text>
         </View>
       ) : (
@@ -364,32 +389,64 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
           contentContainerStyle={styles.meetingsContainer}
         >
           {todaysMeetings.map((meeting) => (
-            <TouchableOpacity
-              key={meeting.id}
-              style={[styles.meetingCard, { backgroundColor: colors.background }]}
-              onPress={() => navigation.navigate('MeetingScreen')}
-            >
-              <Text style={[styles.meetingTitle, { color: colors.text }]} numberOfLines={2}>
-                {meeting.title}
-              </Text>
-              <Text style={[styles.meetingTime, { color: colors.primary }]}>
-                {new Date(meeting.date).toLocaleTimeString([], { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
-              </Text>
-              <Text style={[styles.meetingAgenda, { color: colors.textSecondary }]} numberOfLines={2}>
-                {meeting.agenda}
-              </Text>
-              <View style={styles.meetingMeta}>
-                <Text style={[styles.meetingType, { color: colors.info }]}>
-                  {meeting.type}
-                </Text>
-                <Text style={[styles.participantsCount, { color: colors.textSecondary }]}>
-                  {meeting.assignedTo.length} participants
-                </Text>
-              </View>
-            </TouchableOpacity>
+            <View key={meeting.id} style={styles.meetingCardWrapper}>
+              <MeetingCard
+                meeting={meeting}
+                showCountdown={true}
+                compact={true}
+                onPress={() => navigation.navigate('MeetingScreen')}
+              />
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+
+  // Upcoming Meetings Section
+  const UpcomingMeetingsSection = () => (
+    <View style={[styles.card, { backgroundColor: colors.surface }, shadows.md]}>
+      <View style={styles.cardHeader}>
+        <View style={styles.cardTitleContainer}>
+          <Icon name="clock" size={24} color={colors.warning} />
+          <Text style={[styles.cardTitle, { color: colors.text }]}>
+            Upcoming Meetings
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.allTasksButton}
+          onPress={() => navigation.navigate('MeetingScreen')}
+        >
+          <Text style={[styles.allTasksText, { color: colors.primary }]}>
+            View All
+          </Text>
+          <Icon name="arrow-right" size={16} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {nextMeetings.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Icon name="clock" size={32} color={colors.textSecondary} />
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            No upcoming meetings
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.meetingsScroll}
+          contentContainerStyle={styles.meetingsContainer}
+        >
+          {nextMeetings.map((meeting) => (
+            <View key={meeting.id} style={styles.meetingCardWrapper}>
+              <MeetingCard
+                meeting={meeting}
+                showCountdown={true}
+                compact={true}
+                onPress={() => navigation.navigate('MeetingScreen')}
+              />
+            </View>
           ))}
         </ScrollView>
       )}
@@ -523,7 +580,17 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
           <View key={project.id} style={styles.projectCardWrapper}>
             <ProjectCard
               project={project}
-              onPress={() => navigation.navigate('ProjectDetailScreenNew', { projectId: project.id })}
+              onPress={() => {
+                console.log('Navigating to project:', project.title, 'ID:', project.id);
+                
+                if (!project.id) {
+                  console.error('ERROR: Project ID is missing!', project);
+                  Alert.alert('Error', 'Project ID is missing. Cannot navigate to project details.');
+                  return;
+                }
+                
+                navigation.navigate('ProjectDetailScreenNew', { projectId: project.id });
+              }}
               showAssignees={true}
               compact={true}
             />
@@ -557,8 +624,11 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* Today's Tasks Card */}
         <TodaysTasksCard />
 
-        {/* Meetings & Reports Card */}
+        {/* Today's Meetings Card */}
         <MeetingsReportsCard />
+
+        {/* Upcoming Meetings Section */}
+        <UpcomingMeetingsSection />
 
         {/* All Tasks Scroll Section */}
         <AllTasksScrollSection />
@@ -817,6 +887,10 @@ const styles = StyleSheet.create({
   },
   participantsCount: {
     fontSize: 10,
+  },
+  meetingCardWrapper: {
+    width: 280,
+    marginRight: 16,
   },
   projectCardWrapper: {
     marginHorizontal: 20,

@@ -51,14 +51,15 @@ service cloud.firestore {
       // Admins can update any project, developers can update projects they're assigned to
       allow update: if isAuthenticated() && 
                        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
                        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
                         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer' && 
-                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
                          request.auth.uid in resource.data.assignedTo &&
-                         // Developers can only update specific fields
+                         // Developers can update all project fields except creation metadata and assignment changes
                          request.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['description', 'files', 'images', 'comments', 
-                                    'subTasks', 'actualHours', 'progress', 'updatedAt'])));
+                           .hasOnly(['title', 'description', 'status', 'priority', 'estimatedHours', 
+                                    'category', 'tags', 'startDate', 'endDate', 'files', 'images', 
+                                    'comments', 'subTasks', 'actualHours', 'progress', 'updatedAt', 'updatedBy'])));
       
       // Only admins can delete projects
       allow delete: if isAuthenticated() && 
@@ -150,25 +151,42 @@ service cloud.firestore {
 
     // Meetings collection
     match /meetings/{meetingId} {
-      // Allow read access to approved users - more permissive for queries to work
+      // Allow read access based on assignment logic
       allow read: if isAuthenticated() && 
                      exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                     (
+                       // Admin can read all meetings
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+                       // Meeting is assigned to all users
+                       resource.data.isAssignedToAll == true ||
+                       // User is specifically assigned to this meeting
+                       request.auth.uid in resource.data.assignedTo
+                     );
       
-      // Only admins can create meetings
+      // Only admins and developers can create meetings (both can schedule meetings)
       allow create: if isAuthenticated() && 
                        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer') &&
+                       request.data.createdBy == request.auth.uid;
       
-      // Only admins can update meetings
+      // Admins can update any meeting, developers can update their own created meetings
       allow update: if isAuthenticated() && 
                        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+                        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer' &&
+                         resource.data.createdBy == request.auth.uid));
       
-      // Only admins can delete meetings
+      // Admins can delete any meeting, developers can delete their own created meetings
       allow delete: if isAuthenticated() && 
                        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+                       (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+                        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer' &&
+                         resource.data.createdBy == request.auth.uid));
     }
 
     // Reports collection

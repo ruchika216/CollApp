@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Platform } from 'react-native';
 import { ProjectComment } from '../../types';
 import { useTheme } from '../../theme/useTheme';
 
@@ -67,102 +67,105 @@ const CommentBox: React.FC<CommentBoxProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          Comments ({comments.length})
-        </Text>
-      </View>
-
-      {/* Add Comment */}
+      {/* Add Comment Card */}
       {canComment && (
-        <View style={styles.addCommentContainer}>
-          <View style={styles.currentUserAvatar}>
-            <Text style={styles.avatarText}>
-              {getInitials(currentUserName)}
-            </Text>
-          </View>
-          <View style={styles.addCommentInputContainer}>
-            <TextInput
-              style={styles.addCommentInput}
-              placeholder="Add a comment..."
-              placeholderTextColor={theme.colors.textSecondary}
-              value={commentText}
-              onChangeText={setCommentText}
-              multiline
-              maxLength={500}
-            />
-            <View style={styles.addCommentActions}>
-              <Text style={styles.characterCount}>
-                {commentText.length}/500
+        <View style={styles.addCommentCard}>
+          <View style={styles.addCommentContainer}>
+            <View style={styles.currentUserAvatar}>
+              <Text style={styles.avatarText}>
+                {getInitials(currentUserName)}
               </Text>
-              <TouchableOpacity
-                style={[
-                  styles.addCommentButton,
-                  { opacity: commentText.trim() && !isLoading ? 1 : 0.5 }
-                ]}
-                onPress={handleAddComment}
-                disabled={!commentText.trim() || isLoading}
-              >
-                <Text style={styles.addCommentButtonText}>
-                  {isLoading ? 'Posting...' : 'Post'}
+            </View>
+            <View style={styles.addCommentInputContainer}>
+              <TextInput
+                style={styles.addCommentInput}
+                placeholder="Add a comment..."
+                placeholderTextColor={theme.colors.textSecondary}
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+                maxLength={500}
+              />
+              <View style={styles.addCommentActions}>
+                <Text style={styles.characterCount}>
+                  {commentText.length}/500
                 </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.addCommentButton,
+                    { opacity: commentText.trim() && !isLoading ? 1 : 0.5 }
+                  ]}
+                  onPress={handleAddComment}
+                  disabled={!commentText.trim() || isLoading}
+                >
+                  <Text style={styles.addCommentButtonText}>
+                    {isLoading ? 'Posting...' : 'Comment'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
       )}
 
-      {/* Comments List */}
-      <ScrollView style={styles.commentsContainer} showsVerticalScrollIndicator={false}>
-        {visibleComments.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
-              No comments yet. Be the first to comment!
+      {/* Show More/Less Button */}
+      {comments.length > 3 && (
+        <View style={styles.toggleButtonContainer}>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setShowAllComments(!showAllComments)}
+          >
+            <Text style={styles.toggleButtonText}>
+              {showAllComments ? 'Show Less Comments' : `Show All ${comments.length} Comments`}
             </Text>
-          </View>
-        ) : (
-          visibleComments.map((comment, index) => (
-            <View key={comment.id} style={styles.commentItem}>
-              <View style={styles.commentAvatar}>
-                <Text style={styles.commentAvatarText}>
-                  {getInitials(comment.userName)}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Individual Comment Cards */}
+      {visibleComments.length === 0 ? (
+        <View style={styles.emptyStateCard}>
+          <Text style={styles.emptyStateText}>
+            No comments yet. Be the first to comment!
+          </Text>
+        </View>
+      ) : (
+        visibleComments.map((comment, index) => (
+          <View key={comment.id || index} style={styles.commentCard}>
+            <View style={styles.commentAvatar}>
+              <Text style={styles.commentAvatarText}>
+                {getInitials(comment.userName)}
+              </Text>
+            </View>
+            
+            <View style={styles.commentContent}>
+              <View style={styles.commentHeader}>
+                <Text style={styles.commentAuthor}>
+                  {comment.userName}
                 </Text>
-              </View>
-              
-              <View style={styles.commentContent}>
-                <View style={styles.commentHeader}>
-                  <Text style={styles.commentAuthor}>
-                    {comment.userName}
-                  </Text>
+                <View style={styles.commentTimestamp}>
                   <Text style={styles.commentTime}>
                     {formatTimeAgo(comment.createdAt)}
                   </Text>
+                  <Text style={styles.commentDate}>
+                    {new Date(comment.createdAt).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Text>
                 </View>
-                
-                <Text style={styles.commentText}>
-                  {comment.text}
-                </Text>
               </View>
+              
+              <Text style={styles.commentText}>
+                {comment.text}
+              </Text>
             </View>
-          ))
-        )}
-
-        {/* Show More/Less Button */}
-        {comments.length > 3 && (
-          <TouchableOpacity
-            style={styles.showMoreButton}
-            onPress={() => setShowAllComments(!showAllComments)}
-          >
-            <Text style={styles.showMoreText}>
-              {showAllComments 
-                ? 'Show less comments' 
-                : `Show ${comments.length - 3} more comments`
-              }
-            </Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+          </View>
+        ))
+      )}
     </View>
   );
 };
@@ -170,26 +173,102 @@ const CommentBox: React.FC<CommentBoxProps> = ({
 const getStyles = (theme: any) =>
   StyleSheet.create({
     container: {
+      backgroundColor: 'transparent',
+    },
+    // Add Comment Card
+    addCommentCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      padding: 16,
-      margin: 16,
-      maxHeight: 400,
-    },
-    header: {
+      borderRadius: 16,
+      padding: 20,
       marginBottom: 16,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 4,
+        },
+      }),
     },
-    headerTitle: {
-      fontSize: 18,
+    sectionTitle: {
+      fontSize: 16,
       fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 12,
+    },
+    // Toggle Button Container
+    toggleButtonContainer: {
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    // Comment Card Styles
+    commentCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+      flexDirection: 'row',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: 3,
+        },
+      }),
+    },
+    
+    // Empty State Card
+    emptyStateCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      padding: 24,
+      alignItems: 'center',
+      marginBottom: 12,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: 3,
+        },
+      }),
+    },
+    toggleButton: {
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 2,
+        },
+      }),
+    },
+    toggleButtonText: {
+      fontSize: 13,
+      fontWeight: '500',
       color: theme.colors.text,
     },
     addCommentContainer: {
       flexDirection: 'row',
-      marginBottom: 16,
-      paddingBottom: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
     },
     currentUserAvatar: {
       width: 32,
@@ -241,25 +320,18 @@ const getStyles = (theme: any) =>
       fontSize: 12,
       fontWeight: '600',
     },
-    commentsContainer: {
-      flex: 1,
-    },
-    commentItem: {
-      flexDirection: 'row',
-      marginBottom: 16,
-    },
     commentAvatar: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: theme.colors.textSecondary,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 10,
+      marginRight: 12,
     },
     commentAvatarText: {
       color: 'white',
-      fontSize: 10,
+      fontSize: 12,
       fontWeight: '600',
     },
     commentContent: {
@@ -267,33 +339,38 @@ const getStyles = (theme: any) =>
     },
     commentHeader: {
       flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 4,
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 8,
     },
     commentAuthor: {
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: '600',
       color: theme.colors.text,
-      marginRight: 8,
+    },
+    commentTimestamp: {
+      alignItems: 'flex-end',
     },
     commentTime: {
       fontSize: 11,
       color: theme.colors.textSecondary,
+      fontWeight: '500',
+    },
+    commentDate: {
+      fontSize: 10,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
     },
     commentText: {
       fontSize: 14,
       color: theme.colors.text,
       lineHeight: 18,
     },
-    emptyState: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 32,
-    },
     emptyStateText: {
-      fontSize: 14,
+      fontSize: 15,
       color: theme.colors.textSecondary,
       textAlign: 'center',
+      opacity: 0.8,
     },
     showMoreButton: {
       alignItems: 'center',

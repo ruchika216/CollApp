@@ -1,3 +1,4 @@
+// BottomNavigator.tsx - Fixed version
 import React from 'react';
 import {
   View,
@@ -24,7 +25,6 @@ import ProjectStackNavigator from './ProjectStackNavigator';
 import AdminDashboard from '../screens/Admin/AdminDashboard';
 import DeveloperDashboard from '../screens/Developer/DeveloperDashboard';
 import HomeScreenEnhanced from '../screens/HomeScreenEnhanced';
-import { COLORS } from '../theme';
 
 const Tab = createBottomTabNavigator();
 const { width: WINDOW_WIDTH } = Dimensions.get('window');
@@ -38,6 +38,28 @@ function CustomTabBar({ state, navigation }: CustomTabBarProps) {
   const { colors, gradients, shadows } = useTheme();
   const insets = useSafeAreaInsets();
 
+  // Fallback colors in case theme is not loaded
+  const safeColors = colors || {
+    card: '#ffffff',
+    primary: '#6a01f6',
+    textOnPrimary: '#ffffff',
+    iconInactive: '#94a3b8',
+  };
+
+  const safeGradients = gradients || {
+    primary: ['#6a01f6', '#7d1aff'],
+  };
+
+  const safeShadows = shadows || {
+    xl: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.2,
+      shadowRadius: 16,
+      elevation: 8,
+    },
+  };
+
   const tabs = [
     { name: 'Home', icon: 'home' as const, label: 'Home' },
     { name: 'Projects', icon: 'project' as const, label: 'Projects' },
@@ -49,7 +71,7 @@ function CustomTabBar({ state, navigation }: CustomTabBarProps) {
     },
     {
       name: 'Chat',
-      icon: 'chat' as const,
+      icon: 'comment' as const, // Changed from 'chat' to 'comment' since that's in your icons
       label: 'Chat',
     },
     { name: 'Profile', icon: 'account' as const, label: 'Profile' },
@@ -57,7 +79,13 @@ function CustomTabBar({ state, navigation }: CustomTabBarProps) {
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <View style={[styles.bar, { backgroundColor: colors.card }, shadows.xl]}>
+      <View
+        style={[
+          styles.bar,
+          { backgroundColor: safeColors.card },
+          safeShadows.xl,
+        ]}
+      >
         {tabs.map((tab, index) => {
           const isFocused = state.index === index;
           const isCenter = tab.isCenter;
@@ -81,23 +109,25 @@ function CustomTabBar({ state, navigation }: CustomTabBarProps) {
                   }}
                 >
                   <LinearGradient
-                    colors={gradients.primary}
+                    colors={safeGradients.primary}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={[
                       styles.centerGradient,
-                      { borderColor: colors.card },
+                      { borderColor: safeColors.card },
                     ]}
                   >
                     <Icon
                       name={tab.icon}
                       size={32}
-                      tintColor={colors.textOnPrimary}
+                      tintColor={safeColors.textOnPrimary}
                     />
                   </LinearGradient>
                 </TouchableOpacity>
                 {isFocused && Platform.OS === 'ios' && (
-                  <Text style={[styles.centerLabel, { color: colors.primary }]}>
+                  <Text
+                    style={[styles.centerLabel, { color: safeColors.primary }]}
+                  >
                     {tab.label}
                   </Text>
                 )}
@@ -126,13 +156,17 @@ function CustomTabBar({ state, navigation }: CustomTabBarProps) {
                 <Icon
                   name={tab.icon}
                   size={25}
-                  tintColor={isFocused ? colors.primary : colors.iconInactive}
+                  tintColor={
+                    isFocused ? safeColors.primary : safeColors.iconInactive
+                  }
                 />
                 <Text
                   style={[
                     styles.label,
                     {
-                      color: isFocused ? colors.primary : colors.iconInactive,
+                      color: isFocused
+                        ? safeColors.primary
+                        : safeColors.iconInactive,
                     },
                   ]}
                 >
@@ -160,11 +194,7 @@ const HeaderLogo = () => (
       style={styles.logo}
       resizeMode="contain"
     />
-    <AppName 
-      size="medium" 
-      variant="gradient"
-      style={{ marginLeft: 0 }}
-    />
+    <AppName size="medium" variant="gradient" style={{ marginLeft: 0 }} />
   </View>
 );
 
@@ -175,6 +205,9 @@ const HeaderActions = ({ navigation }: { navigation: any }) => {
   );
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Safe colors fallback
+  const safeColors = colors || { primary: '#6a01f6' };
+
   return (
     <View style={styles.headerActions}>
       {/* Notification Icon */}
@@ -183,7 +216,7 @@ const HeaderActions = ({ navigation }: { navigation: any }) => {
         onPress={() => navigation.navigate('NotificationScreen')}
         activeOpacity={0.7}
       >
-        <Icon name="notification" size={24} tintColor={colors.primary} />
+        <Icon name="notification" size={24} tintColor={safeColors.primary} />
         {unreadCount > 0 && (
           <View style={styles.badgeContainer}>
             <Text style={styles.badgeText}>
@@ -199,35 +232,52 @@ const HeaderActions = ({ navigation }: { navigation: any }) => {
         onPress={() => navigation.toggleDrawer()}
         activeOpacity={0.7}
       >
-        <Icon name="menu" size={26} tintColor={colors.primary} />
+        <Icon name="menu" size={26} tintColor={safeColors.primary} />
       </TouchableOpacity>
     </View>
   );
 };
 
 function BottomNavigator() {
+  const { colors } = useTheme();
+
+  // Safe colors fallback
+  const safeColors = colors || {
+    background: '#ffffff',
+    primary: '#6a01f6',
+  };
+
   return (
     <Tab.Navigator
       initialRouteName="Home"
       tabBar={props => <CustomTabBar {...props} />}
       screenOptions={({ navigation }) => ({
         headerShown: Platform.OS === 'ios' ? true : true,
-        header: Platform.OS === 'ios' ? 
-          () => <IOSHeader navigation={navigation} /> :
-          undefined,
+        header:
+          Platform.OS === 'ios'
+            ? () => <IOSHeader navigation={navigation} />
+            : undefined,
         headerTitle: Platform.OS === 'android' ? '' : undefined,
-        headerLeft: Platform.OS === 'android' ? () => <HeaderLogo /> : undefined,
-        headerRight: Platform.OS === 'android' ? () => <HeaderActions navigation={navigation} /> : undefined,
-        headerStyle: Platform.OS === 'android' ? {
-          backgroundColor: COLORS.background,
-          shadowColor: '#000',
-          shadowOpacity: 0.1,
-          shadowRadius: 10,
-          elevation: 5,
-          height: 70,
-          shadowOffset: { width: 0, height: 2 },
-        } : undefined,
-        headerTintColor: Platform.OS === 'android' ? COLORS.primary : undefined,
+        headerLeft:
+          Platform.OS === 'android' ? () => <HeaderLogo /> : undefined,
+        headerRight:
+          Platform.OS === 'android'
+            ? () => <HeaderActions navigation={navigation} />
+            : undefined,
+        headerStyle:
+          Platform.OS === 'android'
+            ? {
+                backgroundColor: safeColors.background,
+                shadowColor: '#000',
+                shadowOpacity: 0.1,
+                shadowRadius: 10,
+                elevation: 5,
+                height: 70,
+                shadowOffset: { width: 0, height: 2 },
+              }
+            : undefined,
+        headerTintColor:
+          Platform.OS === 'android' ? safeColors.primary : undefined,
       })}
     >
       <Tab.Screen name="Home" component={HomeScreenEnhanced} />
@@ -255,7 +305,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: '#6a01f6', // Fallback color
   },
   headerActions: {
     flexDirection: 'row',

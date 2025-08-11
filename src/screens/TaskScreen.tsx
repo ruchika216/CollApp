@@ -512,7 +512,7 @@ const TaskScreen: React.FC<TaskScreenProps> = ({ navigation }) => {
               💬 Comments ({item.comments.length})
             </Text>
             <Icon 
-              name={expandedComments[item.id] ? "up-arrow" : "down-arrow"} 
+              name={expandedComments[item.id] ? "arrow-up" : "arrow-down"} 
               size={12} 
               tintColor={colors.primary} 
             />
