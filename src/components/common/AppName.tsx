@@ -47,7 +47,7 @@ const AppName: React.FC<AppNameProps> = ({
     return (
       <View style={[styles.gradientContainer, style]}>
         <LinearGradient
-          colors={gradients.appName}
+          colors={gradients.primary}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0.8 }}
           style={styles.gradientBackground}

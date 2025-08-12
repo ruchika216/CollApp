@@ -34,6 +34,19 @@ export default function LoginScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const { colors, gradients, isDark } = useTheme();
 
+  // Safety checks for gradients with fallbacks
+  const backgroundGradient = gradients?.background || ['#ffffff', '#f8fafc'];
+  const primaryGradient = gradients?.primary || ['#6a01f6', '#7d1aff'];
+
+  // Debug log to verify gradient structure
+  console.log('LoginScreen - Theme data:', {
+    hasGradients: !!gradients,
+    hasBackground: !!gradients?.background,
+    hasPrimary: !!gradients?.primary,
+    backgroundGradient,
+    primaryGradient,
+  });
+
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
@@ -50,13 +63,14 @@ export default function LoginScreen({ navigation }: Props) {
 
       // Show welcome message for new users (if they're approved)
       if (result.approved) {
-        const isNewUser = !result.createdAt || 
-          (new Date().getTime() - new Date(result.createdAt).getTime()) < 60000; // Less than 1 minute old
-        
+        const isNewUser =
+          !result.createdAt ||
+          new Date().getTime() - new Date(result.createdAt).getTime() < 60000; // Less than 1 minute old
+
         if (isNewUser) {
           Alert.alert(
             'Welcome!',
-            result.role === 'admin' 
+            result.role === 'admin'
               ? 'Welcome, Admin! You have full access to the system.'
               : 'Welcome to the team! Your account has been approved.',
             [{ text: 'OK' }],
@@ -83,15 +97,15 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <LinearGradient
-      colors={gradients.background}
+      colors={backgroundGradient} // Use safe fallback
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.background}
     >
       <SafeAreaView style={styles.safe}>
-        <StatusBar 
-          barStyle={isDark ? "light-content" : "dark-content"} 
-          backgroundColor={colors.background} 
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.background}
         />
 
         {/* COLLAPP Title */}
@@ -107,7 +121,7 @@ export default function LoginScreen({ navigation }: Props) {
           <LinearGradient
             start={{ x: 0, y: 1 }}
             end={{ x: 1, y: 0 }}
-            colors={gradients.primary}
+            colors={primaryGradient} // Use safe fallback
             style={styles.gradientText}
           />
         </MaskedView>
@@ -120,7 +134,9 @@ export default function LoginScreen({ navigation }: Props) {
             resizeMode="contain"
           />
 
-          <Text style={[styles.headline, { color: colors.text }]}>Welcome Back</Text>
+          <Text style={[styles.headline, { color: colors.text }]}>
+            Welcome Back
+          </Text>
           <Text style={[styles.sub, { color: colors.textSecondary }]}>
             Sign in to organize your projects and collaborate seamlessly.
           </Text>
@@ -128,9 +144,9 @@ export default function LoginScreen({ navigation }: Props) {
           {/* Google */}
           <TouchableOpacity
             style={[
-              styles.button, 
-              styles.googleButton, 
-              { backgroundColor: colors.card, borderColor: colors.border }
+              styles.button,
+              styles.googleButton,
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
             activeOpacity={0.85}
             onPress={handleGoogleLogin}

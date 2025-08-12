@@ -1457,7 +1457,7 @@ PODS:
   - hermes-engine/Pre-built (0.80.1)
   - leveldb-library (1.22.6)
   - lottie-ios (4.5.0)
-  - lottie-react-native (7.3.0):
+  - lottie-react-native (7.3.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -3220,7 +3220,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-safe-area-context (5.5.2):
+  - react-native-safe-area-context (5.6.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3239,8 +3239,8 @@ PODS:
     - React-hermes
     - React-ImageManager
     - React-jsi
-    - react-native-safe-area-context/common (= 5.5.2)
-    - react-native-safe-area-context/fabric (= 5.5.2)
+    - react-native-safe-area-context/common (= 5.6.0)
+    - react-native-safe-area-context/fabric (= 5.6.0)
     - React-NativeModulesApple
     - React-RCTFabric
     - React-renderercss
@@ -3251,7 +3251,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-safe-area-context/common (5.5.2):
+  - react-native-safe-area-context/common (5.6.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3280,7 +3280,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-safe-area-context/fabric (5.5.2):
+  - react-native-safe-area-context/fabric (5.6.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3843,7 +3843,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNDateTimePicker (8.4.3):
+  - RNDateTimePicker (8.4.4):
     - boost
     - DoubleConversion
     - fast_float
@@ -3887,7 +3887,7 @@ PODS:
     - Firebase/Storage (= 11.15.0)
     - React-Core
     - RNFBApp
-  - RNGestureHandler (2.27.2):
+  - RNGestureHandler (2.28.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3947,7 +3947,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNReanimated (3.19.0):
+  - RNReanimated (3.19.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -3974,11 +3974,11 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated (= 3.19.0)
-    - RNReanimated/worklets (= 3.19.0)
+    - RNReanimated/reanimated (= 3.19.1)
+    - RNReanimated/worklets (= 3.19.1)
     - SocketRocket
     - Yoga
-  - RNReanimated/reanimated (3.19.0):
+  - RNReanimated/reanimated (3.19.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -4005,10 +4005,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated/apple (= 3.19.0)
+    - RNReanimated/reanimated/apple (= 3.19.1)
     - SocketRocket
     - Yoga
-  - RNReanimated/reanimated/apple (3.19.0):
+  - RNReanimated/reanimated/apple (3.19.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -4037,7 +4037,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNReanimated/worklets (3.19.0):
+  - RNReanimated/worklets (3.19.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -4064,10 +4064,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/worklets/apple (= 3.19.0)
+    - RNReanimated/worklets/apple (= 3.19.1)
     - SocketRocket
     - Yoga
-  - RNReanimated/worklets/apple (3.19.0):
+  - RNReanimated/worklets/apple (3.19.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -4599,7 +4599,7 @@ SPEC CHECKSUMS:
   hermes-engine: 4f07404533b808de66cf48ac4200463068d0e95a
   leveldb-library: cc8b8f8e013647a295ad3f8cd2ddf49a6f19be19
   lottie-ios: a881093fab623c467d3bce374367755c272bdd59
-  lottie-react-native: fef6ff94ea93246706c97179ed7734001fd3029e
+  lottie-react-native: d1c830ef476e4851fc398c5074f98b4bdf02a620
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   RCT-Folly: 59ec0ac1f2f39672a0c6e6cecdd39383b764646f
@@ -4638,7 +4638,7 @@ SPEC CHECKSUMS:
   react-native-blur: 92cc889e5515dcb0746d5a24207a28eea2f6bb65
   react-native-document-picker: 08e841dbca40b023db0296be625866b89983ab0a
   react-native-image-picker: e479ec8884df9d99a62c1f53f2307055ad43ea85
-  react-native-safe-area-context: 91380e53c109a407d635c8e1a534a7921cf47ad9
+  react-native-safe-area-context: 59b89917c8fd4a965a3a44be39f04c961cb1ff0e
   React-NativeModulesApple: 69f9d6ac5bf8f81a14f2a63f3151cba3e9c24259
   React-oscompat: 114036cd8f064558c9c1a0c04fc9ae5e1453706a
   React-perflogger: 4b2f88ae059b600daf268528a4a83366338eef05
@@ -4673,14 +4673,14 @@ SPEC CHECKSUMS:
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   RNCMaskedView: c7bdf29941aaa4e90f4a3f8974f1d71f957edb5d
   RNCPicker: d268db63f88e7ad4b104867e3ef3212d26836f43
-  RNDateTimePicker: 9a64ee32db557246898088f5eb761371df6fdeac
+  RNDateTimePicker: 96f0ecc3cce39655604f47a7fe44468b70ef7a58
   RNFBApp: 2c88b4fc4bcecf25ff9077abde08f4b1cbaff4c6
   RNFBAuth: cc6269f150fd5748f34e8ca415a04ada24985aab
   RNFBFirestore: 3e8ab303b9034854255470aa861814c7d3863a18
   RNFBStorage: 619e1346c01b49ba459fc3e65faee223d96d0bd7
-  RNGestureHandler: 25ceb0a225a496f19f61753710a321344cd43bfc
+  RNGestureHandler: 8c4c3ff641284e689208dc01e51d5c1e6807cf3c
   RNGoogleSignin: 029839f8dab57db5e9d430e050fee45587c21c2f
-  RNReanimated: c1753518ec84875120858004a6c4fc340bf58179
+  RNReanimated: d130bbb28f61440381f7295aae9430f7b09687c5
   RNScreens: be0d2c9cc334a323239ef426a01823918e83995b
   RNSVG: 15b549eab93d3c7f1de4f7ab612a88132ebc1bca
   RNVectorIcons: 0e8833406efa1e777fbcb433b8c62db21143c182

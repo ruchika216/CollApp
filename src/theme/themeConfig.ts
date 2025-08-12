@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 // Brand Colors
 export const BRAND_COLORS = {
   primary: '#6a01f6',
@@ -31,12 +33,6 @@ export const TYPOGRAPHY = {
     medium: 'System',
     bold: 'System',
     light: 'System',
-
-    // DynaPuff fonts
-    dynaPuffRegular: 'DynaPuff-Regular',
-    dynaPuffMedium: 'DynaPuff-Medium',
-    dynaPuffSemiBold: 'DynaPuff-SemiBold',
-    dynaPuffBold: 'DynaPuff-Bold',
 
     // DynaPuff fonts - iOS specific names
     dynaPuffRegular:
