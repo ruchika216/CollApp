@@ -17,7 +17,11 @@ const { width, height } = Dimensions.get('window');
 const ICON_SIZE = width * 0.68;
 
 export default function OnboardingScreen({ navigation }) {
-  const { gradients } = useTheme();
+  // Get theme safely with fallback
+  const theme = useTheme() || {};
+  const gradients = theme.gradients || {
+    background: ['#ede1ff', '#d5bfff'], // Fallback gradient
+  };
 
   // animated values
   const iconY = useRef(new Animated.Value((height - ICON_SIZE) / 2)).current;
@@ -26,9 +30,9 @@ export default function OnboardingScreen({ navigation }) {
   const contentOp = useRef(new Animated.Value(0)).current;
   const contentY = useRef(new Animated.Value(48)).current;
 
-  // refs for loops so we can stop/start
-  const spinLoopRef = useRef<any>();
-  const bobLoopRef = useRef<any>();
+  // Fixed: Properly typed refs for animation loops
+  const spinLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const bobLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const [slidUp, setSlidUp] = useState(false);
 
   useEffect(() => {
@@ -64,12 +68,10 @@ export default function OnboardingScreen({ navigation }) {
         }),
       ]),
     ]).start(() => {
-      // mark slid up
       setSlidUp(true);
-      // stop spinning
-      spinLoopRef.current.stop();
-      // reset spinAnim so it doesn't freeze awkwardly
+      spinLoopRef.current?.stop();
       spinAnim.setValue(0);
+
       // start bobbing loop
       bobLoopRef.current = Animated.loop(
         Animated.sequence([
@@ -89,6 +91,12 @@ export default function OnboardingScreen({ navigation }) {
       );
       bobLoopRef.current.start();
     });
+
+    // Cleanup function to stop animations
+    return () => {
+      spinLoopRef.current?.stop();
+      bobLoopRef.current?.stop();
+    };
   }, []);
 
   const rotation = spinAnim.interpolate({
@@ -100,8 +108,9 @@ export default function OnboardingScreen({ navigation }) {
     outputRange: [-10, 10],
   });
 
-  // build transforms: always slide up, then either rotate or bob
-  const iconTransforms: any[] = [{ translateY: iconY }];
+  const iconTransforms: Animated.WithAnimatedValue<any>[] = [
+    { translateY: iconY },
+  ];
   if (!slidUp) {
     iconTransforms.push({ rotate: rotation });
   } else {
@@ -115,7 +124,10 @@ export default function OnboardingScreen({ navigation }) {
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
-      <StatusBar barStyle="dark-content" backgroundColor="#ede1ff" />
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={gradients.background[0]}
+      />
 
       <Animated.View style={[styles.iconWrap, { transform: iconTransforms }]}>
         <Image
@@ -181,66 +193,26 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 39,
     fontWeight: '400',
-    color: '#222',
+    fontFamily: 'System', // Updated fontFamily
+    color: '#4a5568', // Lighter color instead of #222
     lineHeight: 47,
   },
   headlineBold: {
     fontWeight: 'bold',
     fontSize: 44,
+    fontFamily: 'System', // Updated fontFamily
     lineHeight: 54,
-    color: '#191919',
+    color: '#2d3748', // Lighter color instead of #191919
   },
   sub: {
-    fontSize: 16,
+    fontSize: 16, // Updated fontSize
     fontWeight: '300',
-    color: '#444',
-    opacity: 0.8,
+    fontFamily: 'System', // Updated fontFamily
+    color: '#718096', // Lighter color instead of #444
+    opacity: 0.9, // Increased opacity
     marginTop: 26,
     letterSpacing: 0.5,
     lineHeight: 24,
     maxWidth: 320,
-  },
-
-  glassButton: {
-    width: '76%',
-    height: 54,
-    borderRadius: 28,
-    alignSelf: 'center',
-    marginTop: 26,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.35)',
-    shadowColor: '#4356af',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    elevation: 12,
-  },
-  glassInner: {
-    flex: 1,
-    borderRadius: 28,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    opacity: 0.7,
-  },
-  glassText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0208fd',
-    textShadowColor: 'rgba(255,255,255,0.7)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
-    zIndex: 2,
   },
 });

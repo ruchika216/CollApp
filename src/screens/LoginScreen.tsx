@@ -1,5 +1,3 @@
-// // src/screens/LoginScreen.tsx
-
 import React, { useState } from 'react';
 import {
   SafeAreaView,
@@ -16,12 +14,13 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAppDispatch } from '../store/hooks';
 import { signInWithGoogle, setUser } from '../store/slices/userSlice';
 import { useTheme } from '../theme/useTheme';
+import { createShadow } from '../theme/themeUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -32,40 +31,65 @@ type Props = {
 export default function LoginScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
-  const { colors, gradients, isDark } = useTheme();
+  const { colors, typography, spacing, isDark } = useTheme();
 
   // Safety checks for gradients with fallbacks
-  const backgroundGradient = gradients?.background || ['#ffffff', '#f8fafc'];
-  const primaryGradient = gradients?.primary || ['#6a01f6', '#7d1aff'];
+  const safeColors = colors || {
+    background: '#ffffff',
+    card: '#ffffff',
+    text: '#000000',
+    textSecondary: '#64748b',
+    border: '#e5e7eb',
+    primary: '#6a01f6',
+    gradients: {
+      background: ['#ffffff', '#f8fafc'],
+      primary: ['#8b5cf6', '#a855f7', '#c084fc'], // More vibrant purple gradient
+    },
+  };
 
-  // Debug log to verify gradient structure
-  console.log('LoginScreen - Theme data:', {
-    hasGradients: !!gradients,
-    hasBackground: !!gradients?.background,
-    hasPrimary: !!gradients?.primary,
-    backgroundGradient,
-    primaryGradient,
-  });
+  const safeTypography = typography || {
+    fontSize: { lg: 16, xl: 20, '2xl': 24 },
+    fontFamily: {
+      dynaPuffBold: 'System',
+      dynaPuffRegular: 'System',
+    },
+  };
+
+  const safeSpacing = spacing || {
+    screen: { horizontal: 24 },
+    lg: 16,
+    xl: 20,
+    xxl: 24,
+    xxxl: 32,
+  };
+
+  const backgroundGradient = safeColors.gradients?.background || [
+    '#ffffff',
+    '#f8fafc',
+  ];
+  // Enhanced vibrant gradient for COLLAPP title
+  const primaryGradient = safeColors.gradients?.primary || [
+    '#8b5cf6',
+    '#a855f7',
+    '#c084fc',
+  ];
 
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
 
-      // Use Redux thunk to handle Google sign-in
       const result = await dispatch(signInWithGoogle()).unwrap();
 
-      // Navigate based on user approval status
       if (!result.approved) {
         navigation.replace('PendingApproval');
       } else {
         navigation.replace('Main');
       }
 
-      // Show welcome message for new users (if they're approved)
       if (result.approved) {
         const isNewUser =
           !result.createdAt ||
-          new Date().getTime() - new Date(result.createdAt).getTime() < 60000; // Less than 1 minute old
+          new Date().getTime() - new Date(result.createdAt).getTime() < 60000;
 
         if (isNewUser) {
           Alert.alert(
@@ -95,9 +119,26 @@ export default function LoginScreen({ navigation }: Props) {
     }
   };
 
+  const handleAppleLogin = async () => {
+    Alert.alert(
+      'Coming Soon',
+      'Apple Sign-In will be available in the next update.',
+      [{ text: 'OK' }],
+    );
+  };
+
+  const getFont = (weight: 'regular' | 'bold') =>
+    Platform.select({
+      ios: `DynaPuff-${weight === 'bold' ? 'Bold' : 'Regular'}`,
+      android: `DynaPuff-${weight === 'bold' ? 'Bold' : 'Regular'}`,
+      default: 'System',
+    });
+
+  const styles = createStyles(safeColors, safeTypography, safeSpacing);
+
   return (
     <LinearGradient
-      colors={backgroundGradient} // Use safe fallback
+      colors={backgroundGradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.background}
@@ -105,166 +146,255 @@ export default function LoginScreen({ navigation }: Props) {
       <SafeAreaView style={styles.safe}>
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={colors.background}
+          backgroundColor={safeColors.background}
         />
 
         {/* COLLAPP Title */}
-        <MaskedView
-          style={styles.maskedView}
-          maskElement={
-            <Text style={styles.appName}>
-              <Text style={styles.coll}>COLL</Text>
-              <Text style={styles.app}>APP</Text>
-            </Text>
-          }
-        >
-          <LinearGradient
-            start={{ x: 0, y: 1 }}
-            end={{ x: 1, y: 0 }}
-            colors={primaryGradient} // Use safe fallback
-            style={styles.gradientText}
-          />
-        </MaskedView>
+        <View style={styles.headerContainer}>
+          <MaskedView
+            style={styles.maskedView}
+            maskElement={
+              <Text style={styles.appNameText}>
+                <Text style={styles.collText}>COLL</Text>
+                <Text style={styles.appText}>APP</Text>
+              </Text>
+            }
+          >
+            <LinearGradient
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              colors={primaryGradient}
+              style={styles.gradientText}
+            />
+          </MaskedView>
+        </View>
 
         {/* Card */}
-        <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Image
-            source={require('../assets/images/4.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+        <View style={styles.card}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../assets/images/4.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
 
-          <Text style={[styles.headline, { color: colors.text }]}>
+          <Text
+            style={[
+              styles.headline,
+              { color: colors.text, fontFamily: getFont('bold') },
+            ]}
+          >
             Welcome Back
           </Text>
-          <Text style={[styles.sub, { color: colors.textSecondary }]}>
+          <Text style={styles.subtitle}>
             Sign in to organize your projects and collaborate seamlessly.
           </Text>
 
-          {/* Google */}
-          <TouchableOpacity
-            style={[
-              styles.button,
-              styles.googleButton,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-            activeOpacity={0.85}
-            onPress={handleGoogleLogin}
-            disabled={loading}
-          >
-            <Ionicons name="logo-google" size={24} color="#EA4335" />
-            <Text style={[styles.googleText, { color: colors.text }]}>
-              {loading ? 'Signing in…' : 'Continue with Google'}
-            </Text>
-          </TouchableOpacity>
+          {/* Login Buttons Container */}
+          <View style={styles.buttonsContainer}>
+            {/* Google Login Button */}
+            <TouchableOpacity
+              style={[styles.loginButton, styles.googleButton]}
+              activeOpacity={0.85}
+              onPress={handleGoogleLogin}
+              disabled={loading}
+            >
+              <FontAwesome name="google" size={24} color="#EA4335" />
+              <Text style={[styles.buttonText, styles.googleText]}>
+                {loading ? 'Signing in…' : 'Continue with Google'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Apple Login Button */}
+            <TouchableOpacity
+              style={[styles.loginButton, styles.appleButton]}
+              activeOpacity={0.85}
+              onPress={handleAppleLogin}
+              disabled={loading}
+            >
+              <FontAwesome name="apple" size={24} color="#ffffff" />
+              <Text style={[styles.buttonText, styles.appleText]}>
+                Continue with Apple
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Terms and Privacy */}
+          <Text style={styles.termsText}>
+            By continuing, you agree to our{' '}
+            <Text style={styles.linkText}>Terms of Service</Text> and{' '}
+            <Text style={styles.linkText}>Privacy Policy</Text>
+          </Text>
         </View>
       </SafeAreaView>
     </LinearGradient>
   );
 }
 
-const SHADOW = Platform.select({
-  ios: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-  },
-  android: {
-    elevation: 8,
-  },
-});
+const createStyles = (colors: any, typography: any, spacing: any) => {
+  const getFont = (weight: 'regular' | 'bold') =>
+    Platform.select({
+      ios: `DynaPuff-${weight === 'bold' ? 'Bold' : 'Regular'}`,
+      android: `DynaPuff-${weight === 'bold' ? 'Bold' : 'Regular'}`,
+      default: 'System',
+    });
 
-const styles = StyleSheet.create({
-  background: { flex: 1 },
-  safe: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
+  const SHADOW = Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.1,
+      shadowRadius: 16,
+    },
+    android: {
+      elevation: 10,
+    },
+  });
 
-  // Title
-  maskedView: {
-    width: width * 0.75,
-    height: 48,
-    marginTop: 40,
-    marginBottom: 16,
-  },
-  gradientText: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  appName: {
-    fontSize: 40,
-    // fontFamily: FONTS.bold,
-    // color: COLORS.text,
-    textAlign: 'center',
-  },
-  coll: { fontWeight: '800' },
-  app: { fontWeight: '400' },
+  return StyleSheet.create({
+    background: { flex: 1 },
+    safe: {
+      flex: 1,
+      paddingHorizontal: spacing.screen.horizontal,
+    },
 
-  // Card
-  card: {
-    flex: 1,
-    width: width,
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
-    paddingTop: 32,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    ...SHADOW,
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 24,
-  },
-  headline: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  sub: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 22,
-  },
+    // Header
+    headerContainer: {
+      alignItems: 'center',
+      marginTop: spacing.xxxl,
+      marginBottom: spacing.xl,
+    },
+    maskedView: {
+      height: 60,
+      width: width * 0.8,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    gradientText: {
+      flex: 1,
+      width: '100%',
+      height: '100%',
+    },
+    appNameText: {
+      fontSize: 48,
+      textAlign: 'center',
+      fontWeight: Platform.OS === 'android' ? 'bold' : '700',
+    },
+    collText: {
+      fontFamily: getFont('bold'),
+      letterSpacing: 2,
+      fontWeight: Platform.OS === 'ios' ? '800' : 'bold', // Enhanced for iOS
+    },
+    appText: {
+      fontFamily: getFont('bold'),
+      letterSpacing: 2,
+      fontWeight: Platform.OS === 'ios' ? '400' : 'normal', // Lighter weight for contrast
+    },
 
-  // Buttons
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    height: 54,
-    borderRadius: 27,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
-  googleButton: {
-    borderWidth: 1,
-    ...SHADOW,
-  },
-  appleButton: {
-    backgroundColor: '#000',
-    ...SHADOW,
-  },
+    // Card
+    card: {
+      flex: 1,
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 36,
+      borderTopRightRadius: 36,
+      paddingTop: spacing.xxxl,
+      paddingHorizontal: spacing.xxxl,
+      alignItems: 'center',
+      ...SHADOW,
+    },
 
-  googleText: {
-    flex: 1,
-    textAlign: 'center',
-    marginLeft: -24,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  appleText: {
-    flex: 1,
-    textAlign: 'center',
-    marginLeft: -24,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-});
+    // Logo
+    logoContainer: {
+      marginBottom: spacing.xxl,
+    },
+    logo: {
+      width: 120,
+      height: 120,
+      ...createShadow(6, colors.primary, 0.15),
+    },
+
+    // Text - Fixed for iOS consistency
+    headline: { fontSize: 24, marginBottom: 8 },
+    subtitle: {
+      fontSize: typography.fontSize.lg,
+      fontFamily: getFont('regular'),
+      fontWeight: Platform.select({
+        ios: '400', // Specific iOS font weight
+        android: 'normal',
+        default: '400',
+      }),
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 24,
+      marginBottom: spacing.xxxl,
+      paddingHorizontal: spacing.lg,
+      letterSpacing: Platform.OS === 'ios' ? 0.3 : 0, // iOS letter spacing
+    },
+
+    // Buttons
+    buttonsContainer: {
+      width: '100%',
+      marginBottom: spacing.xxl,
+    },
+    loginButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
+      height: 56,
+      borderRadius: 28,
+      marginBottom: spacing.lg,
+      paddingHorizontal: spacing.xl,
+      ...SHADOW,
+    },
+    googleButton: {
+      backgroundColor: colors.card,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+    },
+    appleButton: {
+      backgroundColor: '#000000',
+    },
+    buttonText: {
+      fontSize: typography.fontSize.lg,
+      fontFamily: getFont('regular'),
+      fontWeight: Platform.select({
+        ios: '600',
+        android: '600',
+        default: '600',
+      }),
+      letterSpacing: 0.5,
+      marginLeft: spacing.lg,
+    },
+    googleText: {
+      color: colors.text,
+    },
+    appleText: {
+      color: '#ffffff',
+    },
+
+    // Terms
+    termsText: {
+      fontSize: 14,
+      fontFamily: getFont('regular'),
+      fontWeight: Platform.select({
+        ios: '400',
+        android: 'normal',
+        default: '400',
+      }),
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      paddingHorizontal: spacing.lg,
+    },
+    linkText: {
+      color: colors.primary,
+      fontWeight: Platform.select({
+        ios: '600',
+        android: '600',
+        default: '600',
+      }),
+    },
+  });
+};
