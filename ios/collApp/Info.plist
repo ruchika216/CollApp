@@ -69,14 +69,11 @@
     </dict>
 </array>
 <key>UIAppFonts</key>
-  <array>
-    <string>DynaPuff-Regular.ttf</string>
-    <string>DynaPuff-Medium.ttf</string>
-    <string>DynaPuff-SemiBold.ttf</string>
-    <string>DynaPuff-Bold.ttf</string>
-  </array>
-  <key>UIAppFonts</key>
 <array>
+  <string>DynaPuff-Regular.ttf</string>
+  <string>DynaPuff-Medium.ttf</string>
+  <string>DynaPuff-SemiBold.ttf</string>
+  <string>DynaPuff-Bold.ttf</string>
   <string>AntDesign.ttf</string>
   <string>Entypo.ttf</string>
   <string>EvilIcons.ttf</string>

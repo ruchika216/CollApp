@@ -13,13 +13,12 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAppDispatch } from '../store/hooks';
 import { signInWithGoogle, setUser } from '../store/slices/userSlice';
-import { useTheme } from '../theme/useTheme';
+import { useThemeWithFallbacks } from '../hooks/useThemeWithFallbacks';
 import { createShadow } from '../theme/themeUtils';
 
 const { width } = Dimensions.get('window');
@@ -31,7 +30,7 @@ type Props = {
 export default function LoginScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
-  const { colors, typography, spacing, isDark } = useTheme();
+  const { colors, typography, spacing, isDark } = useThemeWithFallbacks();
 
   // Safety checks for gradients with fallbacks
   const safeColors = colors || {
@@ -43,7 +42,7 @@ export default function LoginScreen({ navigation }: Props) {
     primary: '#6a01f6',
     gradients: {
       background: ['#ffffff', '#f8fafc'],
-      primary: ['#8b5cf6', '#a855f7', '#c084fc'], // More vibrant purple gradient
+      primary: ['#6a01f6', '#7d1aff'], // Same vibrant gradient as SplashScreen
     },
   };
 
@@ -67,11 +66,11 @@ export default function LoginScreen({ navigation }: Props) {
     '#ffffff',
     '#f8fafc',
   ];
-  // Enhanced vibrant gradient for COLLAPP title
+
+  // Use the SAME vibrant gradient as SplashScreen
   const primaryGradient = safeColors.gradients?.primary || [
-    '#8b5cf6',
-    '#a855f7',
-    '#c084fc',
+    '#6a01f6',
+    '#7d1aff',
   ];
 
   const handleGoogleLogin = async () => {
@@ -149,14 +148,14 @@ export default function LoginScreen({ navigation }: Props) {
           backgroundColor={safeColors.background}
         />
 
-        {/* COLLAPP Title */}
+        {/* COLLAPP Title - Exactly matching SplashScreen */}
         <View style={styles.headerContainer}>
           <MaskedView
             style={styles.maskedView}
             maskElement={
-              <Text style={styles.appNameText}>
-                <Text style={styles.collText}>COLL</Text>
-                <Text style={styles.appText}>APP</Text>
+              <Text style={[styles.appNameText, { color: '#000' }]}>
+                <Text style={[styles.collText, { color: '#000' }]}>COLL</Text>
+                <Text style={[styles.appText, { color: '#000' }]}>APP</Text>
               </Text>
             }
           >
@@ -164,8 +163,10 @@ export default function LoginScreen({ navigation }: Props) {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               colors={primaryGradient}
-              style={styles.gradientText}
-            />
+              style={styles.gradientMask}
+            >
+              <Text style={[styles.appNameText, { opacity: 0 }]}>COLLAPP</Text>
+            </LinearGradient>
           </MaskedView>
         </View>
 
@@ -259,7 +260,7 @@ const createStyles = (colors: any, typography: any, spacing: any) => {
       paddingHorizontal: spacing.screen.horizontal,
     },
 
-    // Header
+    // Header - EXACTLY matching SplashScreen
     headerContainer: {
       alignItems: 'center',
       marginTop: spacing.xxxl,
@@ -267,29 +268,30 @@ const createStyles = (colors: any, typography: any, spacing: any) => {
     },
     maskedView: {
       height: 60,
-      width: width * 0.8,
       justifyContent: 'center',
       alignItems: 'center',
+      width: width * 0.8,
     },
-    gradientText: {
+    gradientMask: {
       flex: 1,
+      height: 60,
       width: '100%',
-      height: '100%',
     },
     appNameText: {
       fontSize: 48,
       textAlign: 'center',
       fontWeight: Platform.OS === 'android' ? 'bold' : '700',
     },
+    // EXACTLY matching SplashScreen - both with fontWeight '700'
     collText: {
       fontFamily: getFont('bold'),
       letterSpacing: 2,
-      fontWeight: Platform.OS === 'ios' ? '800' : 'bold', // Enhanced for iOS
+      ...(Platform.OS === 'ios' && { fontWeight: '700' }),
     },
     appText: {
       fontFamily: getFont('bold'),
       letterSpacing: 2,
-      fontWeight: Platform.OS === 'ios' ? '400' : 'normal', // Lighter weight for contrast
+      ...(Platform.OS === 'ios' && { fontWeight: '700' }),
     },
 
     // Card
@@ -314,13 +316,12 @@ const createStyles = (colors: any, typography: any, spacing: any) => {
       ...createShadow(6, colors.primary, 0.15),
     },
 
-    // Text - Fixed for iOS consistency
     headline: { fontSize: 24, marginBottom: 8 },
     subtitle: {
       fontSize: typography.fontSize.lg,
       fontFamily: getFont('regular'),
       fontWeight: Platform.select({
-        ios: '400', // Specific iOS font weight
+        ios: '400',
         android: 'normal',
         default: '400',
       }),
@@ -329,7 +330,7 @@ const createStyles = (colors: any, typography: any, spacing: any) => {
       lineHeight: 24,
       marginBottom: spacing.xxxl,
       paddingHorizontal: spacing.lg,
-      letterSpacing: Platform.OS === 'ios' ? 0.3 : 0, // iOS letter spacing
+      letterSpacing: Platform.OS === 'ios' ? 0.3 : 0,
     },
 
     // Buttons

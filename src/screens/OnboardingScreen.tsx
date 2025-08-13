@@ -8,35 +8,59 @@ import {
   Image,
   Text,
   Easing,
+  Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import GlassButton from '../components/common/GlassButton';
-import { useTheme } from '../theme/useTheme';
+import { useThemeWithFallbacks } from '../hooks/useThemeWithFallbacks';
+import { createShadow } from '../theme/themeUtils';
 
 const { width, height } = Dimensions.get('window');
 const ICON_SIZE = width * 0.68;
 
 export default function OnboardingScreen({ navigation }) {
   // Get theme safely with fallback
-  const theme = useTheme() || {};
-  const gradients = theme.gradients || {
-    background: ['#ede1ff', '#d5bfff'], // Fallback gradient
+  const { colors, typography, spacing, isDark } = useThemeWithFallbacks();
+
+  const safeColors = colors || {
+    background: '#ffffff',
+    text: '#1a202c',
+    textSecondary: '#64748b',
+    primary: '#6a01f6',
+    gradients: {
+      background: ['#ede1ff', '#d5bfff'],
+      primary: ['#8b5cf6', '#a855f7', '#c084fc'],
+    },
   };
 
-  // animated values
+  const safeTypography = typography || {
+    fontSize: { lg: 16, xl: 20, '2xl': 24, '3xl': 30, '4xl': 36, '5xl': 48 },
+    fontFamily: { dynaPuffBold: 'System', dynaPuffRegular: 'System' },
+  };
+
+  const safeSpacing = spacing || {
+    screen: { horizontal: 24 },
+    lg: 16,
+    xl: 20,
+    xxl: 24,
+    xxxl: 32,
+    '4xl': 40,
+    '5xl': 48,
+  };
+
+  // ─────────────────────────────── Animations ──────────────────────────────────
   const iconY = useRef(new Animated.Value((height - ICON_SIZE) / 2)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
   const bobAnim = useRef(new Animated.Value(0)).current;
   const contentOp = useRef(new Animated.Value(0)).current;
   const contentY = useRef(new Animated.Value(48)).current;
 
-  // Fixed: Properly typed refs for animation loops
   const spinLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const bobLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const [slidUp, setSlidUp] = useState(false);
 
   useEffect(() => {
-    // 1) start spin loop
+    // 1) spinning icon
     spinLoopRef.current = Animated.loop(
       Animated.timing(spinAnim, {
         toValue: 1,
@@ -47,7 +71,7 @@ export default function OnboardingScreen({ navigation }) {
     );
     spinLoopRef.current.start();
 
-    // 2) after delay, slide icon up & show content
+    // 2) slide-up + content fade-in
     Animated.sequence([
       Animated.delay(1000),
       Animated.timing(iconY, {
@@ -72,7 +96,7 @@ export default function OnboardingScreen({ navigation }) {
       spinLoopRef.current?.stop();
       spinAnim.setValue(0);
 
-      // start bobbing loop
+      // bobbing effect
       bobLoopRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(bobAnim, {
@@ -92,7 +116,6 @@ export default function OnboardingScreen({ navigation }) {
       bobLoopRef.current.start();
     });
 
-    // Cleanup function to stop animations
     return () => {
       spinLoopRef.current?.stop();
       bobLoopRef.current?.stop();
@@ -111,24 +134,26 @@ export default function OnboardingScreen({ navigation }) {
   const iconTransforms: Animated.WithAnimatedValue<any>[] = [
     { translateY: iconY },
   ];
-  if (!slidUp) {
-    iconTransforms.push({ rotate: rotation });
-  } else {
-    iconTransforms.push({ translateY: bobY });
-  }
+  if (!slidUp) iconTransforms.push({ rotate: rotation });
+  else iconTransforms.push({ translateY: bobY });
 
+  // ──────────────────────────────── Styles ─────────────────────────────────────
+  const styles = createStyles(safeColors, safeTypography, safeSpacing);
+
+  // ──────────────────────────────── Render ─────────────────────────────────────
   return (
     <LinearGradient
-      colors={gradients.background}
+      colors={safeColors.gradients.background}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       <StatusBar
-        barStyle="dark-content"
-        backgroundColor={gradients.background[0]}
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={safeColors.gradients.background[0]}
       />
 
+      {/* Icon */}
       <Animated.View style={[styles.iconWrap, { transform: iconTransforms }]}>
         <Image
           source={require('../assets/images/68.png')}
@@ -137,13 +162,11 @@ export default function OnboardingScreen({ navigation }) {
         />
       </Animated.View>
 
+      {/* Content */}
       <Animated.View
         style={[
           styles.contentWrap,
-          {
-            opacity: contentOp,
-            transform: [{ translateY: contentY }],
-          },
+          { opacity: contentOp, transform: [{ translateY: contentY }] },
         ]}
       >
         <View style={styles.textWrap}>
@@ -154,11 +177,13 @@ export default function OnboardingScreen({ navigation }) {
               to build the{'\n'}future together
             </Text>
           </Text>
-          <Text style={styles.sub}>
+
+          <Text style={styles.subtitle}>
             Align goals, track progress, and celebrate wins all in one seamless
             workspace designed for modern collaboration.
           </Text>
         </View>
+
         <GlassButton
           title="Get Started"
           onPress={() => navigation.replace('Login')}
@@ -168,51 +193,74 @@ export default function OnboardingScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+// ─────────────────────────────── createStyles ──────────────────────────────────
+const createStyles = (colors: any, typography: any, spacing: any) => {
+  const getFont = (weight: 'regular' | 'bold') =>
+    Platform.select({
+      ios: `DynaPuff-${weight === 'bold' ? 'Bold' : 'Regular'}`,
+      android: `DynaPuff-${weight === 'bold' ? 'Bold' : 'Regular'}`,
+      default: 'System',
+    });
 
-  iconWrap: {
-    position: 'absolute',
-    width: '100%',
-    alignItems: 'center',
-    top: 0,
-    zIndex: 10,
-  },
-  icon: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
-  },
+  const lineHeight = typography.fontSize['4xl'] * 1.45; // generous spacing
 
-  contentWrap: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    paddingTop: ICON_SIZE / 2 + 45,
-    paddingHorizontal: 34,
-  },
-  textWrap: { marginBottom: 38 },
-  headline: {
-    fontSize: 39,
-    fontWeight: '400',
-    fontFamily: 'System', // Updated fontFamily
-    color: '#4a5568', // Lighter color instead of #222
-    lineHeight: 47,
-  },
-  headlineBold: {
-    fontWeight: 'bold',
-    fontSize: 44,
-    fontFamily: 'System', // Updated fontFamily
-    lineHeight: 54,
-    color: '#2d3748', // Lighter color instead of #191919
-  },
-  sub: {
-    fontSize: 16, // Updated fontSize
-    fontWeight: '300',
-    fontFamily: 'System', // Updated fontFamily
-    color: '#718096', // Lighter color instead of #444
-    opacity: 0.9, // Increased opacity
-    marginTop: 26,
-    letterSpacing: 0.5,
-    lineHeight: 24,
-    maxWidth: 320,
-  },
-});
+  return StyleSheet.create({
+    container: { flex: 1 },
+
+    /* Icon */
+    iconWrap: {
+      position: 'absolute',
+      width: '100%',
+      alignItems: 'center',
+      top: 0,
+      zIndex: 10,
+    },
+    icon: {
+      width: ICON_SIZE,
+      height: ICON_SIZE,
+      ...createShadow(8, colors.primary, 0.2),
+    },
+
+    /* Content */
+    contentWrap: {
+      flex: 1,
+      justifyContent: 'flex-start',
+      paddingTop: ICON_SIZE / 2 + spacing['5xl'],
+      paddingHorizontal: spacing.xxxl,
+    },
+
+    textWrap: {
+      marginBottom: spacing['5xl'], // more space before subtitle
+      alignItems: 'flex-start',
+    },
+
+    headline: {
+      fontSize: typography.fontSize['4xl'],
+      fontFamily: getFont('regular'),
+      color: colors.text,
+      lineHeight,
+    },
+    headlineBold: {
+      fontSize: typography.fontSize['4xl'],
+      fontFamily: getFont('bold'),
+      color: colors.text,
+      lineHeight,
+    },
+
+    subtitle: {
+      fontSize: typography.fontSize.lg,
+      fontFamily: getFont('regular'),
+      fontWeight: Platform.select({
+        ios: '400',
+        android: 'normal',
+        default: '400',
+      }),
+      color: colors.textSecondary,
+      lineHeight: 28,
+      letterSpacing: Platform.OS === 'ios' ? 0.3 : 0.5,
+      maxWidth: 320,
+      opacity: 0.9,
+      marginTop: spacing.lg,
+    },
+  });
+};
