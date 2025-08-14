@@ -1,6 +1,6 @@
 import { TextStyle } from 'react-native';
 import { getFontFamily, getFontWeight, getLetterSpacing, FontWeight } from './fontUtils';
-import { useThemeWithFallbacks } from '../hooks/useThemeWithFallbacks';
+import { useTheme } from '../theme/useTheme';
 
 /**
  * Typography utility functions for consistent text styling across the app
@@ -33,7 +33,7 @@ export const createTypographyStyle = (options: TypographyStyleOptions): TextStyl
   return {
     fontSize,
     fontFamily: getFontFamily(fontWeight),
-    fontWeight: getFontWeight(fontWeight),
+    fontWeight: getFontWeight(fontWeight) as any,
     color,
     lineHeight: lineHeight || fontSize * 1.5,
     letterSpacing: letterSpacing !== undefined ? letterSpacing : getLetterSpacing(fontSize),
@@ -46,7 +46,7 @@ export const createTypographyStyle = (options: TypographyStyleOptions): TextStyl
  * Hook to get typography styles with theme integration
  */
 export const useTypographyStyles = () => {
-  const { colors, typography } = useThemeWithFallbacks();
+  const { colors, typography } = useTheme();
 
   const createThemedStyle = (options: TypographyStyleOptions): TextStyle => ({
     ...createTypographyStyle({
@@ -94,7 +94,7 @@ export const useTypographyStyles = () => {
       fontWeight: 'regular',
     }),
     body: createThemedStyle({ 
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.lg,
       fontWeight: 'regular',
     }),
     bodySmall: createThemedStyle({ 
@@ -104,7 +104,7 @@ export const useTypographyStyles = () => {
 
     // Secondary text
     bodySecondary: createThemedStyle({ 
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.lg,
       fontWeight: 'regular',
       color: colors.textSecondary,
     }),
@@ -116,7 +116,7 @@ export const useTypographyStyles = () => {
 
     // UI elements
     button: createThemedStyle({ 
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.lg,
       fontWeight: 'semibold',
       textAlign: 'center',
     }),
@@ -172,7 +172,7 @@ export const useTypographyStyles = () => {
 
     // Link text
     link: createThemedStyle({ 
-      fontSize: typography.fontSize.base,
+      fontSize: typography.fontSize.lg,
       fontWeight: 'medium',
       color: colors.primary,
     }),

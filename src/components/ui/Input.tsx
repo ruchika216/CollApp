@@ -9,8 +9,8 @@ import {
   TextInputProps,
 } from 'react-native';
 import { useTheme } from '../../theme/useTheme';
-import { spacing, borderRadius } from '../../constants/spacing';
-import { typography } from '../../constants/typography';
+import { SPACING, BORDER_RADIUS } from '../../theme/theme';
+import { TYPOGRAPHY_STYLES } from '../../theme/theme';
 import Icon, { IconName } from '../common/Icon';
 
 interface InputProps extends Omit<TextInputProps, 'style'> {

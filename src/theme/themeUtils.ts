@@ -1,5 +1,5 @@
 import { TextStyle, ViewStyle } from 'react-native';
-import { Theme, ThemeColors } from './themeConfig';
+import { Theme, ThemeColors } from './theme';
 import { Platform } from 'react-native';
 
 // Styled components factory
@@ -142,7 +142,7 @@ export const createTextStyle = (
     variant?: 'primary' | 'secondary' | 'light';
     fontType?: 'primary' | 'secondary' | 'heading' | 'body' | 'caption';
     weight?: 'regular' | 'medium' | 'bold';
-    size?: keyof typeof import('./themeConfig').TYPOGRAPHY.fontSize;
+    size?: keyof typeof import('./theme').FONT_SIZES;
   } = {},
 ): TextStyle => {
   const {
@@ -161,7 +161,7 @@ export const createTextStyle = (
   return {
     color: colorMap[variant],
     fontFamily: getFontFamily(fontType, weight),
-    fontSize: import('./themeConfig').TYPOGRAPHY.fontSize[size],
+    fontSize: import('./theme').FONT_SIZES[size],
   };
 };
 
@@ -248,9 +248,6 @@ export const createInputStyle = (colors: ThemeColors): ViewStyle => ({
   borderRadius: 8,
   paddingHorizontal: 16,
   paddingVertical: 12,
-  fontSize: 16,
-  fontFamily: getFontFamily('body', 'regular'),
-  color: colors.text,
   minHeight: 48,
 });
 

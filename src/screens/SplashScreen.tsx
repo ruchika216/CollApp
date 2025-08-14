@@ -15,14 +15,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import LinearGradient from 'react-native-linear-gradient';
-import { useThemeWithFallbacks } from '../hooks/useThemeWithFallbacks';
+import { useTheme } from '../theme/useTheme';
 import { createShadow } from '../theme/themeUtils';
 
 const { width } = Dimensions.get('window');
 
 export default function SplashScreen() {
   const navigation = useNavigation();
-  const { colors, typography, spacing, isDark } = useThemeWithFallbacks();
+  const { colors, typography, spacing, isDark } = useTheme();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import GlassButton from '../components/common/GlassButton';
-import { useThemeWithFallbacks } from '../hooks/useThemeWithFallbacks';
+import { useTheme } from '../theme/useTheme';
 import { createShadow } from '../theme/themeUtils';
 
 const { width, height } = Dimensions.get('window');
@@ -20,7 +20,7 @@ const ICON_SIZE = width * 0.68;
 
 export default function OnboardingScreen({ navigation }) {
   // Get theme safely with fallback
-  const { colors, typography, spacing, isDark } = useThemeWithFallbacks();
+  const { colors, typography, spacing, isDark } = useTheme();
 
   const safeColors = colors || {
     background: '#ffffff',

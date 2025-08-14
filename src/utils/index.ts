@@ -43,4 +43,4 @@ export {
 } from './typographyUtils';
 
 // Re-export theme hook for convenience
-export { useThemeWithFallbacks, safeThemeAccess } from '../hooks/useThemeWithFallbacks';
+export { useTheme, safeThemeAccess } from '../theme/useTheme';

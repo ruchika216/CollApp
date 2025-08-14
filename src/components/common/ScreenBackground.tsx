@@ -1,7 +1,7 @@
 import React from 'react';
 import { StatusBar, ViewStyle } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { useThemeWithFallbacks } from '../../hooks/useThemeWithFallbacks';
+import { useTheme } from '../../theme/useTheme';
 import { getStatusBarStyle } from '../../utils/platformUtils';
 
 /**
@@ -33,7 +33,7 @@ export const ScreenBackground: React.FC<ScreenBackgroundProps> = ({
   style,
   showStatusBar = true,
 }) => {
-  const { colors, isDark } = useThemeWithFallbacks();
+  const { colors, isDark } = useTheme();
 
   // Get gradient colors based on type
   const getGradientColors = (): string[] => {

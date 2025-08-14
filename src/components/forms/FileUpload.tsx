@@ -15,7 +15,7 @@ import {
 } from '@react-native-documents/picker';
 import ImagePicker from 'react-native-image-crop-picker';
 import { useTheme } from '../../theme/useTheme';
-import { spacing, borderRadius } from '../../constants/spacing';
+import { SPACING, BORDER_RADIUS } from '../../theme/theme';
 import Icon from '../common/Icon';
 import Card from '../ui/Card';
 

@@ -7,7 +7,7 @@ import {
   Platform,
 } from 'react-native';
 import { useTheme } from '../../theme/useTheme';
-import { spacing, borderRadius, elevation } from '../../constants/spacing';
+import { SPACING, BORDER_RADIUS, ELEVATION } from '../../theme/theme';
 
 interface CardProps {
   children: React.ReactNode;

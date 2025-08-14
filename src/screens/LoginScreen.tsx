@@ -18,7 +18,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAppDispatch } from '../store/hooks';
 import { signInWithGoogle, setUser } from '../store/slices/userSlice';
-import { useThemeWithFallbacks } from '../hooks/useThemeWithFallbacks';
+import { useTheme } from '../theme/useTheme';
 import { createShadow } from '../theme/themeUtils';
 
 const { width } = Dimensions.get('window');
@@ -30,7 +30,7 @@ type Props = {
 export default function LoginScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
-  const { colors, typography, spacing, isDark } = useThemeWithFallbacks();
+  const { colors, typography, spacing, isDark } = useTheme();
 
   // Safety checks for gradients with fallbacks
   const safeColors = colors || {
