@@ -23,21 +23,23 @@ export function determineUserRole(email: string | null): 'admin' | 'developer' {
 /**
  * Creates or updates user in Firestore after Google sign-in
  */
-export async function createOrUpdateUser(firebaseUser: FirebaseAuthTypes.User): Promise<User> {
+export async function createOrUpdateUser(
+  firebaseUser: FirebaseAuthTypes.User,
+): Promise<User> {
   const db = firestore();
   const userRef = db.collection('users').doc(firebaseUser.uid);
   const timestamp = new Date().toISOString();
-  
+
   try {
     const existingDoc = await userRef.get();
-    
+
     if (existingDoc.exists()) {
       // User exists, update their info but keep their role and approved status
       const existingData = existingDoc.data();
       if (!existingData) {
         throw new Error('User data is corrupted');
       }
-      
+
       const updatedUser: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
@@ -53,7 +55,7 @@ export async function createOrUpdateUser(firebaseUser: FirebaseAuthTypes.User): 
         isOnline: true,
         lastSeen: timestamp,
       };
-      
+
       await userRef.update({
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
@@ -63,13 +65,13 @@ export async function createOrUpdateUser(firebaseUser: FirebaseAuthTypes.User): 
         isOnline: true,
         lastSeen: timestamp,
       });
-      
+
       return updatedUser;
     } else {
       // New user, create with default settings
       const role = determineUserRole(firebaseUser.email);
       const isAdmin = role === 'admin';
-      
+
       const newUser: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
@@ -85,14 +87,14 @@ export async function createOrUpdateUser(firebaseUser: FirebaseAuthTypes.User): 
         isOnline: true,
         lastSeen: timestamp,
       };
-      
+
       await userRef.set(newUser);
-      
+
       // Create notification for admins about new user (if user is not admin)
       if (!isAdmin) {
         await createNewUserNotification(newUser);
       }
-      
+
       return newUser;
     }
   } catch (error) {
@@ -106,11 +108,14 @@ export async function createOrUpdateUser(firebaseUser: FirebaseAuthTypes.User): 
  */
 async function createNewUserNotification(user: User): Promise<void> {
   const db = firestore();
-  
+  //
   try {
     // Get all admin users
-    const adminQuery = await db.collection('users').where('role', '==', 'admin').get();
-    
+    const adminQuery = await db
+      .collection('users')
+      .where('role', '==', 'admin')
+      .get();
+
     const notificationPromises = adminQuery.docs.map(adminDoc => {
       const notificationRef = db.collection('notifications').doc();
       return notificationRef.set({
@@ -129,7 +134,7 @@ async function createNewUserNotification(user: User): Promise<void> {
         },
       });
     });
-    
+
     await Promise.all(notificationPromises);
   } catch (error) {
     console.error('Error creating new user notification:', error);
@@ -180,34 +185,38 @@ export async function checkUserExists(uid: string): Promise<boolean> {
 /**
  * Approves a user and creates notification
  */
-export async function approveUser(uid: string, _approvedByUid: string): Promise<void> {
+export async function approveUser(
+  uid: string,
+  _approvedByUid: string,
+): Promise<void> {
   const db = firestore();
   const timestamp = new Date().toISOString();
-  
+
   try {
     // Update user approval status
     await db.collection('users').doc(uid).update({
       approved: true,
       updatedAt: timestamp,
     });
-    
+
     // Get user details for notification
     const userDoc = await db.collection('users').doc(uid).get();
     const user = userDoc.data() as User;
-    
+
     // Create notification for the approved user
     const notificationRef = db.collection('notifications').doc();
     await notificationRef.set({
       id: notificationRef.id,
       title: 'Account Approved!',
-      message: 'Your account has been approved. You can now access the application.',
+      message:
+        'Your account has been approved. You can now access the application.',
       type: 'success',
       userId: uid,
       read: false,
       createdAt: timestamp,
       actionType: 'account_approved',
     });
-    
+
     console.log(`User ${user.email} approved successfully`);
   } catch (error) {
     console.error('Error approving user:', error);
