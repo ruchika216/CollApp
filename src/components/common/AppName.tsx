@@ -63,7 +63,7 @@ const AppName: React.FC<AppNameProps> = ({
               },
             ]}
           >
-            CollApp
+            CollAppee
           </Text>
         </LinearGradient>
       </View>
@@ -83,7 +83,7 @@ const AppName: React.FC<AppNameProps> = ({
           style,
         ]}
       >
-        CollApp
+        CollApprr
       </Text>
     );
   }

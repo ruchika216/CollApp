@@ -25,9 +25,9 @@ import { filterUpcomingMeetings, filterTodaysMeetings } from '../utils/meetingUt
 
 const { width } = Dimensions.get('window');
 
-interface HomeScreenProps {
-  navigation: any;
-}
+import type { BottomTabScreenPropsType } from '../types/navigation';
+
+interface HomeScreenProps extends BottomTabScreenPropsType<'Home'> {}
 
 const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { colors, shadows } = useTheme();

@@ -1,4 +1,11 @@
+/**
+ * CORE ENTITY TYPES
+ * Main business entities and data models
+ */
 
+// =====================================================================================
+// USER ENTITY
+// =====================================================================================
 export interface User {
   uid: string;
   email: string | null;
@@ -15,6 +22,9 @@ export interface User {
   lastSeen?: string;
 }
 
+// =====================================================================================
+// PROJECT ENTITIES
+// =====================================================================================
 export interface ProjectFile {
   id: string;
   name: string;
@@ -71,6 +81,9 @@ export interface Project {
   category?: string;
 }
 
+// =====================================================================================
+// TASK ENTITIES
+// =====================================================================================
 export interface TaskComment {
   id: string;
   text: string;
@@ -104,6 +117,9 @@ export interface Task {
   commentedBy?: string;
 }
 
+// =====================================================================================
+// MEETING ENTITIES
+// =====================================================================================
 export interface MeetingComment {
   id: string;
   text: string;
@@ -150,6 +166,9 @@ export interface Meeting {
   attendees?: string[]; // Who actually attended
 }
 
+// =====================================================================================
+// REPORT ENTITIES
+// =====================================================================================
 export interface ReportComment {
   id: string;
   text: string;
@@ -190,6 +209,9 @@ export interface Report {
   reviewNotes?: string;
 }
 
+// =====================================================================================
+// NOTIFICATION & ACTIVITY ENTITIES
+// =====================================================================================
 export interface Notification {
   id: string;
   title: string;
@@ -211,7 +233,6 @@ export interface Notification {
   };
 }
 
-// Activity tracking interface
 export interface Activity {
   id: string;
   type: 'project_created' | 'project_updated' | 'status_updated' | 'comment_added' | 'user_assigned' | 'file_uploaded' | 'task_completed' | 'subtask_added';
@@ -230,66 +251,3 @@ export interface Activity {
     [key: string]: any;
   };
 }
-
-// Filter and search interfaces
-export interface ProjectFilters {
-  status?: string[];
-  priority?: string[];
-  assignedTo?: string[];
-  dateRange?: {
-    start: string;
-    end: string;
-  };
-  tags?: string[];
-  search?: string;
-}
-
-export interface MeetingFilters {
-  status?: string[];
-  type?: string[];
-  priority?: string[];
-  assignedTo?: string[];
-  dateRange?: {
-    start: string;
-    end: string;
-  };
-  search?: string;
-}
-
-export interface ReportFilters {
-  status?: string[];
-  reportType?: string[];
-  priority?: string[];
-  assignedTo?: string[];
-  dateRange?: {
-    start: string;
-    end: string;
-  };
-  tags?: string[];
-  search?: string;
-}
-
-// Auth state interface
-export interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-  approvalStatus: 'pending' | 'approved' | 'rejected' | null;
-}
-
-// UI state interface
-export interface UIState {
-  isLoading: boolean;
-  modals: {
-    projectForm: boolean;
-    userApproval: boolean;
-    fileUpload: boolean;
-    commentForm: boolean;
-  };
-  activeProject: string | null;
-  sidebarOpen: boolean;
-}
-
-// Export navigation types
-export * from './navigation';
