@@ -33,6 +33,7 @@ export type IconName =
   | 'close'
   | 'check'
   | 'star'
+  | 'clock'
   | 'time'
   | 'assign'
   | 'info'
@@ -52,13 +53,13 @@ const iconSources: Record<IconName, any> = {
   project: require('../../assets/icons/project.png'),
   settings: require('../../assets/icons/settings.png'),
   chat: require('../../assets/icons/chat.png'),
-  
+
   // Action icons
   add: require('../../assets/icons/add.png'),
   edit: require('../../assets/icons/edit.png'),
   delete: require('../../assets/icons/delete.png'),
   cancel: require('../../assets/icons/cancel.png'),
-  
+
   // Navigation icons
   back: require('../../assets/icons/left.png'),
   'arrow-left': require('../../assets/icons/left-arrow.png'),
@@ -67,7 +68,7 @@ const iconSources: Record<IconName, any> = {
   'arrow-down': require('../../assets/icons/down-arrow.png'),
   'arrow-up': require('../../assets/icons/down-arrow.png'), // mirror down arrow
   'up-arrow': require('../../assets/icons/down-arrow.png'), // mirror down arrow
-  
+
   // Other icons
   logout: require('../../assets/icons/account.png'),
   search: require('../../assets/icons/notification.png'),
@@ -82,6 +83,8 @@ const iconSources: Record<IconName, any> = {
   close: require('../../assets/icons/cancel.png'),
   check: require('../../assets/icons/notification.png'),
   star: require('../../assets/icons/project.png'),
+  // clock/time icons use the same placeholder for now
+  clock: require('../../assets/icons/dashboard.png'),
   time: require('../../assets/icons/dashboard.png'),
   assign: require('../../assets/icons/account.png'),
   info: require('../../assets/icons/notification.png'),
@@ -98,12 +101,12 @@ interface IconProps {
   color?: string; // Alias for tintColor
 }
 
-const Icon: React.FC<IconProps> = ({ 
-  name, 
-  size = 'md', 
-  style, 
-  tintColor, 
-  color 
+const Icon: React.FC<IconProps> = ({
+  name,
+  size = 'md',
+  style,
+  tintColor,
+  color,
 }) => {
   const source = iconSources[name];
 
@@ -115,7 +118,7 @@ const Icon: React.FC<IconProps> = ({
   // Handle size prop - can be number or string
   const getIconSize = (sizeValue: number | string): number => {
     if (typeof sizeValue === 'number') return sizeValue;
-    
+
     const sizeMap = {
       xs: 12,
       sm: 16,
@@ -124,7 +127,7 @@ const Icon: React.FC<IconProps> = ({
       xl: 28,
       xxl: 32,
     };
-    
+
     return sizeMap[sizeValue as keyof typeof sizeMap] || 20;
   };
 

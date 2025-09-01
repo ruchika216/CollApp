@@ -61,10 +61,13 @@ const uiSlice = createSlice({
     setSearchQuery: (state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
     },
-    setFilterOptions: (state, action: PayloadAction<Partial<UIState['filterOptions']>>) => {
+    setFilterOptions: (
+      state,
+      action: PayloadAction<Partial<UIState['filterOptions']>>,
+    ) => {
       state.filterOptions = { ...state.filterOptions, ...action.payload };
     },
-    clearFilters: (state) => {
+    clearFilters: state => {
       state.filterOptions = {
         status: [],
         priority: [],
@@ -78,15 +81,13 @@ const uiSlice = createSlice({
     setSortOrder: (state, action: PayloadAction<UIState['sortOrder']>) => {
       state.sortOrder = action.payload;
     },
-    toggleSortOrder: (state) => {
+    toggleSortOrder: state => {
       state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc';
     },
     setSelectedProject: (state, action: PayloadAction<string | null>) => {
       state.selectedProject = action.payload;
     },
-    resetUI: (state) => {
-      return initialState;
-    },
+    resetUI: () => initialState,
   },
 });
 

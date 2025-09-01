@@ -4,7 +4,6 @@ import React, { useEffect, useRef } from 'react';
 import {
   SafeAreaView,
   Image,
-  Text,
   StyleSheet,
   Animated,
   StatusBar,
@@ -16,6 +15,8 @@ import { useNavigation } from '@react-navigation/native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../theme/useTheme';
+import { BRAND } from '../theme/brand';
+import AppText from '../components/common/AppText';
 import { createShadow } from '../theme/themeUtils';
 
 const { width } = Dimensions.get('window');
@@ -55,7 +56,7 @@ export default function SplashScreen() {
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [fadeAnim, scaleAnim, textSlideAnim, navigation]);
 
   const safeColors = colors || {
     background: '#ffffff',
@@ -84,6 +85,8 @@ export default function SplashScreen() {
   };
 
   const styles = createStyles(safeColors, safeTypography, safeSpacing);
+  const maskTextBlack = { color: '#000' } as const;
+  const hiddenText = { opacity: 0 } as const;
 
   return (
     <LinearGradient
@@ -124,10 +127,23 @@ export default function SplashScreen() {
             <MaskedView
               style={styles.maskedView}
               maskElement={
-                <Text style={[styles.appNameText, { color: '#000' }]}>
-                  <Text style={[styles.collText, { color: '#000' }]}>COLL</Text>
-                  <Text style={[styles.appText, { color: '#000' }]}>APP</Text>
-                </Text>
+                <AppText
+                  weight="bold"
+                  style={[styles.appNameText, maskTextBlack]}
+                >
+                  <AppText
+                    weight="bold"
+                    style={[styles.collText, maskTextBlack]}
+                  >
+                    COLL
+                  </AppText>
+                  <AppText
+                    weight="bold"
+                    style={[styles.appText, maskTextBlack]}
+                  >
+                    APP
+                  </AppText>
+                </AppText>
               }
             >
               <LinearGradient
@@ -136,22 +152,24 @@ export default function SplashScreen() {
                 colors={safeColors.gradients.primary}
                 style={styles.gradientMask}
               >
-                <Text style={[styles.appNameText, { opacity: 0 }]}>
-                  COLLAPP
-                </Text>
+                <AppText weight="bold" style={[styles.appNameText, hiddenText]}>
+                  {BRAND.appName}
+                </AppText>
               </LinearGradient>
             </MaskedView>
           </Animated.View>
 
           {/* Tagline */}
-          <Animated.Text
+          <Animated.View
             style={[
               styles.tagline,
               { opacity: fadeAnim, transform: [{ translateY: textSlideAnim }] },
             ]}
           >
-            Collaborate • Create • Connect
-          </Animated.Text>
+            <AppText style={styles.taglineText}>
+              Collaborate • Create • Connect
+            </AppText>
+          </Animated.View>
 
           {/* Loading Dots */}
           <Animated.View
@@ -220,11 +238,13 @@ const createStyles = (colors: any, typography: any, spacing: any) => {
     },
     tagline: {
       fontSize: typography.fontSize.lg,
-      fontFamily: getFont('regular'),
       color: colors.textSecondary,
       textAlign: 'center',
       marginBottom: spacing.xxxl,
       letterSpacing: 1,
+    },
+    taglineText: {
+      fontFamily: getFont('regular'),
     },
     loadingContainer: {
       position: 'absolute',

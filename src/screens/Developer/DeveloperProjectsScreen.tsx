@@ -18,7 +18,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
-import { 
+import {
   fetchUserProjects,
   updateProjectAsync,
   createSubTaskAsync,
@@ -26,9 +26,9 @@ import {
   addCommentAsync,
   uploadFileToProject as uploadFileToProjectThunk,
   updateProjectProgress,
-  setLoading 
+  setLoading,
 } from '../../store/slices/projectSlice';
-import { validateFile } from '../../services/fileUpload';
+import { validateFile } from '../../services/storage/fileUpload';
 import Icon from '../../components/common/Icon';
 import NotificationButton from '../../components/common/NotificationButton';
 import Card from '../../components/ui/Card';
@@ -36,7 +36,12 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { Project, SubTask, ProjectComment } from '../../types';
 import { getStatusColor, getPriorityColor } from '../../theme/themeUtils';
-import { launchImageLibrary, ImagePickerResponse, MediaType, launchCamera } from 'react-native-image-picker';
+import {
+  launchImageLibrary,
+  ImagePickerResponse,
+  MediaType,
+  launchCamera,
+} from 'react-native-image-picker';
 
 const { width } = Dimensions.get('window');
 
@@ -46,7 +51,9 @@ interface DeveloperProjectsScreenProps {
 
 type TabType = 'overview' | 'projects' | 'tasks';
 
-const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navigation }) => {
+const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({
+  navigation,
+}) => {
   const { colors, gradients, shadows } = useTheme();
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.user.user);
@@ -60,7 +67,7 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [subtaskModalVisible, setSubtaskModalVisible] = useState(false);
   const [commentModalVisible, setCommentModalVisible] = useState(false);
-  
+
   // Form states
   const [editedDescription, setEditedDescription] = useState('');
   const [newStatus, setNewStatus] = useState<Project['status']>('Development');
@@ -69,19 +76,30 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
 
   // Available status workflow for developers
   const developerAllowedStatuses: Project['status'][] = [
-    'Development', 'Review', 'Testing', 'Done'
+    'Development',
+    'Review',
+    'Testing',
+    'Done',
   ];
 
   const stats = useMemo(() => {
     const totalProjects = userProjects.length;
-    const activeProjects = userProjects.filter(p => 
-      ['Development', 'Review', 'Testing'].includes(p.status)
+    const activeProjects = userProjects.filter(p =>
+      ['Development', 'Review', 'Testing'].includes(p.status),
     ).length;
-    const completedProjects = userProjects.filter(p => p.status === 'Done').length;
-    const pendingProjects = userProjects.filter(p => p.status === 'Pending').length;
-    const totalSubtasks = userProjects.reduce((acc, p) => acc + p.subTasks.length, 0);
-    const completedSubtasks = userProjects.reduce((acc, p) => 
-      acc + p.subTasks.filter(st => st.completed).length, 0
+    const completedProjects = userProjects.filter(
+      p => p.status === 'Done',
+    ).length;
+    const pendingProjects = userProjects.filter(
+      p => p.status === 'Pending',
+    ).length;
+    const totalSubtasks = userProjects.reduce(
+      (acc, p) => acc + p.subTasks.length,
+      0,
+    );
+    const completedSubtasks = userProjects.reduce(
+      (acc, p) => acc + p.subTasks.filter(st => st.completed).length,
+      0,
     );
 
     return {
@@ -100,7 +118,7 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
 
   const loadUserProjects = async () => {
     if (!user) return;
-    
+
     try {
       await dispatch(fetchUserProjects(user.uid)).unwrap();
     } catch (error) {
@@ -119,13 +137,15 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
     if (!selectedProject || !user) return;
 
     try {
-      await dispatch(updateProjectAsync({
-        projectId: selectedProject.id,
-        updates: {
-          description: editedDescription,
-          updatedAt: new Date().toISOString(),
-        }
-      })).unwrap();
+      await dispatch(
+        updateProjectAsync({
+          projectId: selectedProject.id,
+          updates: {
+            description: editedDescription,
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      ).unwrap();
 
       setEditModalVisible(false);
       Alert.alert('Success', 'Project description updated successfully');
@@ -139,13 +159,15 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
     if (!selectedProject || !user) return;
 
     try {
-      await dispatch(updateProjectAsync({
-        projectId: selectedProject.id,
-        updates: {
-          status: newStatus,
-          updatedAt: new Date().toISOString(),
-        }
-      })).unwrap();
+      await dispatch(
+        updateProjectAsync({
+          projectId: selectedProject.id,
+          updates: {
+            status: newStatus,
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      ).unwrap();
 
       setStatusModalVisible(false);
       Alert.alert('Success', 'Project status updated successfully');
@@ -159,16 +181,18 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
     if (!selectedProject || !user || !newSubtask.title.trim()) return;
 
     try {
-      await dispatch(createSubTaskAsync({
-        projectId: selectedProject.id,
-        subTaskData: {
-          title: newSubtask.title.trim(),
-          description: newSubtask.description.trim(),
-          completed: false,
-          assignedTo: user.uid,
-          createdBy: user.uid,
-        }
-      })).unwrap();
+      await dispatch(
+        createSubTaskAsync({
+          projectId: selectedProject.id,
+          subTaskData: {
+            title: newSubtask.title.trim(),
+            description: newSubtask.description.trim(),
+            completed: false,
+            assignedTo: user.uid,
+            createdBy: user.uid,
+          },
+        }),
+      ).unwrap();
 
       // Update project progress
       dispatch(updateProjectProgress(selectedProject.id));
@@ -182,16 +206,22 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
     }
   };
 
-  const handleToggleSubtask = async (projectId: string, subtaskId: string, completed: boolean) => {
+  const handleToggleSubtask = async (
+    projectId: string,
+    subtaskId: string,
+    completed: boolean,
+  ) => {
     try {
-      await dispatch(updateSubTaskAsync({
-        projectId,
-        subTaskId: subtaskId,
-        updates: { 
-          completed: !completed, 
-          updatedAt: new Date().toISOString() 
-        }
-      })).unwrap();
+      await dispatch(
+        updateSubTaskAsync({
+          projectId,
+          subTaskId: subtaskId,
+          updates: {
+            completed: !completed,
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      ).unwrap();
 
       // Update project progress
       dispatch(updateProjectProgress(projectId));
@@ -205,14 +235,16 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
     if (!selectedProject || !user || !newComment.trim()) return;
 
     try {
-      await dispatch(addCommentAsync({
-        projectId: selectedProject.id,
-        commentData: {
-          text: newComment.trim(),
-          userId: user.uid,
-          userName: user.name || user.email || 'Unknown User',
-        }
-      })).unwrap();
+      await dispatch(
+        addCommentAsync({
+          projectId: selectedProject.id,
+          commentData: {
+            text: newComment.trim(),
+            userId: user.uid,
+            userName: user.name || user.email || 'Unknown User',
+          },
+        }),
+      ).unwrap();
 
       setNewComment('');
       setCommentModalVisible(false);
@@ -224,11 +256,7 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
   };
 
   const handleAttachFile = () => {
-    const options = [
-      'Camera',
-      'Photo Library',
-      'Cancel'
-    ];
+    const options = ['Camera', 'Photo Library', 'Cancel'];
 
     const showFilePicker = () => {
       if (Platform.OS === 'ios') {
@@ -237,24 +265,20 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
             options,
             cancelButtonIndex: 2,
           },
-          (buttonIndex) => {
+          buttonIndex => {
             if (buttonIndex === 0) {
               openCamera();
             } else if (buttonIndex === 1) {
               openImageLibrary();
             }
-          }
+          },
         );
       } else {
-        Alert.alert(
-          'Select File',
-          'Choose an option',
-          [
-            { text: 'Camera', onPress: openCamera },
-            { text: 'Photo Library', onPress: openImageLibrary },
-            { text: 'Cancel', style: 'cancel' },
-          ]
-        );
+        Alert.alert('Select File', 'Choose an option', [
+          { text: 'Camera', onPress: openCamera },
+          { text: 'Photo Library', onPress: openImageLibrary },
+          { text: 'Cancel', style: 'cancel' },
+        ]);
       }
     };
 
@@ -306,9 +330,11 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
     if (!selectedProject || !user) return;
 
     try {
-      const fileName = file.fileName || `file_${Date.now()}.${file.type?.split('/')[1] || 'unknown'}`;
+      const fileName =
+        file.fileName ||
+        `file_${Date.now()}.${file.type?.split('/')[1] || 'unknown'}`;
       const fileSize = file.fileSize || 0;
-      
+
       // Validate file
       const validation = validateFile(fileName, fileSize, 10); // 10MB limit
       if (!validation.isValid) {
@@ -319,14 +345,16 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
       // Show upload confirmation
       Alert.alert(
         'Upload File',
-        `File: ${fileName}\nSize: ${(fileSize / 1024).toFixed(1)} KB\n\nUpload this file to the project?`,
+        `File: ${fileName}\nSize: ${(fileSize / 1024).toFixed(
+          1,
+        )} KB\n\nUpload this file to the project?`,
         [
           {
             text: 'Upload',
             onPress: () => uploadFile(file),
           },
           { text: 'Cancel', style: 'cancel' },
-        ]
+        ],
       );
     } catch (error) {
       console.error('Error handling file selection:', error);
@@ -338,48 +366,59 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
     if (!selectedProject || !user) return;
 
     try {
-      const fileName = file.fileName || `file_${Date.now()}.${file.type?.split('/')[1] || 'unknown'}`;
+      const fileName =
+        file.fileName ||
+        `file_${Date.now()}.${file.type?.split('/')[1] || 'unknown'}`;
       const fileType = file.type || 'unknown';
       const fileSize = file.fileSize || 0;
       const filePath = file.uri;
 
       // Use Redux thunk for file upload
-      await dispatch(uploadFileToProjectThunk({
-        projectId: selectedProject.id,
-        fileData: {
-          filePath,
-          fileName,
-          fileType,
-          fileSize,
-        },
-        userId: user.uid,
-      })).unwrap();
+      await dispatch(
+        uploadFileToProjectThunk({
+          projectId: selectedProject.id,
+          fileData: {
+            filePath,
+            fileName,
+            fileType,
+            fileSize,
+          },
+          userId: user.uid,
+        }),
+      ).unwrap();
 
       const isImage = fileType.startsWith('image/');
       Alert.alert(
-        'Success', 
-        `${isImage ? 'Image' : 'File'} uploaded successfully!`
+        'Success',
+        `${isImage ? 'Image' : 'File'} uploaded successfully!`,
       );
-
     } catch (error) {
       console.error('Error uploading file:', error);
       Alert.alert('Upload Error', 'Failed to upload file. Please try again.');
     }
   };
 
-  const TabButton = ({ label, tab, count }: { label: string; tab: TabType; count?: number }) => (
+  const TabButton = ({
+    label,
+    tab,
+    count,
+  }: {
+    label: string;
+    tab: TabType;
+    count?: number;
+  }) => (
     <TouchableOpacity
       style={[
         styles.tabButton,
         { backgroundColor: activeTab === tab ? colors.primary : colors.card },
-        shadows.sm
+        shadows.sm,
       ]}
       onPress={() => setActiveTab(tab)}
     >
-      <Text 
+      <Text
         style={[
           styles.tabButtonText,
-          { color: activeTab === tab ? '#fff' : colors.text }
+          { color: activeTab === tab ? '#fff' : colors.text },
         ]}
       >
         {label}
@@ -408,52 +447,96 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
   const ProjectCard = ({ project }: { project: Project }) => (
     <Card style={[styles.projectCard, shadows.sm]}>
       <View style={styles.projectHeader}>
-        <Text style={[styles.projectTitle, { color: colors.text }]}>{project.title}</Text>
+        <Text style={[styles.projectTitle, { color: colors.text }]}>
+          {project.title}
+        </Text>
         <View style={styles.projectMeta}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(project.status, colors) }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(project.status, colors) },
+            ]}
+          >
             <Text style={styles.statusText}>{project.status}</Text>
           </View>
-          <View style={[styles.priorityBadge, { backgroundColor: `${getPriorityColor(project.priority, colors)}20` }]}>
-            <Text style={[styles.priorityText, { color: getPriorityColor(project.priority, colors) }]}>
+          <View
+            style={[
+              styles.priorityBadge,
+              {
+                backgroundColor: `${getPriorityColor(
+                  project.priority,
+                  colors,
+                )}20`,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.priorityText,
+                { color: getPriorityColor(project.priority, colors) },
+              ]}
+            >
               {project.priority}
             </Text>
           </View>
         </View>
       </View>
 
-      <Text style={[styles.projectDescription, { color: colors.textSecondary }]} numberOfLines={3}>
+      <Text
+        style={[styles.projectDescription, { color: colors.textSecondary }]}
+        numberOfLines={3}
+      >
         {project.description}
       </Text>
 
       <View style={styles.projectDetails}>
-        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Start Date:</Text>
+        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+          Start Date:
+        </Text>
         <Text style={[styles.detailValue, { color: colors.text }]}>
           {new Date(project.startDate).toLocaleDateString()}
         </Text>
-        
-        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>End Date:</Text>
+
+        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+          End Date:
+        </Text>
         <Text style={[styles.detailValue, { color: colors.text }]}>
           {new Date(project.endDate).toLocaleDateString()}
         </Text>
-        
-        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Estimated Hours:</Text>
-        <Text style={[styles.detailValue, { color: colors.text }]}>{project.estimatedHours}h</Text>
-        
-        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Actual Hours:</Text>
-        <Text style={[styles.detailValue, { color: colors.text }]}>{project.actualHours}h</Text>
+
+        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+          Estimated Hours:
+        </Text>
+        <Text style={[styles.detailValue, { color: colors.text }]}>
+          {project.estimatedHours}h
+        </Text>
+
+        <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+          Actual Hours:
+        </Text>
+        <Text style={[styles.detailValue, { color: colors.text }]}>
+          {project.actualHours}h
+        </Text>
       </View>
 
       <View style={styles.progressSection}>
-        <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Progress</Text>
+        <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
+          Progress
+        </Text>
         <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-          <View 
+          <View
             style={[
-              styles.progressFill, 
-              { backgroundColor: colors.primary, width: `${project.progress}%` }
-            ]} 
+              styles.progressFill,
+              {
+                backgroundColor: colors.primary,
+                width: `${project.progress}%`,
+              },
+            ]}
           />
         </View>
-        <Text style={[styles.progressText, { color: colors.text }]}>{project.progress}%</Text>
+        <Text style={[styles.progressText, { color: colors.text }]}>
+          {project.progress}%
+        </Text>
       </View>
 
       <View style={styles.projectActions}>
@@ -479,7 +562,7 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
       </View>
 
       <View style={styles.projectStats}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.statItem}
           onPress={() => {
             setSelectedProject(project);
@@ -491,8 +574,8 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
             {project.subTasks.length} Subtasks
           </Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.statItem}
           onPress={() => {
             setSelectedProject(project);
@@ -504,14 +587,14 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
             {project.comments.length} Comments
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.statItem} onPress={handleAttachFile}>
           <Icon name="attachment" size={16} tintColor={colors.success} />
           <Text style={[styles.statItemText, { color: colors.text }]}>
             {project.files.length} Files
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.statItem} onPress={handleAttachFile}>
           <Icon name="image" size={16} tintColor={colors.warning} />
           <Text style={[styles.statItemText, { color: colors.text }]}>
@@ -524,29 +607,67 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
 
   const renderOverviewTab = () => (
     <View>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Projects Overview</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        Projects Overview
+      </Text>
       <View style={styles.statsGrid}>
-        <StatCard title="Total" value={stats.totalProjects} color={colors.primary} icon="project" />
-        <StatCard title="Active" value={stats.activeProjects} color={colors.success} icon="dashboard" />
-        <StatCard title="Completed" value={stats.completedProjects} color={colors.info} icon="status" />
-        <StatCard title="Pending" value={stats.pendingProjects} color={colors.warning} icon="clock" />
+        <StatCard
+          title="Total"
+          value={stats.totalProjects}
+          color={colors.primary}
+          icon="project"
+        />
+        <StatCard
+          title="Active"
+          value={stats.activeProjects}
+          color={colors.success}
+          icon="dashboard"
+        />
+        <StatCard
+          title="Completed"
+          value={stats.completedProjects}
+          color={colors.info}
+          icon="status"
+        />
+        <StatCard
+          title="Pending"
+          value={stats.pendingProjects}
+          color={colors.warning}
+          icon="clock"
+        />
       </View>
-      
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Tasks Overview</Text>
+
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        Tasks Overview
+      </Text>
       <View style={styles.statsGrid}>
-        <StatCard title="Total Tasks" value={stats.totalSubtasks} color={colors.secondary} icon="task" />
-        <StatCard title="Completed" value={stats.completedSubtasks} color={colors.success} icon="check" />
+        <StatCard
+          title="Total Tasks"
+          value={stats.totalSubtasks}
+          color={colors.secondary}
+          icon="task"
+        />
+        <StatCard
+          title="Completed"
+          value={stats.completedSubtasks}
+          color={colors.success}
+          icon="check"
+        />
       </View>
     </View>
   );
 
   const renderProjectsTab = () => (
     <View>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>My Projects</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        My Projects
+      </Text>
       {userProjects.length === 0 ? (
         <View style={styles.emptyState}>
           <Icon name="project" size={64} tintColor={colors.disabled} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>No Projects Assigned</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            No Projects Assigned
+          </Text>
           <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
             You don't have any projects assigned yet.
           </Text>
@@ -560,57 +681,96 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
   );
 
   const renderTasksTab = () => {
-    const allSubtasks = userProjects.flatMap(project => 
-      project.subTasks.map(subtask => ({ ...subtask, projectTitle: project.title, projectId: project.id }))
+    const allSubtasks = userProjects.flatMap(project =>
+      project.subTasks.map(subtask => ({
+        ...subtask,
+        projectTitle: project.title,
+        projectId: project.id,
+      })),
     );
 
     return (
       <View>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>All Subtasks</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          All Subtasks
+        </Text>
         {allSubtasks.length === 0 ? (
           <View style={styles.emptyState}>
             <Icon name="task" size={64} tintColor={colors.disabled} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Subtasks</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-              Create subtasks to break down your projects into manageable pieces.
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              No Subtasks
+            </Text>
+            <Text
+              style={[styles.emptySubtitle, { color: colors.textSecondary }]}
+            >
+              Create subtasks to break down your projects into manageable
+              pieces.
             </Text>
           </View>
         ) : (
           <FlatList
             data={allSubtasks}
-            keyExtractor={(item) => `${item.projectId}-${item.id}`}
+            keyExtractor={item => `${item.projectId}-${item.id}`}
             renderItem={({ item }) => (
               <Card style={[styles.subtaskCard, shadows.sm]}>
                 <View style={styles.subtaskHeader}>
                   <TouchableOpacity
                     style={styles.checkboxContainer}
-                    onPress={() => handleToggleSubtask(item.projectId, item.id, !item.completed)}
+                    onPress={() =>
+                      handleToggleSubtask(
+                        item.projectId,
+                        item.id,
+                        !item.completed,
+                      )
+                    }
                   >
-                    <View style={[
-                      styles.checkbox,
-                      { 
-                        backgroundColor: item.completed ? colors.primary : 'transparent',
-                        borderColor: colors.primary 
-                      }
-                    ]}>
-                      {item.completed && <Icon name="check" size={16} tintColor="#fff" />}
+                    <View
+                      style={[
+                        styles.checkbox,
+                        {
+                          backgroundColor: item.completed
+                            ? colors.primary
+                            : 'transparent',
+                          borderColor: colors.primary,
+                        },
+                      ]}
+                    >
+                      {item.completed && (
+                        <Icon name="check" size={16} tintColor="#fff" />
+                      )}
                     </View>
                   </TouchableOpacity>
                   <View style={styles.subtaskInfo}>
-                    <Text style={[
-                      styles.subtaskTitle, 
-                      { 
-                        color: item.completed ? colors.textSecondary : colors.text,
-                        textDecorationLine: item.completed ? 'line-through' : 'none'
-                      }
-                    ]}>
+                    <Text
+                      style={[
+                        styles.subtaskTitle,
+                        {
+                          color: item.completed
+                            ? colors.textSecondary
+                            : colors.text,
+                          textDecorationLine: item.completed
+                            ? 'line-through'
+                            : 'none',
+                        },
+                      ]}
+                    >
                       {item.title}
                     </Text>
-                    <Text style={[styles.projectLabel, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.projectLabel,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       Project: {item.projectTitle}
                     </Text>
                     {item.description && (
-                      <Text style={[styles.subtaskDescription, { color: colors.textSecondary }]}>
+                      <Text
+                        style={[
+                          styles.subtaskDescription,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
                         {item.description}
                       </Text>
                     )}
@@ -627,7 +787,7 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-      
+
       {/* Header */}
       <LinearGradient
         colors={gradients.primary}
@@ -636,7 +796,10 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
         style={styles.header}
       >
         <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
             <Icon name="arrow-left" size={24} tintColor="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Projects</Text>
@@ -649,14 +812,20 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
       </LinearGradient>
 
       {/* Tabs */}
-      <View style={[styles.tabContainer, { backgroundColor: colors.background }]}>
+      <View
+        style={[styles.tabContainer, { backgroundColor: colors.background }]}
+      >
         <TabButton label="Overview" tab="overview" />
-        <TabButton label="Projects" tab="projects" count={userProjects.length} />
+        <TabButton
+          label="Projects"
+          tab="projects"
+          count={userProjects.length}
+        />
         <TabButton label="Tasks" tab="tasks" count={stats.totalSubtasks} />
       </View>
 
       {/* Content */}
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -674,15 +843,25 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Description</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Edit Description
+            </Text>
             <TouchableOpacity onPress={() => setEditModalVisible(false)}>
               <Icon name="close" size={24} tintColor={colors.text} />
             </TouchableOpacity>
           </View>
           <TextInput
-            style={[styles.textArea, { backgroundColor: colors.card, color: colors.text }]}
+            style={[
+              styles.textArea,
+              { backgroundColor: colors.card, color: colors.text },
+            ]}
             value={editedDescription}
             onChangeText={setEditedDescription}
             placeholder="Enter project description..."
@@ -692,7 +871,11 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
             textAlignVertical="top"
           />
           <View style={styles.modalActions}>
-            <Button title="Cancel" variant="outline" onPress={() => setEditModalVisible(false)} />
+            <Button
+              title="Cancel"
+              variant="outline"
+              onPress={() => setEditModalVisible(false)}
+            />
             <Button title="Save" onPress={handleEditDescription} />
           </View>
         </View>
@@ -704,9 +887,16 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Update Status</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Update Status
+            </Text>
             <TouchableOpacity onPress={() => setStatusModalVisible(false)}>
               <Icon name="close" size={24} tintColor={colors.text} />
             </TouchableOpacity>
@@ -717,24 +907,31 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
                 key={status}
                 style={[
                   styles.statusOption,
-                  { 
-                    backgroundColor: newStatus === status ? colors.primary : colors.card,
-                    borderColor: colors.border 
-                  }
+                  {
+                    backgroundColor:
+                      newStatus === status ? colors.primary : colors.card,
+                    borderColor: colors.border,
+                  },
                 ]}
                 onPress={() => setNewStatus(status)}
               >
-                <Text style={[
-                  styles.statusOptionText,
-                  { color: newStatus === status ? '#fff' : colors.text }
-                ]}>
+                <Text
+                  style={[
+                    styles.statusOptionText,
+                    { color: newStatus === status ? '#fff' : colors.text },
+                  ]}
+                >
                   {status}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
           <View style={styles.modalActions}>
-            <Button title="Cancel" variant="outline" onPress={() => setStatusModalVisible(false)} />
+            <Button
+              title="Cancel"
+              variant="outline"
+              onPress={() => setStatusModalVisible(false)}
+            />
             <Button title="Update" onPress={handleUpdateStatus} />
           </View>
         </View>
@@ -746,9 +943,16 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Create Subtask</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Create Subtask
+            </Text>
             <TouchableOpacity onPress={() => setSubtaskModalVisible(false)}>
               <Icon name="close" size={24} tintColor={colors.text} />
             </TouchableOpacity>
@@ -756,12 +960,19 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
           <Input
             placeholder="Subtask title"
             value={newSubtask.title}
-            onChangeText={(text) => setNewSubtask(prev => ({ ...prev, title: text }))}
+            onChangeText={text =>
+              setNewSubtask(prev => ({ ...prev, title: text }))
+            }
           />
           <TextInput
-            style={[styles.textArea, { backgroundColor: colors.card, color: colors.text }]}
+            style={[
+              styles.textArea,
+              { backgroundColor: colors.card, color: colors.text },
+            ]}
             value={newSubtask.description}
-            onChangeText={(text) => setNewSubtask(prev => ({ ...prev, description: text }))}
+            onChangeText={text =>
+              setNewSubtask(prev => ({ ...prev, description: text }))
+            }
             placeholder="Subtask description (optional)"
             placeholderTextColor={colors.textSecondary}
             multiline
@@ -769,7 +980,11 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
             textAlignVertical="top"
           />
           <View style={styles.modalActions}>
-            <Button title="Cancel" variant="outline" onPress={() => setSubtaskModalVisible(false)} />
+            <Button
+              title="Cancel"
+              variant="outline"
+              onPress={() => setSubtaskModalVisible(false)}
+            />
             <Button title="Create" onPress={handleCreateSubtask} />
           </View>
         </View>
@@ -781,30 +996,51 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Comment</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Add Comment
+            </Text>
             <TouchableOpacity onPress={() => setCommentModalVisible(false)}>
               <Icon name="close" size={24} tintColor={colors.text} />
             </TouchableOpacity>
           </View>
-          
+
           {/* Existing Comments */}
           <ScrollView style={styles.commentsSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Comments</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Comments
+            </Text>
             {selectedProject?.comments.map((comment, index) => (
-              <View key={`comment-${index}`} style={[styles.commentCard, { backgroundColor: colors.card }]}>
-                <Text style={[styles.commentAuthor, { color: colors.text }]}>{comment.userName}</Text>
-                <Text style={[styles.commentDate, { color: colors.textSecondary }]}>
+              <View
+                key={`comment-${index}`}
+                style={[styles.commentCard, { backgroundColor: colors.card }]}
+              >
+                <Text style={[styles.commentAuthor, { color: colors.text }]}>
+                  {comment.userName}
+                </Text>
+                <Text
+                  style={[styles.commentDate, { color: colors.textSecondary }]}
+                >
                   {new Date(comment.createdAt).toLocaleDateString()}
                 </Text>
-                <Text style={[styles.commentText, { color: colors.text }]}>{comment.text}</Text>
+                <Text style={[styles.commentText, { color: colors.text }]}>
+                  {comment.text}
+                </Text>
               </View>
             ))}
           </ScrollView>
 
           <TextInput
-            style={[styles.textArea, { backgroundColor: colors.card, color: colors.text }]}
+            style={[
+              styles.textArea,
+              { backgroundColor: colors.card, color: colors.text },
+            ]}
             value={newComment}
             onChangeText={setNewComment}
             placeholder="Write a comment..."
@@ -813,14 +1049,22 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({ navig
             numberOfLines={4}
             textAlignVertical="top"
           />
-          
+
           <View style={styles.commentActions}>
-            <Button title="Attach File" variant="outline" onPress={handleAttachFile} />
+            <Button
+              title="Attach File"
+              variant="outline"
+              onPress={handleAttachFile}
+            />
             <Button title="Add Comment" onPress={handleAddComment} />
           </View>
-          
+
           <View style={styles.modalActions}>
-            <Button title="Close" variant="outline" onPress={() => setCommentModalVisible(false)} />
+            <Button
+              title="Close"
+              variant="outline"
+              onPress={() => setCommentModalVisible(false)}
+            />
           </View>
         </View>
       </Modal>

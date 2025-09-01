@@ -1,23 +1,35 @@
 import { Meeting, Notification } from '../../types';
-import { 
-  getMeetingCountdown, 
-  shouldShowNotification,
+import {
+  getMeetingCountdown,
   getNotificationTitle,
-  getNotificationMessage 
+  getNotificationMessage,
 } from '../../utils/meetingUtils';
 import firestoreService from '../../firebase/firestoreService';
 
 export interface MeetingNotificationService {
-  checkMeetingNotifications: (userId: string, meetings: Meeting[]) => Promise<void>;
-  createMeetingNotification: (meeting: Meeting, userId: string, type: 'reminder' | 'starting' | 'live') => Promise<void>;
+  checkMeetingNotifications: (
+    userId: string,
+    meetings: Meeting[],
+  ) => Promise<void>;
+  createMeetingNotification: (
+    meeting: Meeting,
+    userId: string,
+    type: 'reminder' | 'starting' | 'live',
+  ) => Promise<void>;
   scheduleAllMeetingNotifications: (userId: string) => Promise<void>;
-  clearMeetingNotifications: (meetingId: string, userId: string) => Promise<void>;
+  clearMeetingNotifications: (
+    meetingId: string,
+    userId: string,
+  ) => Promise<void>;
 }
 
 class MeetingNotificationServiceImpl implements MeetingNotificationService {
   private notificationHistory: Map<string, Set<string>> = new Map(); // meetingId -> set of notification types sent
 
-  async checkMeetingNotifications(userId: string, meetings: Meeting[]): Promise<void> {
+  async checkMeetingNotifications(
+    userId: string,
+    meetings: Meeting[],
+  ): Promise<void> {
     try {
       for (const meeting of meetings) {
         // Skip if user is not assigned to this meeting
@@ -32,10 +44,14 @@ class MeetingNotificationServiceImpl implements MeetingNotificationService {
     }
   }
 
-  private async processMeetingNotifications(meeting: Meeting, userId: string): Promise<void> {
+  private async processMeetingNotifications(
+    meeting: Meeting,
+    userId: string,
+  ): Promise<void> {
     const countdown = getMeetingCountdown(meeting);
     const meetingKey = `${meeting.id}-${userId}`;
-    const sentNotifications = this.notificationHistory.get(meetingKey) || new Set();
+    const sentNotifications =
+      this.notificationHistory.get(meetingKey) || new Set();
 
     // Check for different notification triggers
     const { total } = countdown.timeLeft;
@@ -46,34 +62,34 @@ class MeetingNotificationServiceImpl implements MeetingNotificationService {
 
     // 1 day reminder
     if (
-      total <= oneDay + tolerance && 
-      total >= oneDay - tolerance && 
+      total <= oneDay + tolerance &&
+      total >= oneDay - tolerance &&
       !sentNotifications.has('1day')
     ) {
       await this.createMeetingNotification(meeting, userId, 'reminder');
       sentNotifications.add('1day');
     }
-    
+
     // 1 hour reminder
     else if (
-      total <= oneHour + tolerance && 
-      total >= oneHour - tolerance && 
+      total <= oneHour + tolerance &&
+      total >= oneHour - tolerance &&
       !sentNotifications.has('1hour')
     ) {
       await this.createMeetingNotification(meeting, userId, 'reminder');
       sentNotifications.add('1hour');
     }
-    
+
     // 15 minute reminder
     else if (
-      total <= fifteenMin + tolerance && 
-      total >= fifteenMin - tolerance && 
+      total <= fifteenMin + tolerance &&
+      total >= fifteenMin - tolerance &&
       !sentNotifications.has('15min')
     ) {
       await this.createMeetingNotification(meeting, userId, 'starting');
       sentNotifications.add('15min');
     }
-    
+
     // Meeting is live
     else if (countdown.status === 'live' && !sentNotifications.has('live')) {
       await this.createMeetingNotification(meeting, userId, 'live');
@@ -85,9 +101,9 @@ class MeetingNotificationServiceImpl implements MeetingNotificationService {
   }
 
   async createMeetingNotification(
-    meeting: Meeting, 
-    userId: string, 
-    type: 'reminder' | 'starting' | 'live'
+    meeting: Meeting,
+    userId: string,
+    type: 'reminder' | 'starting' | 'live',
   ): Promise<void> {
     try {
       let title = getNotificationTitle(meeting);
@@ -141,8 +157,12 @@ class MeetingNotificationServiceImpl implements MeetingNotificationService {
         const now = new Date();
         const sevenDaysFromNow = new Date();
         sevenDaysFromNow.setDate(now.getDate() + 7);
-        
-        return startTime > now && startTime <= sevenDaysFromNow && meeting.status === 'Scheduled';
+
+        return (
+          startTime > now &&
+          startTime <= sevenDaysFromNow &&
+          meeting.status === 'Scheduled'
+        );
       });
 
       await this.checkMeetingNotifications(userId, upcomingMeetings);
@@ -151,15 +171,20 @@ class MeetingNotificationServiceImpl implements MeetingNotificationService {
     }
   }
 
-  async clearMeetingNotifications(meetingId: string, userId: string): Promise<void> {
+  async clearMeetingNotifications(
+    meetingId: string,
+    userId: string,
+  ): Promise<void> {
     try {
       const meetingKey = `${meetingId}-${userId}`;
       this.notificationHistory.delete(meetingKey);
-      
+
       // Mark meeting-related notifications as read
       const notifications = await firestoreService.getUserNotifications(userId);
-      const meetingNotifications = notifications.filter((n: any) => n.meetingId === meetingId);
-      
+      const meetingNotifications = notifications.filter(
+        (n: any) => n.meetingId === meetingId,
+      );
+
       for (const notification of meetingNotifications) {
         if (!notification.read) {
           await firestoreService.markNotificationAsRead(notification.id);
@@ -190,11 +215,22 @@ export default meetingNotificationService;
 // Hook for using meeting notifications in React components
 export const useMeetingNotifications = () => {
   const checkNotifications = async (userId: string, meetings: Meeting[]) => {
-    return meetingNotificationService.checkMeetingNotifications(userId, meetings);
+    return meetingNotificationService.checkMeetingNotifications(
+      userId,
+      meetings,
+    );
   };
 
-  const createNotification = async (meeting: Meeting, userId: string, type: 'reminder' | 'starting' | 'live') => {
-    return meetingNotificationService.createMeetingNotification(meeting, userId, type);
+  const createNotification = async (
+    meeting: Meeting,
+    userId: string,
+    type: 'reminder' | 'starting' | 'live',
+  ) => {
+    return meetingNotificationService.createMeetingNotification(
+      meeting,
+      userId,
+      type,
+    );
   };
 
   const scheduleAll = async (userId: string) => {
@@ -202,7 +238,10 @@ export const useMeetingNotifications = () => {
   };
 
   const clearNotifications = async (meetingId: string, userId: string) => {
-    return meetingNotificationService.clearMeetingNotifications(meetingId, userId);
+    return meetingNotificationService.clearMeetingNotifications(
+      meetingId,
+      userId,
+    );
   };
 
   return {
@@ -214,7 +253,10 @@ export const useMeetingNotifications = () => {
 };
 
 // Utility function to start background notification checking
-export const startMeetingNotificationService = (userId: string, intervalMs: number = 5 * 60 * 1000) => {
+export const startMeetingNotificationService = (
+  userId: string,
+  intervalMs: number = 5 * 60 * 1000,
+) => {
   const checkAndNotify = async () => {
     try {
       await meetingNotificationService.scheduleAllMeetingNotifications(userId);

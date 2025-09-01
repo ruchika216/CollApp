@@ -17,7 +17,7 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAppDispatch } from '../store/hooks';
-import { signInWithGoogle, setUser } from '../store/slices/userSlice';
+import { signInWithGoogle } from '../store/slices/userSlice';
 import { useTheme } from '../theme/useTheme';
 import { createShadow } from '../theme/themeUtils';
 
@@ -86,9 +86,13 @@ export default function LoginScreen({ navigation }: Props) {
       }
 
       if (result.approved) {
+        const createdAtVal = (result as any)?.createdAt as
+          | string
+          | number
+          | undefined;
         const isNewUser =
-          !result.createdAt ||
-          new Date().getTime() - new Date(result.createdAt).getTime() < 60000;
+          !createdAtVal ||
+          new Date().getTime() - new Date(createdAtVal).getTime() < 60000;
 
         if (isNewUser) {
           Alert.alert(
@@ -153,9 +157,9 @@ export default function LoginScreen({ navigation }: Props) {
           <MaskedView
             style={styles.maskedView}
             maskElement={
-              <Text style={[styles.appNameText, { color: '#000' }]}>
-                <Text style={[styles.collText, { color: '#000' }]}>COLL</Text>
-                <Text style={[styles.appText, { color: '#000' }]}>APP</Text>
+              <Text style={styles.appNameTextMask}>
+                <Text style={styles.collTextMask}>COLL</Text>
+                <Text style={styles.appTextMask}>APP</Text>
               </Text>
             }
           >
@@ -165,7 +169,7 @@ export default function LoginScreen({ navigation }: Props) {
               colors={primaryGradient}
               style={styles.gradientMask}
             >
-              <Text style={[styles.appNameText, { opacity: 0 }]}>COLLAPP</Text>
+              <Text style={styles.appNameTextHidden}>COLLAPP</Text>
             </LinearGradient>
           </MaskedView>
         </View>
@@ -183,7 +187,7 @@ export default function LoginScreen({ navigation }: Props) {
           <Text
             style={[
               styles.headline,
-              { color: colors.text, fontFamily: getFont('bold') },
+              { color: colors.primary, fontFamily: getFont('bold') },
             ]}
           >
             Welcome Back
@@ -277,21 +281,47 @@ const createStyles = (colors: any, typography: any, spacing: any) => {
       height: 60,
       width: '100%',
     },
+    appNameTextMask: {
+      fontSize: 48,
+      textAlign: 'center',
+      fontWeight: Platform.OS === 'android' ? 'bold' : '700',
+      color: '#000',
+    },
     appNameText: {
       fontSize: 48,
       textAlign: 'center',
       fontWeight: Platform.OS === 'android' ? 'bold' : '700',
+    },
+    appNameTextHidden: {
+      fontSize: 48,
+      textAlign: 'center',
+      fontWeight: Platform.OS === 'android' ? 'bold' : '700',
+      opacity: 0,
     },
     // EXACTLY matching SplashScreen - both with fontWeight '700'
     collText: {
       fontFamily: getFont('bold'),
       letterSpacing: 2,
       ...(Platform.OS === 'ios' && { fontWeight: '700' }),
+      color: colors.primary,
+    },
+    collTextMask: {
+      fontFamily: getFont('bold'),
+      letterSpacing: 2,
+      ...(Platform.OS === 'ios' && { fontWeight: '700' }),
+      color: '#000',
     },
     appText: {
       fontFamily: getFont('bold'),
       letterSpacing: 2,
       ...(Platform.OS === 'ios' && { fontWeight: '700' }),
+      color: colors.primary,
+    },
+    appTextMask: {
+      fontFamily: getFont('bold'),
+      letterSpacing: 2,
+      ...(Platform.OS === 'ios' && { fontWeight: '700' }),
+      color: '#000',
     },
 
     // Card

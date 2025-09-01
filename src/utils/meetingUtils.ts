@@ -16,11 +16,14 @@ export interface CountdownResult {
   isCritical: boolean; // Within 1 hour
 }
 
-export const calculateTimeLeft = (startTime: string, endTime?: string): TimeLeft => {
+export const calculateTimeLeft = (
+  startTime: string,
+  _endTime?: string,
+): TimeLeft => {
   const now = new Date().getTime();
   const start = new Date(startTime).getTime();
   const timeDiff = start - now;
-  
+
   if (timeDiff <= 0) {
     return {
       days: 0,
@@ -32,7 +35,9 @@ export const calculateTimeLeft = (startTime: string, endTime?: string): TimeLeft
   }
 
   const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const hours = Math.floor(
+    (timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+  );
   const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
 
@@ -59,9 +64,10 @@ export const getMeetingCountdown = (meeting: Meeting): CountdownResult => {
     return {
       timeLeft: calculateTimeLeft(meeting.endTime!, meeting.endTime!),
       status: 'live',
-      displayText: hoursLeft > 0 
-        ? `Live - ${hoursLeft}h ${minutesLeft % 60}m left`
-        : `Live - ${minutesLeft}m left`,
+      displayText:
+        hoursLeft > 0
+          ? `Live - ${hoursLeft}h ${minutesLeft % 60}m left`
+          : `Live - ${minutesLeft}m left`,
       isUrgent: true,
       isCritical: true,
     };
@@ -126,12 +132,15 @@ export const getMeetingCountdown = (meeting: Meeting): CountdownResult => {
   };
 };
 
-export const formatMeetingTime = (dateString: string, includeDate: boolean = true): string => {
+export const formatMeetingTime = (
+  dateString: string,
+  includeDate: boolean = true,
+): string => {
   const date = new Date(dateString);
-  const timeString = date.toLocaleTimeString([], { 
-    hour: '2-digit', 
+  const timeString = date.toLocaleTimeString([], {
+    hour: '2-digit',
     minute: '2-digit',
-    hour12: true 
+    hour12: true,
   });
 
   if (!includeDate) {
@@ -158,17 +167,20 @@ export const formatMeetingTime = (dateString: string, includeDate: boolean = tru
   } else if (meetingDate === tomorrowDate) {
     datePart = 'Tomorrow';
   } else {
-    datePart = date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    datePart = date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
-      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
     });
   }
 
   return `${datePart} at ${timeString}`;
 };
 
-export const getMeetingDuration = (startTime: string, endTime?: string): string => {
+export const getMeetingDuration = (
+  startTime: string,
+  endTime?: string,
+): string => {
   if (!endTime) {
     return 'No end time';
   }
@@ -176,7 +188,7 @@ export const getMeetingDuration = (startTime: string, endTime?: string): string 
   const start = new Date(startTime);
   const end = new Date(endTime);
   const durationMs = end.getTime() - start.getTime();
-  
+
   if (durationMs <= 0) {
     return 'Invalid duration';
   }
@@ -193,7 +205,7 @@ export const getMeetingDuration = (startTime: string, endTime?: string): string 
 
 export const shouldShowNotification = (meeting: Meeting): boolean => {
   const countdown = getMeetingCountdown(meeting);
-  
+
   // Show notification if meeting is starting in 15 minutes, 1 hour, or 1 day
   const { total } = countdown.timeLeft;
   const fifteenMin = 15 * 60 * 1000;
@@ -202,7 +214,7 @@ export const shouldShowNotification = (meeting: Meeting): boolean => {
 
   // Check if we're within notification windows (with 1 minute tolerance)
   const tolerance = 60 * 1000;
-  
+
   return (
     (total <= fifteenMin + tolerance && total >= fifteenMin - tolerance) ||
     (total <= oneHour + tolerance && total >= oneHour - tolerance) ||
@@ -213,7 +225,7 @@ export const shouldShowNotification = (meeting: Meeting): boolean => {
 
 export const getNotificationTitle = (meeting: Meeting): string => {
   const countdown = getMeetingCountdown(meeting);
-  
+
   switch (countdown.status) {
     case 'starting_soon':
       return 'Meeting Starting Soon!';
@@ -235,10 +247,13 @@ export const getNotificationTitle = (meeting: Meeting): string => {
 export const getNotificationMessage = (meeting: Meeting): string => {
   const countdown = getMeetingCountdown(meeting);
   const timeStr = formatMeetingTime(meeting.startTime);
-  
+
   switch (countdown.status) {
     case 'starting_soon':
-      return `"${meeting.title}" is starting in ${countdown.displayText.replace(' left', '')}`;
+      return `"${meeting.title}" is starting in ${countdown.displayText.replace(
+        ' left',
+        '',
+      )}`;
     case 'live':
       return `"${meeting.title}" is currently live`;
     case 'upcoming':
@@ -248,32 +263,43 @@ export const getNotificationMessage = (meeting: Meeting): string => {
   }
 };
 
-export const filterUpcomingMeetings = (meetings: Meeting[], limit: number = 5): Meeting[] => {
+export const filterUpcomingMeetings = (
+  meetings: Meeting[],
+  limit: number = 5,
+): Meeting[] => {
   const now = new Date();
-  
+
   return meetings
     .filter(meeting => {
       const startTime = new Date(meeting.startTime);
       return startTime > now && meeting.status === 'Scheduled';
     })
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    .sort(
+      (a, b) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+    )
     .slice(0, limit);
 };
 
 export const filterTodaysMeetings = (meetings: Meeting[]): Meeting[] => {
   const today = new Date().toISOString().split('T')[0];
-  
+
   return meetings
     .filter(meeting => {
-      const meetingDate = new Date(meeting.startTime).toISOString().split('T')[0];
+      const meetingDate = new Date(meeting.startTime)
+        .toISOString()
+        .split('T')[0];
       return meetingDate === today;
     })
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+    );
 };
 
 export const getMeetingStatusColor = (meeting: Meeting): string => {
   const countdown = getMeetingCountdown(meeting);
-  
+
   switch (countdown.status) {
     case 'live':
       return '#4CAF50'; // Green

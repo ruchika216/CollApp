@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -18,13 +18,13 @@ import { createShadow } from '../theme/themeUtils';
 const { width, height } = Dimensions.get('window');
 const ICON_SIZE = width * 0.68;
 
-export default function OnboardingScreen({ navigation }) {
+export default function OnboardingScreen({ navigation }: { navigation: any }) {
   // Get theme safely with fallback
   const { colors, typography, spacing, isDark } = useTheme();
 
   const safeColors = colors || {
     background: '#ffffff',
-    text: '#1a202c',
+    text: '#0340ba',
     textSecondary: '#64748b',
     primary: '#6a01f6',
     gradients: {
@@ -49,11 +49,11 @@ export default function OnboardingScreen({ navigation }) {
   };
 
   // ─────────────────────────────── Animations ──────────────────────────────────
-  const iconY = useRef(new Animated.Value((height - ICON_SIZE) / 2)).current;
-  const spinAnim = useRef(new Animated.Value(0)).current;
-  const bobAnim = useRef(new Animated.Value(0)).current;
-  const contentOp = useRef(new Animated.Value(0)).current;
-  const contentY = useRef(new Animated.Value(48)).current;
+  const iconY = useMemo(() => new Animated.Value((height - ICON_SIZE) / 2), []);
+  const spinAnim = useMemo(() => new Animated.Value(0), []);
+  const bobAnim = useMemo(() => new Animated.Value(0), []);
+  const contentOp = useMemo(() => new Animated.Value(0), []);
+  const contentY = useMemo(() => new Animated.Value(48), []);
 
   const spinLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const bobLoopRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -120,7 +120,7 @@ export default function OnboardingScreen({ navigation }) {
       spinLoopRef.current?.stop();
       bobLoopRef.current?.stop();
     };
-  }, []);
+  }, [bobAnim, contentOp, contentY, iconY, spinAnim]);
 
   const rotation = spinAnim.interpolate({
     inputRange: [0, 1],
@@ -156,7 +156,7 @@ export default function OnboardingScreen({ navigation }) {
       {/* Icon */}
       <Animated.View style={[styles.iconWrap, { transform: iconTransforms }]}>
         <Image
-          source={require('../assets/images/68.png')}
+          source={require('../assets/images/5.png')}
           style={styles.icon}
           resizeMode="contain"
         />
@@ -243,7 +243,7 @@ const createStyles = (colors: any, typography: any, spacing: any) => {
     headlineBold: {
       fontSize: typography.fontSize['4xl'],
       fontFamily: getFont('bold'),
-      color: colors.text,
+      color: colors.primary,
       lineHeight,
     },
 

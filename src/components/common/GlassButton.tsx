@@ -1,22 +1,30 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
   StyleSheet,
-  View,
   Platform,
-  Animated,
   GestureResponderEvent,
   ViewStyle,
   TextStyle,
+  StyleProp,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import { useTheme } from '../../theme';
 
-interface GlassButtonProps {
+export type Variant =
+  | 'primary'
+  | 'secondary'
+  | 'outline'
+  | 'ghost'
+  | 'destructive';
+
+export interface GlassButtonProps {
   title: string;
   onPress: (event: GestureResponderEvent) => void;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  variant?: Variant;
+  disabled?: boolean;
 }
 
 export default function GlassButton({
@@ -24,105 +32,77 @@ export default function GlassButton({
   onPress,
   style,
   textStyle,
+  variant = 'primary',
+  disabled = false,
 }: GlassButtonProps) {
-  const [scale] = useState(new Animated.Value(1));
+  const { borderRadius, typography, getButtonColors } = useTheme();
+  const palette = useMemo(
+    () => getButtonColors(variant) || getButtonColors('primary'),
+    [getButtonColors, variant],
+  ) as any;
+  const radius = (borderRadius?.['2xl'] as number) ?? 24;
 
-  const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.96,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 0,
-    }).start();
-  };
+  const containerStyle = useMemo(
+    () => ({
+      backgroundColor: disabled ? palette.disabledBg : palette.background,
+      borderColor:
+        variant === 'outline' ? palette.border || palette.text : 'transparent',
+      borderWidth: variant === 'outline' ? StyleSheet.hairlineWidth + 0.5 : 0,
+      borderRadius: radius + 4,
+      opacity: disabled ? 0.85 : 1,
+    }),
+    [disabled, palette, radius, variant],
+  );
 
-  const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
-  };
+  const textDynamicStyle = useMemo(
+    () => ({
+      color: disabled ? palette.disabledText : palette.text,
+      fontFamily: (typography?.styles?.button?.fontFamily as any) ?? undefined,
+      fontSize: (typography?.styles?.button?.fontSize as number) || 16,
+      fontWeight: (typography?.styles?.button?.fontWeight as any) ?? undefined,
+      letterSpacing:
+        (typography?.styles?.button?.letterSpacing as number) ?? 0.3,
+    }),
+    [disabled, palette, typography?.styles?.button],
+  );
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={[styles.glassButton, style]}
-      >
-        <LinearGradient
-          colors={[
-            'rgba(248, 250, 252, 0.9)',
-            'rgba(241, 245, 249, 0.8)',
-            'rgba(226, 232, 240, 0.7)',
-          ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.glassInner}
-        >
-          <View style={styles.glassHighlight} />
-          <Text style={[styles.glassText, textStyle]}>{title}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </Animated.View>
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      activeOpacity={0.85}
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.button, containerStyle, style]}
+    >
+      <Text style={[styles.label, textDynamicStyle, textStyle]}>{title}</Text>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  glassButton: {
-    width: '76%',
-    height: 54,
-    borderRadius: 28,
+  button: {
+    minHeight: 52,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'center',
-    marginTop: 26,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(100, 116, 139, 0.2)',
+    width: '92%',
+    marginTop: 16,
     ...Platform.select({
       ios: {
-        shadowColor: 'rgba(0, 0, 0, 0.15)',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 15,
+        shadowColor: 'rgba(0, 0, 0, 0.06)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 10,
       },
       android: {
-        elevation: 12,
+        elevation: 4,
       },
     }),
   },
-  glassInner: {
-    flex: 1,
-    borderRadius: 28,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  glassHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 20,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    opacity: 0.8,
-  },
-  glassText: {
-    fontSize: 19,
-    fontWeight: Platform.OS === 'ios' ? '700' : '700',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-    color: '#4e0890e6',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(255, 255, 255, 0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    zIndex: 2,
+  label: {
+    fontSize: 16,
+    fontWeight: Platform.OS === 'ios' ? '600' : '700',
   },
 });

@@ -10,8 +10,6 @@ import {
   Dimensions,
   StatusBar,
   RefreshControl,
-  Modal,
-  TextInput,
   Alert,
   Platform,
   Image,
@@ -19,10 +17,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
-import {
-  fetchProjects,
-  fetchUserProjects,
-} from '../../store/slices/projectSlice';
+import { fetchProjects } from '../../store/slices/projectSlice';
 import { fetchPendingUsers } from '../../store/slices/userSlice';
 import {
   fetchTasks,
@@ -44,28 +39,25 @@ import ProjectList from '../Project/ProjectList';
 import UserList from './UserList';
 import PendingUsers from './PendingUsers';
 import ThemeToggle from '../../components/common/ThemeToggle';
-import ProjectCard from '../../components/projects/ProjectCard';
-import UserApprovalCard from '../../components/admin/UserApprovalCard';
+// import ProjectCard from '../../components/projects/ProjectCard';
+// import UserApprovalCard from '../../components/admin/UserApprovalCard';
 
 const { width } = Dimensions.get('window');
 
 const AdminDashboard = ({ navigation }: any) => {
-  const { colors, gradients, shadows, isDark } = useTheme();
+  const { colors, gradients, shadows } = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.auth.user);
   const projects = useAppSelector(state => state.projects.projects);
   const loading = useAppSelector(state => state.projects.loading);
   const pendingUsers = useAppSelector(state => state.user.pendingUsers);
-  const userLoading = useAppSelector(state => state.user.loading);
   const tasks = useAppSelector(state => state.tasks.tasks);
-  const taskLoading = useAppSelector(state => state.tasks.loading);
   const meetings = useAppSelector(state => state.meetings.meetings);
-  const meetingLoading = useAppSelector(state => state.meetings.loading);
 
   // Modal states
-  const [taskModalVisible, setTaskModalVisible] = useState(false);
-  const [meetingModalVisible, setMeetingModalVisible] = useState(false);
+  const [, setTaskModalVisible] = useState(false);
+  const [, setMeetingModalVisible] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
 
@@ -92,7 +84,7 @@ const AdminDashboard = ({ navigation }: any) => {
   });
 
   const [approvedUsers, setApprovedUsers] = useState<User[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [_loadingUsers, setLoadingUsers] = useState(false);
 
   const stats = useMemo(() => {
     const totalProjects = projects.length;
@@ -126,18 +118,19 @@ const AdminDashboard = ({ navigation }: any) => {
     };
   }, [projects, pendingUsers, tasks, meetings]);
 
-  useEffect(() => {
-    loadDashboardData();
+  const loadApprovedUsers = useCallback(async () => {
+    try {
+      setLoadingUsers(true);
+      const users = await firestoreService.getApprovedUsers();
+      setApprovedUsers(users);
+    } catch (error) {
+      console.error('Error loading approved users:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
   }, []);
 
-  // Refresh data when screen comes into focus (after creating/editing projects)
-  useFocusEffect(
-    useCallback(() => {
-      loadDashboardData();
-    }, []),
-  );
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       await Promise.all([
         dispatch(fetchProjects()),
@@ -149,72 +142,21 @@ const AdminDashboard = ({ navigation }: any) => {
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     }
-  };
+  }, [dispatch, loadApprovedUsers]);
 
-  const loadApprovedUsers = async () => {
-    try {
-      setLoadingUsers(true);
-      const users = await firestoreService.getApprovedUsers();
-      setApprovedUsers(users);
-    } catch (error) {
-      console.error('Error loading approved users:', error);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Refresh data when screen comes into focus (after creating/editing projects)
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboardData();
+    }, [loadDashboardData]),
+  );
 
   // Task Management Functions
-  const handleCreateTask = async () => {
-    if (
-      !taskForm.title.trim() ||
-      !taskForm.description.trim() ||
-      taskForm.assignedTo.length === 0
-    ) {
-      Alert.alert(
-        'Error',
-        'Please fill all required fields and assign to at least one user',
-      );
-      return;
-    }
-
-    try {
-      const taskData = {
-        ...taskForm,
-        createdBy: user?.uid || '',
-      };
-
-      await dispatch(createTask(taskData)).unwrap();
-      setTaskModalVisible(false);
-      resetTaskForm();
-      Alert.alert('Success', 'Task created successfully');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to create task');
-      console.error('Error creating task:', error);
-    }
-  };
-
-  const handleUpdateTask = async () => {
-    if (!selectedTask || !taskForm.title.trim()) {
-      Alert.alert('Error', 'Please fill required fields');
-      return;
-    }
-
-    try {
-      await dispatch(
-        updateTask({
-          taskId: selectedTask.id,
-          updates: taskForm,
-        }),
-      ).unwrap();
-      setTaskModalVisible(false);
-      setSelectedTask(null);
-      resetTaskForm();
-      Alert.alert('Success', 'Task updated successfully');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update task');
-      console.error('Error updating task:', error);
-    }
-  };
+  // create/update handlers are defined in modal components elsewhere; none here
 
   const handleDeleteTask = (task: Task) => {
     Alert.alert(
@@ -254,69 +196,6 @@ const AdminDashboard = ({ navigation }: any) => {
   };
 
   // Meeting Management Functions
-  const handleCreateMeeting = async () => {
-    if (
-      !meetingForm.title.trim() ||
-      !meetingForm.agenda.trim() ||
-      meetingForm.assignedTo.length === 0
-    ) {
-      Alert.alert(
-        'Error',
-        'Please fill all required fields and assign to at least one user',
-      );
-      return;
-    }
-
-    try {
-      const meetingDateTime = new Date(
-        `${meetingForm.date}T${meetingForm.time}:00`,
-      );
-      const meetingData = {
-        ...meetingForm,
-        date: meetingDateTime.toISOString(),
-        createdBy: user?.uid || '',
-      };
-
-      await dispatch(createMeeting(meetingData)).unwrap();
-      setMeetingModalVisible(false);
-      resetMeetingForm();
-      Alert.alert('Success', 'Meeting scheduled successfully');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to schedule meeting');
-      console.error('Error creating meeting:', error);
-    }
-  };
-
-  const handleUpdateMeeting = async () => {
-    if (!selectedMeeting || !meetingForm.title.trim()) {
-      Alert.alert('Error', 'Please fill required fields');
-      return;
-    }
-
-    try {
-      const meetingDateTime = new Date(
-        `${meetingForm.date}T${meetingForm.time}:00`,
-      );
-      const updateData = {
-        ...meetingForm,
-        date: meetingDateTime.toISOString(),
-      };
-
-      await dispatch(
-        updateMeeting({
-          meetingId: selectedMeeting.id,
-          updates: updateData,
-        }),
-      ).unwrap();
-      setMeetingModalVisible(false);
-      setSelectedMeeting(null);
-      resetMeetingForm();
-      Alert.alert('Success', 'Meeting updated successfully');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update meeting');
-      console.error('Error updating meeting:', error);
-    }
-  };
 
   const handleDeleteMeeting = (meeting: Meeting) => {
     Alert.alert(
@@ -975,7 +854,7 @@ const AdminDashboard = ({ navigation }: any) => {
                     )}
                   </View>
                   <Text
-                    style={[styles.userName, { color: colors.text }]}
+                    style={[styles.teamUserName, { color: colors.text }]}
                     numberOfLines={1}
                   >
                     {teamUser.name || teamUser.displayName || 'User'}
@@ -1032,6 +911,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginTop: 4,
+  },
+  teamUserName: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 2,
   },
   headerActions: {
     flexDirection: 'row',
@@ -1322,12 +1207,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-  },
-  userName: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 2,
   },
   userRole: {
     fontSize: 10,

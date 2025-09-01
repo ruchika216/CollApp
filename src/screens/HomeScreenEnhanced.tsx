@@ -1,29 +1,36 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  Image,
-  RefreshControl,
-  Alert,
-} from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useTheme } from '../theme/useTheme';
+import AppText from '../components/common/AppText';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { fetchProjects, fetchUserProjects } from '../store/slices/projectSlice';
-import { fetchTasks, fetchUserTasks, fetchTasksByDate, subscribeToTasks, unsubscribeFromTasks } from '../store/slices/taskSlice';
-import { fetchMeetings, fetchUserMeetings, fetchMeetingsByDate, fetchUpcomingMeetings } from '../store/slices/meetingSlice';
+import {
+  fetchTasks,
+  subscribeToTasks,
+  unsubscribeFromTasks,
+} from '../store/slices/taskSlice';
+import {
+  fetchMeetings,
+  fetchUserMeetings,
+  fetchUpcomingMeetings,
+} from '../store/slices/meetingSlice';
 import { fetchApprovedUsers } from '../store/slices/userSlice';
-import Icon from '../components/common/Icon';
-import { User, Project, Task, Meeting } from '../types';
-import firestoreService from '../firebase/firestoreService';
-import ProjectCard from '../components/projects/ProjectCard';
-import MeetingCard from '../components/meetings/MeetingCard';
-import { filterUpcomingMeetings, filterTodaysMeetings } from '../utils/meetingUtils';
+import { Task, Meeting } from '../types';
+import WelcomeCardSection from '../components/homepage/WelcomeCard';
+import UsersScrollBarSection from '../components/homepage/UsersScrollBar';
+import TodaysTasksCardSection from '../components/homepage/TodaysTasksCard';
+import UpcomingMeetingsSection from '../components/homepage/UpcomingMeetingsSection';
+import AllTasksScrollSection from '../components/homepage/AllTasksScrollSection';
+import ProjectCardsSection from '../components/homepage/ProjectCardsSection';
+import QuickActionsGrid from '../components/homepage/QuickActionsGrid';
+import TodaysScheduleSection from '../components/homepage/TodaysScheduleSection';
+import SectionCarousel from '../components/homepage/SectionCarousel';
+import {
+  filterUpcomingMeetings,
+  filterTodaysMeetings,
+} from '../utils/meetingUtils';
 
-const { width } = Dimensions.get('window');
+// const { width } = Dimensions.get('window');
 
 import type { BottomTabScreenPropsType } from '../types/navigation';
 
@@ -36,10 +43,9 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
   const projects = useAppSelector(state => state.projects.projects);
   const userProjects = useAppSelector(state => state.projects.userProjects);
   const allTasks = useAppSelector(state => state.tasks.tasks);
-  const userTasks = useAppSelector(state => state.tasks.userTasks);
+  // const userTasks = useAppSelector(state => state.tasks.userTasks);
   const allMeetings = useAppSelector(state => state.meetings.meetings);
   const userMeetings = useAppSelector(state => state.meetings.userMeetings);
-  const upcomingMeetings = useAppSelector(state => state.meetings.upcomingMeetings);
   const approvedUsers = useAppSelector(state => state.user.approvedUsers);
 
   const [todaysTasks, setTodaysTasks] = useState<Task[]>([]);
@@ -48,107 +54,121 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const isAdmin = user?.role === 'admin';
+  const userUid = user?.uid;
+  const userRole = user?.role;
+  const isAdmin = userRole === 'admin';
   const displayProjects = isAdmin ? projects : userProjects;
   const displayTasks = allTasks; // Show all tasks to all users
   const displayMeetings = isAdmin ? allMeetings : userMeetings; // Show appropriate meetings based on role
-  
-  
 
-  useEffect(() => {
-    loadHomeData();
-    
-    // Subscribe to real-time task updates for all approved users
-    if (user && user.approved) {
-      console.log('HomeScreen: Subscribing to tasks for user:', user.role, user.uid);
-      dispatch(subscribeToTasks());
+  const loadTodaysData = useCallback(async () => {
+    if (!user || !user.approved) {
+      setTodaysTasks([]);
+      setTodaysMeetings([]);
+      setNextMeetings([]);
+      return;
+    }
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const todaysTasksFiltered = displayTasks.filter(task => {
+        const taskDate = new Date(task.startDate).toISOString().split('T')[0];
+        return taskDate === today;
+      });
+      const userSpecificMeetings = isAdmin ? displayMeetings : userMeetings;
+      const todaysMeetingsFiltered = filterTodaysMeetings(userSpecificMeetings);
+      const upcomingMeetingsFiltered = filterUpcomingMeetings(
+        userSpecificMeetings,
+        5,
+      );
+
+      setTodaysTasks(todaysTasksFiltered);
+      setTodaysMeetings(todaysMeetingsFiltered);
+      setNextMeetings(upcomingMeetingsFiltered);
+    } catch (error) {
+      console.error("Error loading today's data:", error);
+      setTodaysTasks([]);
+      setTodaysMeetings([]);
+      setNextMeetings([]);
+    }
+  }, [user, displayTasks, isAdmin, displayMeetings, userMeetings]);
+
+  const loadHomeData = useCallback(async () => {
+    if (!userUid) {
+      // No user yet; don't keep spinner on indefinitely
+      setLoading(false);
+      return;
     }
 
-    // Cleanup subscriptions on unmount
+    try {
+      setLoading(true);
+      const admin = userRole === 'admin';
+      const promises: Array<Promise<any>> = [];
+      if (admin) {
+        promises.push(dispatch(fetchProjects()) as unknown as Promise<any>);
+        promises.push(dispatch(fetchMeetings()) as unknown as Promise<any>);
+      } else {
+        promises.push(
+          dispatch(fetchUserProjects(userUid)) as unknown as Promise<any>,
+        );
+        promises.push(
+          dispatch(fetchUserMeetings(userUid)) as unknown as Promise<any>,
+        );
+      }
+      promises.push(dispatch(fetchTasks()) as unknown as Promise<any>);
+      promises.push(
+        dispatch(
+          fetchUpcomingMeetings({ userId: userUid, limit: 5 }),
+        ) as unknown as Promise<any>,
+      );
+      promises.push(dispatch(fetchApprovedUsers()) as unknown as Promise<any>);
+
+      // Await completion of dispatched thunks (without unwrap to avoid throw)
+      await Promise.all(promises);
+      // Do not call loadTodaysData here; separate effect will update it as store changes
+    } catch (error) {
+      console.error('Error loading home data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [dispatch, userUid, userRole]);
+
+  // Load initial data (runs when dependencies of loadHomeData change)
+  useEffect(() => {
+    loadHomeData();
+  }, [loadHomeData]);
+
+  // If user is not available, ensure we don't show endless loading
+  useEffect(() => {
+    if (!userUid) {
+      setLoading(false);
+    }
+  }, [userUid]);
+
+  // Manage real-time subscription separately; only depends on user id/approval
+  useEffect(() => {
+    if (user?.approved) {
+      console.log(
+        'HomeScreen: Subscribing to tasks for user:',
+        userRole,
+        userUid,
+      );
+      dispatch(subscribeToTasks());
+      return () => {
+        dispatch(unsubscribeFromTasks());
+      };
+    }
+    // If not approved or no user, ensure we clean up any existing subscription
     return () => {
       dispatch(unsubscribeFromTasks());
     };
-  }, [user, dispatch]);
+  }, [dispatch, user?.approved, userUid, userRole]);
 
   // Update today's data whenever tasks or meetings change
   useEffect(() => {
     if (user && user.approved) {
       loadTodaysData();
     }
-  }, [allTasks, allMeetings, upcomingMeetings, user]);
-
-  const loadHomeData = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      
-      // Load all data concurrently
-      await Promise.all([
-        // Load projects
-        isAdmin 
-          ? dispatch(fetchProjects()).unwrap()
-          : dispatch(fetchUserProjects(user.uid)).unwrap(),
-        
-        // Load tasks based on user role
-        dispatch(fetchTasks()).unwrap(),
-        
-        // Load meetings based on user role
-        isAdmin 
-          ? dispatch(fetchMeetings()).unwrap()
-          : dispatch(fetchUserMeetings(user.uid)).unwrap(),
-        
-        // Load upcoming meetings with countdown
-        dispatch(fetchUpcomingMeetings({ userId: user.uid, limit: 5 })).unwrap(),
-        
-        // Load users
-        dispatch(fetchApprovedUsers()).unwrap(),
-        
-        // Load today's tasks and meetings
-        loadTodaysData(),
-      ]);
-      
-    } catch (error) {
-      console.error('Error loading home data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  const loadTodaysData = async () => {
-    if (!user || !user.approved) {
-      // If user is not approved, set empty arrays
-      setTodaysTasks([]);
-      setTodaysMeetings([]);
-      return;
-    }
-    
-    try {
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      
-      // Filter today's tasks from all tasks
-      const todaysTasksFiltered = displayTasks.filter(task => {
-        const taskDate = new Date(task.startDate).toISOString().split('T')[0];
-        return taskDate === today;
-      });
-      
-      // Use utility functions to filter meetings
-      const userSpecificMeetings = isAdmin ? displayMeetings : userMeetings;
-      const todaysMeetingsFiltered = filterTodaysMeetings(userSpecificMeetings);
-      const upcomingMeetingsFiltered = filterUpcomingMeetings(userSpecificMeetings, 5);
-      
-      setTodaysTasks(todaysTasksFiltered);
-      setTodaysMeetings(todaysMeetingsFiltered);
-      setNextMeetings(upcomingMeetingsFiltered);
-    } catch (error) {
-      console.error('Error loading today\'s data:', error);
-      // Set empty arrays as fallback
-      setTodaysTasks([]);
-      setTodaysMeetings([]);
-      setNextMeetings([]);
-    }
-  };
+  }, [allTasks, allMeetings, user, loadTodaysData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -165,445 +185,59 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'To Do': 
-      case 'Pending': return colors.warning;
-      case 'In Progress': return colors.primary;
-      case 'Done': return colors.success;
-      case 'Testing': return colors.info;
-      case 'Review': return '#9C27B0';
-      case 'Deployment': return '#FF5722';
-      default: return colors.textSecondary;
+      case 'To Do':
+      case 'Pending':
+        return colors.warning;
+      case 'In Progress':
+        return colors.primary;
+      case 'Done':
+        return colors.success;
+      case 'Testing':
+        return colors.info;
+      case 'Review':
+        return '#9C27B0';
+      case 'Deployment':
+        return '#FF5722';
+      default:
+        return colors.textSecondary;
     }
   };
 
   const getAssigneeName = (userId: string) => {
-    const user = approvedUsers.find(u => u.uid === userId);
-    return user?.name || user?.displayName || user?.email?.split('@')[0] || 'Unknown User';
+    const foundUser = approvedUsers.find(u => u.uid === userId);
+    return (
+      foundUser?.name ||
+      foundUser?.displayName ||
+      foundUser?.email?.split('@')[0] ||
+      'Unknown User'
+    );
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'High': return colors.error;
-      case 'Medium': return colors.warning;
-      case 'Low': return colors.success;
-      default: return colors.textSecondary;
+      case 'High':
+        return colors.error;
+      case 'Medium':
+        return colors.warning;
+      case 'Low':
+        return colors.success;
+      default:
+        return colors.textSecondary;
     }
   };
 
-  // Welcome Card Component
-  const WelcomeCard = () => (
-    <View style={[styles.welcomeCard, { backgroundColor: colors.primary }, shadows.xl]}>
-      <View style={styles.welcomeContent}>
-        <View style={styles.welcomeText}>
-          <Text style={styles.welcomeMessage}>
-            Welcome to CollApp. Start your day and be productive.
-          </Text>
-          <Text style={styles.greetingText}>
-            {getGreeting()}, {user?.name || user?.email?.split('@')[0]}!
-          </Text>
-        </View>
-        <View style={styles.welcomeIconContainer}>
-          <View style={styles.welcomeIcon}>
-            <Icon name="dashboard" size="xxl" color="#fff" />
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-
-  // User Avatar Component
-  const UserAvatar = ({ userItem, index }: { userItem: User; index: number }) => (
-    <TouchableOpacity
-      style={[styles.avatarContainer, { marginLeft: index > 0 ? 12 : 0 }]}
-      onPress={() => {
-        // Show tooltip or user info
-        console.log(`Tapped on ${userItem.name}`);
-      }}
-    >
-      <View style={[styles.avatarWrapper, shadows.sm]}>
-        {userItem.photoURL ? (
-          <Image
-            source={{ uri: userItem.photoURL }}
-            style={styles.avatar}
-          />
-        ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarText}>
-              {userItem.name?.charAt(0) || userItem.email?.charAt(0) || '?'}
-            </Text>
-          </View>
-        )}
-        {userItem.isOnline && <View style={styles.onlineIndicator} />}
-      </View>
-      <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>
-        {userItem.name || userItem.email?.split('@')[0]}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  // Users ScrollBar Component
-  const UsersScrollBar = () => (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        Team Members ({approvedUsers.length})
-      </Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.usersScroll}
-        contentContainerStyle={styles.usersContainer}
-      >
-        {approvedUsers.map((userItem, index) => (
-          <UserAvatar key={userItem.uid} userItem={userItem} index={index} />
-        ))}
-      </ScrollView>
-    </View>
-  );
-
-  // Today's Tasks Card Component
-  const TodaysTasksCard = () => (
-    <View style={[styles.card, { backgroundColor: colors.surface }, shadows.md]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleContainer}>
-          <Icon name="check" size={24} color={colors.primary} />
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Today's Tasks
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.allTasksButton}
-          onPress={() => navigation.navigate('TaskScreen')}
-        >
-          <Text style={[styles.allTasksText, { color: colors.primary }]}>
-            All Tasks
-          </Text>
-          <Icon name="arrow-right" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      {todaysTasks.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Icon name="check" size={32} color={colors.textSecondary} />
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            No tasks scheduled for today
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.todaysTasksScroll}
-          contentContainerStyle={styles.todaysTasksScrollContainer}
-        >
-          {todaysTasks.map((task) => (
-            <TouchableOpacity
-              key={task.id}
-              style={[styles.todaysTaskCard, { backgroundColor: colors.background }, shadows.sm]}
-              onPress={() => navigation.navigate('TaskScreen')}
-            >
-              <View style={styles.todaysTaskHeader}>
-                <Text style={[styles.todaysTaskTitle, { color: colors.text }]} numberOfLines={2}>
-                  {task.title}
-                </Text>
-                <View style={[
-                  styles.todaysTaskPriority, 
-                  { backgroundColor: getPriorityColor(task.priority) }
-                ]}>
-                  <Text style={styles.todaysTaskPriorityText}>
-                    {task.priority.charAt(0)}
-                  </Text>
-                </View>
-              </View>
-              
-              <Text style={[styles.todaysTaskDescription, { color: colors.textSecondary }]} numberOfLines={2}>
-                {task.description}
-              </Text>
-              
-              <View style={styles.todaysTaskMeta}>
-                <View style={[
-                  styles.todaysTaskStatus, 
-                  { backgroundColor: getStatusColor(task.status) + '20' }
-                ]}>
-                  <Text style={[
-                    styles.todaysTaskStatusText, 
-                    { color: getStatusColor(task.status) }
-                  ]}>
-                    {task.status}
-                  </Text>
-                </View>
-              </View>
-              
-              <View style={styles.todaysTaskFooter}>
-                <Text style={[styles.todaysTaskAssignee, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {task.assignedTo.length > 0 ? getAssigneeName(task.assignedTo[0]) : 'Unassigned'}
-                </Text>
-                <View style={styles.todaysTaskDateTime}>
-                  <Text style={[styles.todaysTaskDate, { color: colors.text }]}>
-                    {new Date(task.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }).replace(' ', '')}
-                  </Text>
-                  <Text style={[styles.todaysTaskTime, { color: colors.primary }]}>
-                    {new Date(task.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-    </View>
-  );
-
-  // Meetings & Reports Card Component
-  const MeetingsReportsCard = () => (
-    <View style={[styles.card, { backgroundColor: colors.surface }, shadows.md]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleContainer}>
-          <Icon name="calendar" size={24} color={colors.info} />
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Today's Meetings
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.allTasksButton}
-          onPress={() => navigation.navigate('MeetingScreen')}
-        >
-          <Text style={[styles.allTasksText, { color: colors.primary }]}>
-            All Meetings
-          </Text>
-          <Icon name="arrow-right" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      {todaysMeetings.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Icon name="calendar" size={32} color={colors.textSecondary} />
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            No meetings scheduled for today
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.meetingsScroll}
-          contentContainerStyle={styles.meetingsContainer}
-        >
-          {todaysMeetings.map((meeting) => (
-            <View key={meeting.id} style={styles.meetingCardWrapper}>
-              <MeetingCard
-                meeting={meeting}
-                showCountdown={true}
-                compact={true}
-                onPress={() => navigation.navigate('MeetingScreen')}
-              />
-            </View>
-          ))}
-        </ScrollView>
-      )}
-    </View>
-  );
-
-  // Upcoming Meetings Section
-  const UpcomingMeetingsSection = () => (
-    <View style={[styles.card, { backgroundColor: colors.surface }, shadows.md]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleContainer}>
-          <Icon name="clock" size={24} color={colors.warning} />
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            Upcoming Meetings
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.allTasksButton}
-          onPress={() => navigation.navigate('MeetingScreen')}
-        >
-          <Text style={[styles.allTasksText, { color: colors.primary }]}>
-            View All
-          </Text>
-          <Icon name="arrow-right" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      {nextMeetings.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Icon name="clock" size={32} color={colors.textSecondary} />
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            No upcoming meetings
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.meetingsScroll}
-          contentContainerStyle={styles.meetingsContainer}
-        >
-          {nextMeetings.map((meeting) => (
-            <View key={meeting.id} style={styles.meetingCardWrapper}>
-              <MeetingCard
-                meeting={meeting}
-                showCountdown={true}
-                compact={true}
-                onPress={() => navigation.navigate('MeetingScreen')}
-              />
-            </View>
-          ))}
-        </ScrollView>
-      )}
-    </View>
-  );
-
-  // All Tasks Scroll Section
-  const AllTasksScrollSection = () => (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          All Tasks ({displayTasks.length})
-        </Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('TaskScreen')}
-          style={styles.viewAllButton}
-        >
-          <Text style={[styles.viewAllText, { color: colors.primary }]}>
-            Manage Tasks
-          </Text>
-          <Icon name="arrow-right" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      {displayTasks.length === 0 ? (
-        <View style={styles.emptyProjectsState}>
-          <Icon name="check" size={48} color={colors.textSecondary} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            No Tasks Available
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-            {isAdmin 
-              ? 'Create tasks to get your team organized'
-              : 'No tasks have been created yet'
-            }
-          </Text>
-        </View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.tasksScroll}
-          contentContainerStyle={styles.tasksScrollContainer}
-        >
-          {displayTasks.map((task) => (
-            <TouchableOpacity
-              key={task.id}
-              style={[styles.taskScrollCard, { backgroundColor: colors.surface }, shadows.sm]}
-              onPress={() => navigation.navigate('TaskScreen')}
-            >
-              <View style={styles.taskScrollHeader}>
-                <Text style={[styles.taskScrollTitle, { color: colors.text }]} numberOfLines={2}>
-                  {task.title}
-                </Text>
-                <View style={[
-                  styles.taskScrollPriority, 
-                  { backgroundColor: getPriorityColor(task.priority) }
-                ]}>
-                  <Text style={styles.taskScrollPriorityText}>
-                    {task.priority.charAt(0)}
-                  </Text>
-                </View>
-              </View>
-              
-              <Text style={[styles.taskScrollDescription, { color: colors.textSecondary }]} numberOfLines={3}>
-                {task.description}
-              </Text>
-              
-              <View style={styles.taskScrollMeta}>
-                <View style={[
-                  styles.taskScrollStatus, 
-                  { backgroundColor: getStatusColor(task.status) + '20' }
-                ]}>
-                  <Text style={[
-                    styles.taskScrollStatusText, 
-                    { color: getStatusColor(task.status) }
-                  ]}>
-                    {task.status}
-                  </Text>
-                </View>
-              </View>
-              
-              <View style={styles.taskScrollFooter}>
-                <Text style={[styles.taskScrollAssignee, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {task.assignedTo.length > 0 ? getAssigneeName(task.assignedTo[0]) : 'Unassigned'}
-                </Text>
-                <Text style={[styles.taskScrollDate, { color: colors.primary }]}>
-                  {new Date(task.startDate).toLocaleDateString()}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-    </View>
-  );
-
-  // Project Cards Section
-  const ProjectCardsSection = () => (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          {isAdmin ? 'All Projects' : 'My Projects'} ({displayProjects.length})
-        </Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Projects')}
-          style={styles.viewAllButton}
-        >
-          <Text style={[styles.viewAllText, { color: colors.primary }]}>
-            View All
-          </Text>
-          <Icon name="arrow-right" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      {displayProjects.length === 0 ? (
-        <View style={styles.emptyProjectsState}>
-          <Icon name="project" size={48} color={colors.textSecondary} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            {isAdmin ? 'No Projects Created' : 'No Projects Assigned'}
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-            {isAdmin 
-              ? 'Create your first project to get started'
-              : 'No projects assigned to you yet'
-            }
-          </Text>
-        </View>
-      ) : (
-        displayProjects.slice(0, 5).map((project) => (
-          <View key={project.id} style={styles.projectCardWrapper}>
-            <ProjectCard
-              project={project}
-              onPress={() => {
-                console.log('Navigating to project:', project.title, 'ID:', project.id);
-                
-                if (!project.id) {
-                  console.error('ERROR: Project ID is missing!', project);
-                  Alert.alert('Error', 'Project ID is missing. Cannot navigate to project details.');
-                  return;
-                }
-                
-                navigation.navigate('ProjectDetailScreenNew', { projectId: project.id });
-              }}
-              showAssignees={true}
-              compact={true}
-            />
-          </View>
-        ))
-      )}
-    </View>
-  );
-
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading...</Text>
+      <View
+        style={[
+          styles.container,
+          styles.centered,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <AppText style={[styles.loadingText, { color: colors.textSecondary }]}>
+          Loading...
+        </AppText>
       </View>
     );
   }
@@ -612,29 +246,118 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         showsVerticalScrollIndicator={false}
       >
         {/* Welcome Card */}
-        <WelcomeCard />
-
+        <WelcomeCardSection
+          shadows={shadows}
+          greeting={getGreeting()}
+          userName={user?.name || user?.email?.split('@')[0]}
+        />
         {/* Users ScrollBar */}
-        <UsersScrollBar />
+        <UsersScrollBarSection
+          approvedUsers={approvedUsers}
+          shadows={shadows}
+        />
 
-        {/* Today's Tasks Card */}
-        <TodaysTasksCard />
+        {/* Quick actions grid (glassy, blue) */}
+        <QuickActionsGrid
+          shadows={shadows}
+          actions={[
+            {
+              key: 'tasks',
+              label: 'Tasks',
+              icon: 'dashboard',
+              onPress: () => navigation.navigate('TaskScreen' as never),
+            },
+            {
+              key: 'meet',
+              label: 'Meetings',
+              icon: 'calendar',
+              onPress: () => navigation.navigate('MeetingScreen' as never),
+            },
+            {
+              key: 'projects',
+              label: 'Projects',
+              icon: 'project',
+              onPress: () => navigation.navigate('ProjectListScreen' as never),
+            },
+            {
+              key: 'profile',
+              label: 'Profile',
+              icon: 'user',
+              onPress: () => navigation.navigate('ProfileScreen' as never),
+            },
+            {
+              key: 'files',
+              label: 'Files',
+              icon: 'file',
+              onPress: () => navigation.navigate('ProjectListScreen' as never),
+            },
+            {
+              key: 'reports',
+              label: 'Reports',
+              icon: 'status',
+              onPress: () => navigation.navigate('ReportScreen' as never),
+            },
+          ]}
+        />
 
-        {/* Today's Meetings Card */}
-        <MeetingsReportsCard />
-
-        {/* Upcoming Meetings Section */}
-        <UpcomingMeetingsSection />
+        {/* Spotlight carousel: swipe between Today’s Tasks, Today, and Upcoming */}
+        <SectionCarousel
+          contentPaddingHorizontal={0}
+          sections={[
+            {
+              key: 'today_tasks',
+              render: () => (
+                <TodaysTasksCardSection
+                  todaysTasks={todaysTasks}
+                  navigation={navigation}
+                  shadows={shadows}
+                />
+              ),
+            },
+            {
+              key: 'today_schedule',
+              render: () => (
+                <TodaysScheduleSection
+                  items={todaysMeetings}
+                  shadows={shadows}
+                />
+              ),
+            },
+            {
+              key: 'upcoming_meetings',
+              render: () => (
+                <UpcomingMeetingsSection
+                  nextMeetings={nextMeetings}
+                  navigation={navigation}
+                  shadows={shadows}
+                />
+              ),
+            },
+          ]}
+        />
 
         {/* All Tasks Scroll Section */}
-        <AllTasksScrollSection />
+        <AllTasksScrollSection
+          displayTasks={displayTasks}
+          navigation={navigation}
+          getPriorityColor={getPriorityColor}
+          getStatusColor={getStatusColor}
+          getAssigneeName={getAssigneeName}
+          shadows={shadows}
+        />
 
         {/* Project Cards */}
-        <ProjectCardsSection />
+        <ProjectCardsSection
+          displayProjects={displayProjects}
+          navigation={navigation}
+          isAdmin={isAdmin}
+        />
 
         <View style={styles.bottomSpacing} />
       </ScrollView>

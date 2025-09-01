@@ -9,30 +9,30 @@ import { setTheme } from '../store/slices/themeSlice';
  * These provide safe defaults when theme is not properly loaded
  */
 const DEFAULT_COLORS = {
-  // Base colors
-  background: '#ffffff',
-  card: '#ffffff',
-  text: '#1a202c',
-  textSecondary: '#64748b',
-  border: '#e5e7eb',
-  
+  // Base colors (match updated design)
+  background: '#F6F9FF',
+  card: '#FFFFFF',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  border: '#D6E3FF',
+
   // Brand colors
-  primary: '#6a01f6',
-  secondary: '#8b5cf6',
-  accent: '#a855f7',
-  
+  primary: '#2E6AF5',
+  secondary: '#4F46E5',
+  accent: '#60A5FA',
+
   // Status colors
   success: '#10b981',
   warning: '#f59e0b',
   error: '#ef4444',
-  info: '#3b82f6',
-  
+  info: '#3B82F6',
+
   // Gradients
   gradients: {
-    background: ['#ffffff', '#f8fafc'],
-    primary: ['#6a01f6', '#7d1aff'],
-    secondary: ['#8b5cf6', '#a855f7'],
-    card: ['#ffffff', '#f9fafb'],
+    background: ['#E7F0FF', '#CFE0FF'],
+    primary: ['#2E6AF5', '#5A8CFF'],
+    secondary: ['#4F46E5', '#60A5FA'],
+    card: ['#FFFFFF', '#F6F9FF'],
   },
 };
 
@@ -67,7 +67,7 @@ const DEFAULT_SPACING = {
     horizontal: 24,
     vertical: 16,
   },
-  
+
   // Standard spacing scale
   xs: 4,
   sm: 8,
@@ -79,7 +79,7 @@ const DEFAULT_SPACING = {
   '4xl': 40,
   '5xl': 48,
   '6xl': 64,
-  
+
   // Component spacing
   card: {
     padding: 16,
@@ -119,11 +119,16 @@ export function useTheme() {
 
   // Fallback gradients in case they're undefined
   const fallbackGradients = {
-    primary: ['#6a01f6', '#7d1aff'],
-    secondary: ['#9945ff', '#8b5cf6'],
-    background: activeTheme === 'dark' ? ['#0f172a', '#1e293b'] : ['#ede1ff', '#d9c8ff'],
-    overlay: ['rgba(0,0,0,0)', activeTheme === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.6)'],
-    card: activeTheme === 'dark' ? ['#1e293b', '#334155'] : ['#ffffff', '#f8fafc'],
+    primary: ['#2E6AF5', '#5A8CFF'],
+    secondary: ['#4F46E5', '#60A5FA'],
+    background:
+      activeTheme === 'dark' ? ['#0A1224', '#10203D'] : ['#E7F0FF', '#CFE0FF'],
+    overlay: [
+      'rgba(0,0,0,0)',
+      activeTheme === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.06)',
+    ],
+    card:
+      activeTheme === 'dark' ? ['#121C2E', '#16243E'] : ['#FFFFFF', '#F6F9FF'],
   };
 
   const colors = currentTheme?.colors || DEFAULT_COLORS;
@@ -144,6 +149,9 @@ export function useTheme() {
     animation: currentTheme?.animation || themes.light.animation,
     breakpoints: DEFAULT_BREAKPOINTS,
 
+    // Component tokens
+    components: currentTheme?.colors?.components || ({} as any),
+
     // Additional theme properties (if they exist)
     elevation: currentTheme?.elevation,
     hitSlop: currentTheme?.hitSlop,
@@ -155,21 +163,55 @@ export function useTheme() {
 
     // Actions
     toggleTheme,
-    
+
     // Helper methods
     getColor: (colorKey: string, fallback?: string) => {
       const themeColors = currentTheme?.colors || DEFAULT_COLORS;
-      return themeColors[colorKey as keyof typeof themeColors] || fallback || DEFAULT_COLORS.text;
+      return (
+        themeColors[colorKey as keyof typeof themeColors] ||
+        fallback ||
+        DEFAULT_COLORS.text
+      );
     },
-    
+
     getFontSize: (sizeKey: string, fallback?: number) => {
       const typography = currentTheme?.typography || DEFAULT_TYPOGRAPHY;
-      return typography.fontSize[sizeKey as keyof typeof typography.fontSize] || fallback || DEFAULT_TYPOGRAPHY.fontSize.base;
+      return (
+        typography.fontSize[sizeKey as keyof typeof typography.fontSize] ||
+        fallback ||
+        DEFAULT_TYPOGRAPHY.fontSize.base
+      );
     },
-    
+
     getSpacing: (spacingKey: string, fallback?: number) => {
       const spacing = currentTheme?.spacing || DEFAULT_SPACING;
-      return spacing[spacingKey as keyof typeof spacing] || fallback || DEFAULT_SPACING.md;
+      return (
+        spacing[spacingKey as keyof typeof spacing] ||
+        fallback ||
+        DEFAULT_SPACING.md
+      );
+    },
+
+    // Convenience helpers for buttons and text tokens
+    getButtonColors: (
+      variant: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive',
+    ) => {
+      const comps = (currentTheme?.colors as any)?.components?.button;
+      return (comps && comps[variant]) || comps?.primary;
+    },
+    getTextColor: (
+      kind:
+        | 'default'
+        | 'secondary'
+        | 'muted'
+        | 'inverse'
+        | 'link'
+        | 'success'
+        | 'warning'
+        | 'error' = 'default',
+    ) => {
+      const tx = (currentTheme?.colors as any)?.components?.text;
+      return (tx && tx[kind]) || colors.text;
     },
   };
 }
@@ -180,11 +222,11 @@ export function useTheme() {
 export const safeThemeAccess = <T>(
   theme: any,
   path: string,
-  fallback: T
+  fallback: T,
 ): T => {
   const keys = path.split('.');
   let current = theme;
-  
+
   for (const key of keys) {
     if (current && typeof current === 'object' && key in current) {
       current = current[key];
@@ -192,11 +234,16 @@ export const safeThemeAccess = <T>(
       return fallback;
     }
   }
-  
+
   return current !== undefined ? current : fallback;
 };
 
 /**
  * Export defaults for direct usage
  */
-export { DEFAULT_COLORS, DEFAULT_TYPOGRAPHY, DEFAULT_SPACING, DEFAULT_BREAKPOINTS };
+export {
+  DEFAULT_COLORS,
+  DEFAULT_TYPOGRAPHY,
+  DEFAULT_SPACING,
+  DEFAULT_BREAKPOINTS,
+};

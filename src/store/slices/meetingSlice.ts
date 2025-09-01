@@ -26,6 +26,9 @@ const initialState: MeetingState = {
 
 // Async Thunks
 
+// Module-level unsubscribe holder to avoid non-serializable state/actions
+let unsubscribeMeetings: (() => void) | null = null;
+
 /**
  * Fetch all meetings (Admin)
  */
@@ -38,7 +41,7 @@ export const fetchMeetings = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch meetings');
     }
-  }
+  },
 );
 
 /**
@@ -53,7 +56,7 @@ export const fetchUserMeetings = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch user meetings');
     }
-  }
+  },
 );
 
 /**
@@ -61,14 +64,19 @@ export const fetchUserMeetings = createAsyncThunk(
  */
 export const fetchMeetingsByDate = createAsyncThunk(
   'meetings/fetchMeetingsByDate',
-  async ({ userId, date }: { userId: string; date: string }, { rejectWithValue }) => {
+  async (
+    { userId, date }: { userId: string; date: string },
+    { rejectWithValue },
+  ) => {
     try {
       const meetings = await firestoreService.getMeetingsByDate(userId, date);
       return meetings;
     } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to fetch meetings by date');
+      return rejectWithValue(
+        error.message || 'Failed to fetch meetings by date',
+      );
     }
-  }
+  },
 );
 
 /**
@@ -76,14 +84,17 @@ export const fetchMeetingsByDate = createAsyncThunk(
  */
 export const createMeeting = createAsyncThunk(
   'meetings/createMeeting',
-  async (meetingData: Omit<Meeting, 'id' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
+  async (
+    meetingData: Omit<Meeting, 'id' | 'createdAt' | 'updatedAt'>,
+    { rejectWithValue },
+  ) => {
     try {
       const newMeeting = await firestoreService.createMeeting(meetingData);
       return newMeeting;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to create meeting');
     }
-  }
+  },
 );
 
 /**
@@ -91,7 +102,10 @@ export const createMeeting = createAsyncThunk(
  */
 export const updateMeeting = createAsyncThunk(
   'meetings/updateMeeting',
-  async ({ meetingId, updates }: { meetingId: string; updates: Partial<Meeting> }, { rejectWithValue }) => {
+  async (
+    { meetingId, updates }: { meetingId: string; updates: Partial<Meeting> },
+    { rejectWithValue },
+  ) => {
     try {
       await firestoreService.updateMeeting(meetingId, updates);
       const updatedMeeting = await firestoreService.getMeeting(meetingId);
@@ -102,7 +116,7 @@ export const updateMeeting = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update meeting');
     }
-  }
+  },
 );
 
 /**
@@ -117,7 +131,7 @@ export const deleteMeeting = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to delete meeting');
     }
-  }
+  },
 );
 
 /**
@@ -125,14 +139,22 @@ export const deleteMeeting = createAsyncThunk(
  */
 export const fetchUpcomingMeetings = createAsyncThunk(
   'meetings/fetchUpcomingMeetings',
-  async ({ userId, limit = 10 }: { userId: string; limit?: number }, { rejectWithValue }) => {
+  async (
+    { userId, limit = 10 }: { userId: string; limit?: number },
+    { rejectWithValue },
+  ) => {
     try {
-      const meetings = await firestoreService.getUpcomingMeetingsForUser(userId, limit);
+      const meetings = await firestoreService.getUpcomingMeetingsForUser(
+        userId,
+        limit,
+      );
       return meetings;
     } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to fetch upcoming meetings');
+      return rejectWithValue(
+        error.message || 'Failed to fetch upcoming meetings',
+      );
     }
-  }
+  },
 );
 
 /**
@@ -142,35 +164,57 @@ export const subscribeToMeetings = createAsyncThunk(
   'meetings/subscribeToMeetings',
   async (userId: string, { dispatch, rejectWithValue }) => {
     try {
+      // Tear down previous subscription if any
+      if (unsubscribeMeetings) {
+        try {
+          unsubscribeMeetings();
+        } catch {}
+      }
       // Subscribe to real-time updates
-      const unsubscribe = await firestoreService.subscribeToMeetings(userId, (meetings: Meeting[]) => {
-        dispatch(setMeetings(meetings));
-        
-        // Filter meetings for the user
-        const userMeetings = meetings.filter(meeting => 
-          meeting.isAssignedToAll || meeting.assignedTo.includes(userId)
-        );
-        dispatch(setUserMeetings(userMeetings));
-        
-        // Filter today's meetings
-        const today = new Date().toISOString().split('T')[0];
-        const todaysMeetings = userMeetings.filter(meeting => meeting.date === today);
-        dispatch(setTodaysMeetings(todaysMeetings));
-        
-        // Filter upcoming meetings
-        const now = new Date();
-        const upcomingMeetings = userMeetings
-          .filter(meeting => new Date(meeting.startTime) > now && meeting.status === 'Scheduled')
-          .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-          .slice(0, 5);
-        dispatch(setUpcomingMeetings(upcomingMeetings));
-      });
-      
-      return unsubscribe;
+      unsubscribeMeetings = await firestoreService.subscribeToMeetings(
+        userId,
+        (meetings: Meeting[]) => {
+          dispatch(setMeetings(meetings));
+
+          // Filter meetings for the user
+          const userMeetings = meetings.filter(
+            meeting =>
+              meeting.isAssignedToAll || meeting.assignedTo.includes(userId),
+          );
+          dispatch(setUserMeetings(userMeetings));
+
+          // Filter today's meetings
+          const today = new Date().toISOString().split('T')[0];
+          const todaysMeetings = userMeetings.filter(
+            meeting => meeting.date === today,
+          );
+          dispatch(setTodaysMeetings(todaysMeetings));
+
+          // Filter upcoming meetings
+          const now = new Date();
+          const upcomingMeetings = userMeetings
+            .filter(
+              meeting =>
+                new Date(meeting.startTime) > now &&
+                meeting.status === 'Scheduled',
+            )
+            .sort(
+              (a, b) =>
+                new Date(a.startTime).getTime() -
+                new Date(b.startTime).getTime(),
+            )
+            .slice(0, 5);
+          dispatch(setUpcomingMeetings(upcomingMeetings));
+        },
+      );
+      // Do not return unsubscribe (non-serializable)
+      return true;
     } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to subscribe to meetings');
+      return rejectWithValue(
+        error.message || 'Failed to subscribe to meetings',
+      );
     }
-  }
+  },
 );
 
 /**
@@ -180,12 +224,20 @@ export const unsubscribeFromMeetings = createAsyncThunk(
   'meetings/unsubscribeFromMeetings',
   async (_, { rejectWithValue }) => {
     try {
+      if (unsubscribeMeetings) {
+        try {
+          unsubscribeMeetings();
+        } catch {}
+        unsubscribeMeetings = null;
+      }
       await firestoreService.unsubscribeFromMeetings();
       return true;
     } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to unsubscribe from meetings');
+      return rejectWithValue(
+        error.message || 'Failed to unsubscribe from meetings',
+      );
     }
-  }
+  },
 );
 
 const meetingSlice = createSlice({
@@ -219,15 +271,20 @@ const meetingSlice = createSlice({
     },
     updateMeetingInState: (state, action: PayloadAction<Meeting>) => {
       const meeting = action.payload;
-      const updateArrays = [state.meetings, state.userMeetings, state.todaysMeetings, state.upcomingMeetings];
-      
+      const updateArrays = [
+        state.meetings,
+        state.userMeetings,
+        state.todaysMeetings,
+        state.upcomingMeetings,
+      ];
+
       updateArrays.forEach(array => {
         const index = array.findIndex(m => m.id === meeting.id);
         if (index !== -1) {
           array[index] = meeting;
         }
       });
-      
+
       // Update selected meeting if it's the same
       if (state.selectedMeeting?.id === meeting.id) {
         state.selectedMeeting = meeting;
@@ -237,8 +294,12 @@ const meetingSlice = createSlice({
       const meetingId = action.payload;
       state.meetings = state.meetings.filter(m => m.id !== meetingId);
       state.userMeetings = state.userMeetings.filter(m => m.id !== meetingId);
-      state.todaysMeetings = state.todaysMeetings.filter(m => m.id !== meetingId);
-      state.upcomingMeetings = state.upcomingMeetings.filter(m => m.id !== meetingId);
+      state.todaysMeetings = state.todaysMeetings.filter(
+        m => m.id !== meetingId,
+      );
+      state.upcomingMeetings = state.upcomingMeetings.filter(
+        m => m.id !== meetingId,
+      );
       if (state.selectedMeeting?.id === meetingId) {
         state.selectedMeeting = null;
       }
@@ -246,7 +307,7 @@ const meetingSlice = createSlice({
     setFilters: (state, action: PayloadAction<MeetingFilters>) => {
       state.filters = action.payload;
     },
-    clearFilters: (state) => {
+    clearFilters: state => {
       state.filters = {};
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
@@ -256,14 +317,14 @@ const meetingSlice = createSlice({
       state.error = action.payload;
       state.loading = false;
     },
-    clearError: (state) => {
+    clearError: state => {
       state.error = null;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
       // Fetch Meetings
-      .addCase(fetchMeetings.pending, (state) => {
+      .addCase(fetchMeetings.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -276,9 +337,9 @@ const meetingSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Fetch User Meetings
-      .addCase(fetchUserMeetings.pending, (state) => {
+      .addCase(fetchUserMeetings.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -291,9 +352,9 @@ const meetingSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Fetch Meetings By Date
-      .addCase(fetchMeetingsByDate.pending, (state) => {
+      .addCase(fetchMeetingsByDate.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -306,9 +367,9 @@ const meetingSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Create Meeting
-      .addCase(createMeeting.pending, (state) => {
+      .addCase(createMeeting.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -321,42 +382,46 @@ const meetingSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Update Meeting
-      .addCase(updateMeeting.pending, (state) => {
+      .addCase(updateMeeting.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateMeeting.fulfilled, (state, action) => {
         state.loading = false;
         const updatedMeeting = action.payload;
-        
+
         // Update in meetings array
-        const meetingIndex = state.meetings.findIndex(m => m.id === updatedMeeting.id);
+        const meetingIndex = state.meetings.findIndex(
+          m => m.id === updatedMeeting.id,
+        );
         if (meetingIndex !== -1) {
           state.meetings[meetingIndex] = updatedMeeting;
         }
-        
+
         // Update selected meeting if it's the same
         if (state.selectedMeeting?.id === updatedMeeting.id) {
           state.selectedMeeting = updatedMeeting;
         }
-        
+
         // Update in user meetings
-        const userMeetingIndex = state.userMeetings.findIndex(m => m.id === updatedMeeting.id);
+        const userMeetingIndex = state.userMeetings.findIndex(
+          m => m.id === updatedMeeting.id,
+        );
         if (userMeetingIndex !== -1) {
           state.userMeetings[userMeetingIndex] = updatedMeeting;
         }
-        
+
         state.error = null;
       })
       .addCase(updateMeeting.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Delete Meeting
-      .addCase(deleteMeeting.pending, (state) => {
+      .addCase(deleteMeeting.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -365,8 +430,12 @@ const meetingSlice = createSlice({
         const meetingId = action.payload;
         state.meetings = state.meetings.filter(m => m.id !== meetingId);
         state.userMeetings = state.userMeetings.filter(m => m.id !== meetingId);
-        state.todaysMeetings = state.todaysMeetings.filter(m => m.id !== meetingId);
-        state.upcomingMeetings = state.upcomingMeetings.filter(m => m.id !== meetingId);
+        state.todaysMeetings = state.todaysMeetings.filter(
+          m => m.id !== meetingId,
+        );
+        state.upcomingMeetings = state.upcomingMeetings.filter(
+          m => m.id !== meetingId,
+        );
         if (state.selectedMeeting?.id === meetingId) {
           state.selectedMeeting = null;
         }
@@ -376,9 +445,9 @@ const meetingSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Fetch Upcoming Meetings
-      .addCase(fetchUpcomingMeetings.pending, (state) => {
+      .addCase(fetchUpcomingMeetings.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -391,20 +460,20 @@ const meetingSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Subscribe to Meetings
-      .addCase(subscribeToMeetings.pending, (state) => {
+      .addCase(subscribeToMeetings.pending, state => {
         state.error = null;
       })
-      .addCase(subscribeToMeetings.fulfilled, (state) => {
+      .addCase(subscribeToMeetings.fulfilled, state => {
         state.error = null;
       })
       .addCase(subscribeToMeetings.rejected, (state, action) => {
         state.error = action.payload as string;
       })
-      
+
       // Unsubscribe from Meetings
-      .addCase(unsubscribeFromMeetings.fulfilled, (state) => {
+      .addCase(unsubscribeFromMeetings.fulfilled, state => {
         state.error = null;
       });
   },

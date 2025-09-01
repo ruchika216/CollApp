@@ -1,8 +1,7 @@
-
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Project, ProjectComment, ProjectFile, SubTask } from '../../types';
 import firestoreService from '../../firebase/firestoreService';
-import { uploadFileToStorage } from '../../services/fileUpload';
+import { uploadFileToStorage } from '../../services/storage/fileUpload';
 import {
   addSubTaskToProject,
   updateSubTaskInProject,
@@ -53,7 +52,7 @@ export const fetchProjects = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch projects');
     }
-  }
+  },
 );
 
 /**
@@ -63,12 +62,14 @@ export const fetchUserProjects = createAsyncThunk(
   'projects/fetchUserProjects',
   async (userId: string, { rejectWithValue }) => {
     try {
-      const projects = await firestoreService.getProjects({ assignedTo: userId });
+      const projects = await firestoreService.getProjects({
+        assignedTo: userId,
+      });
       return projects;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch user projects');
     }
-  }
+  },
 );
 
 /**
@@ -81,19 +82,19 @@ export const fetchProjectById = createAsyncThunk(
       if (!projectId) {
         throw new Error('Project ID is required');
       }
-      
+
       const project = await firestoreService.getProject(projectId);
-      
+
       if (!project) {
         throw new Error('Project not found');
       }
-      
+
       return project;
     } catch (error: any) {
       console.error('Error in fetchProjectById:', error);
       return rejectWithValue(error.message || 'Failed to fetch project');
     }
-  }
+  },
 );
 
 /**
@@ -101,14 +102,17 @@ export const fetchProjectById = createAsyncThunk(
  */
 export const createProject = createAsyncThunk(
   'projects/createProject',
-  async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
+  async (
+    projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>,
+    { rejectWithValue },
+  ) => {
     try {
       const newProject = await firestoreService.createProject(projectData);
       return newProject;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to create project');
     }
-  }
+  },
 );
 
 /**
@@ -116,7 +120,10 @@ export const createProject = createAsyncThunk(
  */
 export const updateProjectAsync = createAsyncThunk(
   'projects/updateProject',
-  async ({ projectId, updates }: { projectId: string; updates: Partial<Project> }, { rejectWithValue }) => {
+  async (
+    { projectId, updates }: { projectId: string; updates: Partial<Project> },
+    { rejectWithValue },
+  ) => {
     try {
       await firestoreService.updateProject(projectId, updates);
       const updatedProject = await firestoreService.getProject(projectId);
@@ -127,7 +134,7 @@ export const updateProjectAsync = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update project');
     }
-  }
+  },
 );
 
 /**
@@ -142,7 +149,7 @@ export const deleteProjectAsync = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to delete project');
     }
-  }
+  },
 );
 
 // Async Thunks for SubTask Operations
@@ -152,17 +159,23 @@ export const deleteProjectAsync = createAsyncThunk(
  */
 export const createSubTaskAsync = createAsyncThunk(
   'projects/createSubTask',
-  async ({ projectId, subTaskData }: { 
-    projectId: string; 
-    subTaskData: Omit<SubTask, 'id' | 'createdAt' | 'updatedAt'> 
-  }, { rejectWithValue }) => {
+  async (
+    {
+      projectId,
+      subTaskData,
+    }: {
+      projectId: string;
+      subTaskData: Omit<SubTask, 'id' | 'createdAt' | 'updatedAt'>;
+    },
+    { rejectWithValue },
+  ) => {
     try {
       const newSubTask = await addSubTaskToProject(projectId, subTaskData);
       return { projectId, subTask: newSubTask };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to create subtask');
     }
-  }
+  },
 );
 
 /**
@@ -170,18 +183,25 @@ export const createSubTaskAsync = createAsyncThunk(
  */
 export const updateSubTaskAsync = createAsyncThunk(
   'projects/updateSubTask',
-  async ({ projectId, subTaskId, updates }: { 
-    projectId: string; 
-    subTaskId: string; 
-    updates: Partial<SubTask> 
-  }, { rejectWithValue }) => {
+  async (
+    {
+      projectId,
+      subTaskId,
+      updates,
+    }: {
+      projectId: string;
+      subTaskId: string;
+      updates: Partial<SubTask>;
+    },
+    { rejectWithValue },
+  ) => {
     try {
       await updateSubTaskInProject(projectId, subTaskId, updates);
       return { projectId, subTaskId, updates };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update subtask');
     }
-  }
+  },
 );
 
 /**
@@ -189,17 +209,23 @@ export const updateSubTaskAsync = createAsyncThunk(
  */
 export const deleteSubTaskAsync = createAsyncThunk(
   'projects/deleteSubTask',
-  async ({ projectId, subTaskId }: { 
-    projectId: string; 
-    subTaskId: string; 
-  }, { rejectWithValue }) => {
+  async (
+    {
+      projectId,
+      subTaskId,
+    }: {
+      projectId: string;
+      subTaskId: string;
+    },
+    { rejectWithValue },
+  ) => {
     try {
       await deleteSubTaskFromProject(projectId, subTaskId);
       return { projectId, subTaskId };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to delete subtask');
     }
-  }
+  },
 );
 
 // Async Thunks for Comment Operations
@@ -209,17 +235,23 @@ export const deleteSubTaskAsync = createAsyncThunk(
  */
 export const addCommentAsync = createAsyncThunk(
   'projects/addComment',
-  async ({ projectId, commentData }: { 
-    projectId: string; 
-    commentData: Omit<ProjectComment, 'id' | 'createdAt'> 
-  }, { rejectWithValue }) => {
+  async (
+    {
+      projectId,
+      commentData,
+    }: {
+      projectId: string;
+      commentData: Omit<ProjectComment, 'id' | 'createdAt'>;
+    },
+    { rejectWithValue },
+  ) => {
     try {
       const newComment = await addCommentToProject(projectId, commentData);
       return { projectId, comment: newComment };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to add comment');
     }
-  }
+  },
 );
 
 // Async Thunks for File Operations
@@ -229,16 +261,23 @@ export const addCommentAsync = createAsyncThunk(
  */
 export const uploadFileToProject = createAsyncThunk(
   'projects/uploadFileToProject',
-  async ({ projectId, fileData, userId }: { 
-    projectId: string; 
-    fileData: {
-      filePath: string;
-      fileName: string;
-      fileType: string;
-      fileSize: number;
-    };
-    userId: string;
-  }, { rejectWithValue }) => {
+  async (
+    {
+      projectId,
+      fileData,
+      userId,
+    }: {
+      projectId: string;
+      fileData: {
+        filePath: string;
+        fileName: string;
+        fileType: string;
+        fileSize: number;
+      };
+      userId: string;
+    },
+    { rejectWithValue },
+  ) => {
     try {
       // Upload file to Firebase Storage
       const uploadedFile = await uploadFileToStorage({
@@ -259,22 +298,22 @@ export const uploadFileToProject = createAsyncThunk(
       };
 
       const isImage = fileData.fileType.startsWith('image/');
-      
+
       if (isImage) {
         await addImageToProject(projectId, fileForProject);
       } else {
         await addFileToProjectFiles(projectId, fileForProject);
       }
 
-      return { 
-        projectId, 
-        file: uploadedFile, 
-        fileType: isImage ? 'images' as const : 'files' as const 
+      return {
+        projectId,
+        file: uploadedFile,
+        fileType: isImage ? ('images' as const) : ('files' as const),
       };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to upload file');
     }
-  }
+  },
 );
 
 /**
@@ -282,11 +321,18 @@ export const uploadFileToProject = createAsyncThunk(
  */
 export const removeFileFromProjectAsync = createAsyncThunk(
   'projects/removeFileFromProject',
-  async ({ projectId, fileId, fileType }: { 
-    projectId: string; 
-    fileId: string; 
-    fileType: 'files' | 'images';
-  }, { rejectWithValue }) => {
+  async (
+    {
+      projectId,
+      fileId,
+      fileType,
+    }: {
+      projectId: string;
+      fileId: string;
+      fileType: 'files' | 'images';
+    },
+    { rejectWithValue },
+  ) => {
     try {
       if (fileType === 'images') {
         // TODO: Implement removeImageFromProject
@@ -295,12 +341,12 @@ export const removeFileFromProjectAsync = createAsyncThunk(
         // TODO: Implement removeFileFromProject
         console.warn('removeFileFromProject not implemented');
       }
-      
+
       return { projectId, fileId, fileType };
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to remove file');
     }
-  }
+  },
 );
 
 /**
@@ -311,29 +357,37 @@ export const updateProjectProgress = createAsyncThunk(
   async (projectId: string, { getState, rejectWithValue }) => {
     try {
       const state = getState() as any;
-      const project = state.projects.projects.find((p: Project) => p.id === projectId) ||
-                    state.projects.selectedProject;
-      
+      const project =
+        state.projects.projects.find((p: Project) => p.id === projectId) ||
+        state.projects.selectedProject;
+
       if (!project) {
         throw new Error('Project not found');
       }
 
       const totalSubTasks = project.subTasks.length;
-      const completedSubTasks = project.subTasks.filter((st: SubTask) => st.status === 'Done').length;
-      const progress = totalSubTasks > 0 ? Math.round((completedSubTasks / totalSubTasks) * 100) : 0;
+      const completedSubTasks = project.subTasks.filter(
+        (st: SubTask) => st.status === 'Done',
+      ).length;
+      const progress =
+        totalSubTasks > 0
+          ? Math.round((completedSubTasks / totalSubTasks) * 100)
+          : 0;
 
       const updatedProject = {
         ...project,
         progress,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
       await updateProjectInFirestore(updatedProject);
-      
+
       return { projectId, progress };
     } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to update project progress');
+      return rejectWithValue(
+        error.message || 'Failed to update project progress',
+      );
     }
-  }
+  },
 );
 
 const projectSlice = createSlice({
@@ -364,19 +418,26 @@ const projectSlice = createSlice({
         state.selectedProject = action.payload;
       }
       // Update user projects
-      const userIndex = state.userProjects.findIndex(p => p.id === action.payload.id);
+      const userIndex = state.userProjects.findIndex(
+        p => p.id === action.payload.id,
+      );
       if (userIndex !== -1) {
         state.userProjects[userIndex] = action.payload;
       }
     },
     deleteProject: (state, action: PayloadAction<string>) => {
       state.projects = state.projects.filter(p => p.id !== action.payload);
-      state.userProjects = state.userProjects.filter(p => p.id !== action.payload);
+      state.userProjects = state.userProjects.filter(
+        p => p.id !== action.payload,
+      );
       if (state.selectedProject?.id === action.payload) {
         state.selectedProject = null;
       }
     },
-    addComment: (state, action: PayloadAction<{projectId: string, comment: ProjectComment}>) => {
+    addComment: (
+      state,
+      action: PayloadAction<{ projectId: string; comment: ProjectComment }>,
+    ) => {
       const { projectId, comment } = action.payload;
       const project = state.projects.find(p => p.id === projectId);
       if (project) {
@@ -388,7 +449,14 @@ const projectSlice = createSlice({
         state.selectedProject.updatedAt = new Date().toISOString();
       }
     },
-    addFile: (state, action: PayloadAction<{projectId: string, file: ProjectFile, type: 'files' | 'images'}>) => {
+    addFile: (
+      state,
+      action: PayloadAction<{
+        projectId: string;
+        file: ProjectFile;
+        type: 'files' | 'images';
+      }>,
+    ) => {
       const { projectId, file, type } = action.payload;
       const project = state.projects.find(p => p.id === projectId);
       if (project) {
@@ -400,7 +468,10 @@ const projectSlice = createSlice({
         state.selectedProject.updatedAt = new Date().toISOString();
       }
     },
-    updateProjectStatus: (state, action: PayloadAction<{projectId: string, status: Project['status']}>) => {
+    updateProjectStatus: (
+      state,
+      action: PayloadAction<{ projectId: string; status: Project['status'] }>,
+    ) => {
       const { projectId, status } = action.payload;
       const project = state.projects.find(p => p.id === projectId);
       if (project) {
@@ -419,17 +490,23 @@ const projectSlice = createSlice({
       state.error = action.payload;
       state.loading = false;
     },
-    setFilters: (state, action: PayloadAction<Partial<ProjectState['filters']>>) => {
+    setFilters: (
+      state,
+      action: PayloadAction<Partial<ProjectState['filters']>>,
+    ) => {
       state.filters = { ...state.filters, ...action.payload };
     },
-    clearFilters: (state) => {
+    clearFilters: state => {
       state.filters = {
         status: [],
         priority: [],
         assignedTo: [],
       };
     },
-    addSubTask: (state, action: PayloadAction<{projectId: string, subTask: SubTask}>) => {
+    addSubTask: (
+      state,
+      action: PayloadAction<{ projectId: string; subTask: SubTask }>,
+    ) => {
       const { projectId, subTask } = action.payload;
       const project = state.projects.find(p => p.id === projectId);
       if (project) {
@@ -441,25 +518,47 @@ const projectSlice = createSlice({
         state.selectedProject.updatedAt = new Date().toISOString();
       }
     },
-    updateSubTask: (state, action: PayloadAction<{projectId: string, subTaskId: string, updates: Partial<SubTask>}>) => {
+    updateSubTask: (
+      state,
+      action: PayloadAction<{
+        projectId: string;
+        subTaskId: string;
+        updates: Partial<SubTask>;
+      }>,
+    ) => {
       const { projectId, subTaskId, updates } = action.payload;
       const project = state.projects.find(p => p.id === projectId);
       if (project) {
-        const subTaskIndex = project.subTasks.findIndex(st => st.id === subTaskId);
+        const subTaskIndex = project.subTasks.findIndex(
+          st => st.id === subTaskId,
+        );
         if (subTaskIndex !== -1) {
-          project.subTasks[subTaskIndex] = { ...project.subTasks[subTaskIndex], ...updates, updatedAt: new Date().toISOString() };
+          project.subTasks[subTaskIndex] = {
+            ...project.subTasks[subTaskIndex],
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          };
           project.updatedAt = new Date().toISOString();
         }
       }
       if (state.selectedProject?.id === projectId) {
-        const subTaskIndex = state.selectedProject.subTasks.findIndex(st => st.id === subTaskId);
+        const subTaskIndex = state.selectedProject.subTasks.findIndex(
+          st => st.id === subTaskId,
+        );
         if (subTaskIndex !== -1) {
-          state.selectedProject.subTasks[subTaskIndex] = { ...state.selectedProject.subTasks[subTaskIndex], ...updates, updatedAt: new Date().toISOString() };
+          state.selectedProject.subTasks[subTaskIndex] = {
+            ...state.selectedProject.subTasks[subTaskIndex],
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          };
           state.selectedProject.updatedAt = new Date().toISOString();
         }
       }
     },
-    deleteSubTask: (state, action: PayloadAction<{projectId: string, subTaskId: string}>) => {
+    deleteSubTask: (
+      state,
+      action: PayloadAction<{ projectId: string; subTaskId: string }>,
+    ) => {
       const { projectId, subTaskId } = action.payload;
       const project = state.projects.find(p => p.id === projectId);
       if (project) {
@@ -467,12 +566,21 @@ const projectSlice = createSlice({
         project.updatedAt = new Date().toISOString();
       }
       if (state.selectedProject?.id === projectId) {
-        state.selectedProject.subTasks = state.selectedProject.subTasks.filter(st => st.id !== subTaskId);
+        state.selectedProject.subTasks = state.selectedProject.subTasks.filter(
+          st => st.id !== subTaskId,
+        );
         state.selectedProject.updatedAt = new Date().toISOString();
       }
     },
     // Enhanced reducers for file operations
-    removeFile: (state, action: PayloadAction<{projectId: string, fileId: string, fileType: 'files' | 'images'}>) => {
+    removeFile: (
+      state,
+      action: PayloadAction<{
+        projectId: string;
+        fileId: string;
+        fileType: 'files' | 'images';
+      }>,
+    ) => {
       const { projectId, fileId, fileType } = action.payload;
       const project = state.projects.find(p => p.id === projectId);
       if (project) {
@@ -480,11 +588,16 @@ const projectSlice = createSlice({
         project.updatedAt = new Date().toISOString();
       }
       if (state.selectedProject?.id === projectId) {
-        state.selectedProject[fileType] = state.selectedProject[fileType].filter(f => f.id !== fileId);
+        state.selectedProject[fileType] = state.selectedProject[
+          fileType
+        ].filter(f => f.id !== fileId);
         state.selectedProject.updatedAt = new Date().toISOString();
       }
     },
-    updateProjectProgress: (state, action: PayloadAction<{projectId: string, progress: number}>) => {
+    updateProjectProgress: (
+      state,
+      action: PayloadAction<{ projectId: string; progress: number }>,
+    ) => {
       const { projectId, progress } = action.payload;
       const project = state.projects.find(p => p.id === projectId);
       if (project) {
@@ -497,17 +610,25 @@ const projectSlice = createSlice({
       }
     },
     // Batch operations
-    updateMultipleSubTasks: (state, action: PayloadAction<{projectId: string, updates: {subTaskId: string, updates: Partial<SubTask>}[]}>) => {
+    updateMultipleSubTasks: (
+      state,
+      action: PayloadAction<{
+        projectId: string;
+        updates: { subTaskId: string; updates: Partial<SubTask> }[];
+      }>,
+    ) => {
       const { projectId, updates } = action.payload;
       const project = state.projects.find(p => p.id === projectId);
       if (project) {
         updates.forEach(({ subTaskId, updates: subTaskUpdates }) => {
-          const subTaskIndex = project.subTasks.findIndex(st => st.id === subTaskId);
+          const subTaskIndex = project.subTasks.findIndex(
+            st => st.id === subTaskId,
+          );
           if (subTaskIndex !== -1) {
-            project.subTasks[subTaskIndex] = { 
-              ...project.subTasks[subTaskIndex], 
-              ...subTaskUpdates, 
-              updatedAt: new Date().toISOString() 
+            project.subTasks[subTaskIndex] = {
+              ...project.subTasks[subTaskIndex],
+              ...subTaskUpdates,
+              updatedAt: new Date().toISOString(),
             };
           }
         });
@@ -515,12 +636,14 @@ const projectSlice = createSlice({
       }
       if (state.selectedProject?.id === projectId) {
         updates.forEach(({ subTaskId, updates: subTaskUpdates }) => {
-          const subTaskIndex = state.selectedProject!.subTasks.findIndex(st => st.id === subTaskId);
+          const subTaskIndex = state.selectedProject!.subTasks.findIndex(
+            st => st.id === subTaskId,
+          );
           if (subTaskIndex !== -1) {
-            state.selectedProject!.subTasks[subTaskIndex] = { 
-              ...state.selectedProject!.subTasks[subTaskIndex], 
-              ...subTaskUpdates, 
-              updatedAt: new Date().toISOString() 
+            state.selectedProject!.subTasks[subTaskIndex] = {
+              ...state.selectedProject!.subTasks[subTaskIndex],
+              ...subTaskUpdates,
+              updatedAt: new Date().toISOString(),
             };
           }
         });
@@ -528,10 +651,10 @@ const projectSlice = createSlice({
       }
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
       // Fetch Projects
-      .addCase(fetchProjects.pending, (state) => {
+      .addCase(fetchProjects.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -544,9 +667,9 @@ const projectSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Fetch User Projects
-      .addCase(fetchUserProjects.pending, (state) => {
+      .addCase(fetchUserProjects.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -559,9 +682,9 @@ const projectSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Fetch Project By ID
-      .addCase(fetchProjectById.pending, (state) => {
+      .addCase(fetchProjectById.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -574,9 +697,9 @@ const projectSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Create Project
-      .addCase(createProject.pending, (state) => {
+      .addCase(createProject.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -589,329 +712,348 @@ const projectSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Update Project
-      .addCase(updateProjectAsync.pending, (state) => {
+      .addCase(updateProjectAsync.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateProjectAsync.fulfilled, (state, action) => {
         state.loading = false;
         const updatedProject = action.payload;
-        
+
         // Update in projects array
-        const projectIndex = state.projects.findIndex(p => p.id === updatedProject.id);
+        const projectIndex = state.projects.findIndex(
+          p => p.id === updatedProject.id,
+        );
         if (projectIndex !== -1) {
           state.projects[projectIndex] = updatedProject;
         }
-        
+
         // Update selected project if it's the same
         if (state.selectedProject?.id === updatedProject.id) {
           state.selectedProject = updatedProject;
         }
-        
+
         // Update in user projects
-        const userProjectIndex = state.userProjects.findIndex(p => p.id === updatedProject.id);
+        const userProjectIndex = state.userProjects.findIndex(
+          p => p.id === updatedProject.id,
+        );
         if (userProjectIndex !== -1) {
           state.userProjects[userProjectIndex] = updatedProject;
         }
-        
+
         state.error = null;
       })
       .addCase(updateProjectAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Delete Project
-      .addCase(deleteProjectAsync.pending, (state) => {
+      .addCase(deleteProjectAsync.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(deleteProjectAsync.fulfilled, (state, action) => {
         state.loading = false;
         const deletedProjectId = action.payload;
-        
+
         state.projects = state.projects.filter(p => p.id !== deletedProjectId);
-        state.userProjects = state.userProjects.filter(p => p.id !== deletedProjectId);
-        
+        state.userProjects = state.userProjects.filter(
+          p => p.id !== deletedProjectId,
+        );
+
         if (state.selectedProject?.id === deletedProjectId) {
           state.selectedProject = null;
         }
-        
+
         state.error = null;
       })
       .addCase(deleteProjectAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Create SubTask
-      .addCase(createSubTaskAsync.pending, (state) => {
+      .addCase(createSubTaskAsync.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createSubTaskAsync.fulfilled, (state, action) => {
         state.loading = false;
         const { projectId, subTask } = action.payload;
-        
+
         // Add to projects array
         const project = state.projects.find(p => p.id === projectId);
         if (project) {
           project.subTasks.push(subTask);
           project.updatedAt = new Date().toISOString();
         }
-        
+
         // Add to selected project
         if (state.selectedProject?.id === projectId) {
           state.selectedProject.subTasks.push(subTask);
           state.selectedProject.updatedAt = new Date().toISOString();
         }
-        
+
         // Add to user projects
         const userProject = state.userProjects.find(p => p.id === projectId);
         if (userProject) {
           userProject.subTasks.push(subTask);
           userProject.updatedAt = new Date().toISOString();
         }
-        
+
         state.error = null;
       })
       .addCase(createSubTaskAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Update SubTask
-      .addCase(updateSubTaskAsync.pending, (state) => {
+      .addCase(updateSubTaskAsync.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateSubTaskAsync.fulfilled, (state, action) => {
         state.loading = false;
         const { projectId, subTaskId, updates } = action.payload;
-        
+
         // Update in projects array
         const project = state.projects.find(p => p.id === projectId);
         if (project) {
-          const subTaskIndex = project.subTasks.findIndex(st => st.id === subTaskId);
+          const subTaskIndex = project.subTasks.findIndex(
+            st => st.id === subTaskId,
+          );
           if (subTaskIndex !== -1) {
-            project.subTasks[subTaskIndex] = { 
-              ...project.subTasks[subTaskIndex], 
-              ...updates, 
-              updatedAt: new Date().toISOString() 
+            project.subTasks[subTaskIndex] = {
+              ...project.subTasks[subTaskIndex],
+              ...updates,
+              updatedAt: new Date().toISOString(),
             };
             project.updatedAt = new Date().toISOString();
           }
         }
-        
+
         // Update in selected project
         if (state.selectedProject?.id === projectId) {
-          const subTaskIndex = state.selectedProject.subTasks.findIndex(st => st.id === subTaskId);
+          const subTaskIndex = state.selectedProject.subTasks.findIndex(
+            st => st.id === subTaskId,
+          );
           if (subTaskIndex !== -1) {
-            state.selectedProject.subTasks[subTaskIndex] = { 
-              ...state.selectedProject.subTasks[subTaskIndex], 
-              ...updates, 
-              updatedAt: new Date().toISOString() 
+            state.selectedProject.subTasks[subTaskIndex] = {
+              ...state.selectedProject.subTasks[subTaskIndex],
+              ...updates,
+              updatedAt: new Date().toISOString(),
             };
             state.selectedProject.updatedAt = new Date().toISOString();
           }
         }
-        
+
         // Update in user projects
         const userProject = state.userProjects.find(p => p.id === projectId);
         if (userProject) {
-          const subTaskIndex = userProject.subTasks.findIndex(st => st.id === subTaskId);
+          const subTaskIndex = userProject.subTasks.findIndex(
+            st => st.id === subTaskId,
+          );
           if (subTaskIndex !== -1) {
-            userProject.subTasks[subTaskIndex] = { 
-              ...userProject.subTasks[subTaskIndex], 
-              ...updates, 
-              updatedAt: new Date().toISOString() 
+            userProject.subTasks[subTaskIndex] = {
+              ...userProject.subTasks[subTaskIndex],
+              ...updates,
+              updatedAt: new Date().toISOString(),
             };
             userProject.updatedAt = new Date().toISOString();
           }
         }
-        
+
         state.error = null;
       })
       .addCase(updateSubTaskAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Delete SubTask
-      .addCase(deleteSubTaskAsync.pending, (state) => {
+      .addCase(deleteSubTaskAsync.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(deleteSubTaskAsync.fulfilled, (state, action) => {
         state.loading = false;
         const { projectId, subTaskId } = action.payload;
-        
+
         // Remove from projects array
         const project = state.projects.find(p => p.id === projectId);
         if (project) {
           project.subTasks = project.subTasks.filter(st => st.id !== subTaskId);
           project.updatedAt = new Date().toISOString();
         }
-        
+
         // Remove from selected project
         if (state.selectedProject?.id === projectId) {
-          state.selectedProject.subTasks = state.selectedProject.subTasks.filter(st => st.id !== subTaskId);
+          state.selectedProject.subTasks =
+            state.selectedProject.subTasks.filter(st => st.id !== subTaskId);
           state.selectedProject.updatedAt = new Date().toISOString();
         }
-        
+
         // Remove from user projects
         const userProject = state.userProjects.find(p => p.id === projectId);
         if (userProject) {
-          userProject.subTasks = userProject.subTasks.filter(st => st.id !== subTaskId);
+          userProject.subTasks = userProject.subTasks.filter(
+            st => st.id !== subTaskId,
+          );
           userProject.updatedAt = new Date().toISOString();
         }
-        
+
         state.error = null;
       })
       .addCase(deleteSubTaskAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Add Comment
-      .addCase(addCommentAsync.pending, (state) => {
+      .addCase(addCommentAsync.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(addCommentAsync.fulfilled, (state, action) => {
         state.loading = false;
         const { projectId, comment } = action.payload;
-        
+
         // Add to projects array
         const project = state.projects.find(p => p.id === projectId);
         if (project) {
           project.comments.push(comment);
           project.updatedAt = new Date().toISOString();
         }
-        
+
         // Add to selected project
         if (state.selectedProject?.id === projectId) {
           state.selectedProject.comments.push(comment);
           state.selectedProject.updatedAt = new Date().toISOString();
         }
-        
+
         // Add to user projects
         const userProject = state.userProjects.find(p => p.id === projectId);
         if (userProject) {
           userProject.comments.push(comment);
           userProject.updatedAt = new Date().toISOString();
         }
-        
+
         state.error = null;
       })
       .addCase(addCommentAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Upload File to Project
-      .addCase(uploadFileToProject.pending, (state) => {
+      .addCase(uploadFileToProject.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(uploadFileToProject.fulfilled, (state, action) => {
         state.loading = false;
         const { projectId, file, fileType } = action.payload;
-        
+
         // Add to projects array
         const project = state.projects.find(p => p.id === projectId);
         if (project) {
           project[fileType].push(file);
           project.updatedAt = new Date().toISOString();
         }
-        
+
         // Add to selected project
         if (state.selectedProject?.id === projectId) {
           state.selectedProject[fileType].push(file);
           state.selectedProject.updatedAt = new Date().toISOString();
         }
-        
+
         // Add to user projects
         const userProject = state.userProjects.find(p => p.id === projectId);
         if (userProject) {
           userProject[fileType].push(file);
           userProject.updatedAt = new Date().toISOString();
         }
-        
+
         state.error = null;
       })
       .addCase(uploadFileToProject.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Remove File from Project
-      .addCase(removeFileFromProjectAsync.pending, (state) => {
+      .addCase(removeFileFromProjectAsync.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(removeFileFromProjectAsync.fulfilled, (state, action) => {
         state.loading = false;
         const { projectId, fileId, fileType } = action.payload;
-        
+
         // Remove from projects array
         const project = state.projects.find(p => p.id === projectId);
         if (project) {
           project[fileType] = project[fileType].filter(f => f.id !== fileId);
           project.updatedAt = new Date().toISOString();
         }
-        
+
         // Remove from selected project
         if (state.selectedProject?.id === projectId) {
-          state.selectedProject[fileType] = state.selectedProject[fileType].filter(f => f.id !== fileId);
+          state.selectedProject[fileType] = state.selectedProject[
+            fileType
+          ].filter(f => f.id !== fileId);
           state.selectedProject.updatedAt = new Date().toISOString();
         }
-        
+
         // Remove from user projects
         const userProject = state.userProjects.find(p => p.id === projectId);
         if (userProject) {
-          userProject[fileType] = userProject[fileType].filter(f => f.id !== fileId);
+          userProject[fileType] = userProject[fileType].filter(
+            f => f.id !== fileId,
+          );
           userProject.updatedAt = new Date().toISOString();
         }
-        
+
         state.error = null;
       })
       .addCase(removeFileFromProjectAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Update Project Progress
-      .addCase(updateProjectProgress.pending, (state) => {
+      .addCase(updateProjectProgress.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateProjectProgress.fulfilled, (state, action) => {
         state.loading = false;
         const { projectId, progress } = action.payload;
-        
+
         // Update in projects array
         const project = state.projects.find(p => p.id === projectId);
         if (project) {
           project.progress = progress;
           project.updatedAt = new Date().toISOString();
         }
-        
+
         // Update selected project
         if (state.selectedProject?.id === projectId) {
           state.selectedProject.progress = progress;
           state.selectedProject.updatedAt = new Date().toISOString();
         }
-        
+
         // Update in user projects
         const userProject = state.userProjects.find(p => p.id === projectId);
         if (userProject) {
           userProject.progress = progress;
           userProject.updatedAt = new Date().toISOString();
         }
-        
+
         state.error = null;
       })
       .addCase(updateProjectProgress.rejected, (state, action) => {
@@ -921,12 +1063,12 @@ const projectSlice = createSlice({
   },
 });
 
-export const { 
-  setProjects, 
+export const {
+  setProjects,
   setUserProjects,
   setSelectedProject,
-  addProject, 
-  updateProject, 
+  addProject,
+  updateProject,
   deleteProject,
   addComment,
   addFile,
@@ -940,7 +1082,7 @@ export const {
   deleteSubTask,
   removeFile,
   updateProjectProgress: updateProjectProgressSync,
-  updateMultipleSubTasks
+  updateMultipleSubTasks,
 } = projectSlice.actions;
 
 export default projectSlice.reducer;

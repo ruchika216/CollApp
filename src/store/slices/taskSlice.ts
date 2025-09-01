@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { Task, User } from '../../types';
+import { Task } from '../../types';
 import firestoreService from '../../firebase/firestoreService';
 
 interface TaskState {
@@ -8,10 +8,6 @@ interface TaskState {
   selectedTask: Task | null;
   loading: boolean;
   error: string | null;
-  realtimeListeners: {
-    allTasks: (() => void) | null;
-    userTasks: (() => void) | null;
-  };
 }
 
 const initialState: TaskState = {
@@ -20,11 +16,11 @@ const initialState: TaskState = {
   selectedTask: null,
   loading: false,
   error: null,
-  realtimeListeners: {
-    allTasks: null,
-    userTasks: null,
-  },
 };
+
+// Module-level subscriptions (do not store in Redux state)
+let unsubscribeAllTasks: (() => void) | null = null;
+let unsubscribeUserTasks: (() => void) | null = null;
 
 // Async Thunks
 
@@ -43,7 +39,7 @@ export const fetchTasks = createAsyncThunk(
       console.error('fetchTasks: Error occurred:', error);
       return rejectWithValue(error.message || 'Failed to fetch tasks');
     }
-  }
+  },
 );
 
 /**
@@ -58,7 +54,7 @@ export const fetchUserTasks = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch user tasks');
     }
-  }
+  },
 );
 
 /**
@@ -66,14 +62,17 @@ export const fetchUserTasks = createAsyncThunk(
  */
 export const fetchTasksByDate = createAsyncThunk(
   'tasks/fetchTasksByDate',
-  async ({ userId, date }: { userId: string; date: string }, { rejectWithValue }) => {
+  async (
+    { userId, date }: { userId: string; date: string },
+    { rejectWithValue },
+  ) => {
     try {
       const tasks = await firestoreService.getTasksByDate(userId, date);
       return tasks;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch tasks by date');
     }
-  }
+  },
 );
 
 /**
@@ -81,14 +80,17 @@ export const fetchTasksByDate = createAsyncThunk(
  */
 export const createTask = createAsyncThunk(
   'tasks/createTask',
-  async (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
+  async (
+    taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>,
+    { rejectWithValue },
+  ) => {
     try {
       const newTask = await firestoreService.createTask(taskData);
       return newTask;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to create task');
     }
-  }
+  },
 );
 
 /**
@@ -96,7 +98,10 @@ export const createTask = createAsyncThunk(
  */
 export const updateTask = createAsyncThunk(
   'tasks/updateTask',
-  async ({ taskId, updates }: { taskId: string; updates: Partial<Task> }, { rejectWithValue }) => {
+  async (
+    { taskId, updates }: { taskId: string; updates: Partial<Task> },
+    { rejectWithValue },
+  ) => {
     try {
       await firestoreService.updateTask(taskId, updates);
       const updatedTask = await firestoreService.getTask(taskId);
@@ -107,7 +112,7 @@ export const updateTask = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update task');
     }
-  }
+  },
 );
 
 /**
@@ -122,7 +127,7 @@ export const deleteTask = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to delete task');
     }
-  }
+  },
 );
 
 /**
@@ -130,7 +135,10 @@ export const deleteTask = createAsyncThunk(
  */
 export const updateTaskStatus = createAsyncThunk(
   'tasks/updateTaskStatus',
-  async ({ taskId, status }: { taskId: string; status: Task['status'] }, { rejectWithValue }) => {
+  async (
+    { taskId, status }: { taskId: string; status: Task['status'] },
+    { rejectWithValue },
+  ) => {
     try {
       await firestoreService.updateTask(taskId, { status });
       const updatedTask = await firestoreService.getTask(taskId);
@@ -141,7 +149,7 @@ export const updateTaskStatus = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update task status');
     }
-  }
+  },
 );
 
 /**
@@ -149,21 +157,16 @@ export const updateTaskStatus = createAsyncThunk(
  */
 export const subscribeToTasks = createAsyncThunk(
   'tasks/subscribeToTasks',
-  async (_, { dispatch, getState }) => {
-    const state = getState() as any;
-    
+  async (_, { dispatch }) => {
     // Unsubscribe from existing listener if any
-    if (state.tasks.realtimeListeners.allTasks) {
-      state.tasks.realtimeListeners.allTasks();
+    if (unsubscribeAllTasks) {
+      unsubscribeAllTasks();
     }
-    
     // Create new subscription
-    const unsubscribe = firestoreService.onTasksChange((tasks) => {
+    unsubscribeAllTasks = firestoreService.onTasksChange(tasks => {
       dispatch(setTasks(tasks));
     });
-    
-    return unsubscribe;
-  }
+  },
 );
 
 /**
@@ -171,21 +174,16 @@ export const subscribeToTasks = createAsyncThunk(
  */
 export const subscribeToUserTasks = createAsyncThunk(
   'tasks/subscribeToUserTasks',
-  async (userId: string, { dispatch, getState }) => {
-    const state = getState() as any;
-    
+  async (userId: string, { dispatch }) => {
     // Unsubscribe from existing listener if any
-    if (state.tasks.realtimeListeners.userTasks) {
-      state.tasks.realtimeListeners.userTasks();
+    if (unsubscribeUserTasks) {
+      unsubscribeUserTasks();
     }
-    
     // Create new subscription
-    const unsubscribe = firestoreService.onUserTasksChange((tasks) => {
+    unsubscribeUserTasks = firestoreService.onUserTasksChange(tasks => {
       dispatch(setUserTasks(tasks));
     }, userId);
-    
-    return unsubscribe;
-  }
+  },
 );
 
 /**
@@ -193,19 +191,16 @@ export const subscribeToUserTasks = createAsyncThunk(
  */
 export const unsubscribeFromTasks = createAsyncThunk(
   'tasks/unsubscribeFromTasks',
-  async (_, { getState }) => {
-    const state = getState() as any;
-    
-    if (state.tasks.realtimeListeners.allTasks) {
-      state.tasks.realtimeListeners.allTasks();
+  async () => {
+    if (unsubscribeAllTasks) {
+      unsubscribeAllTasks();
+      unsubscribeAllTasks = null;
     }
-    
-    if (state.tasks.realtimeListeners.userTasks) {
-      state.tasks.realtimeListeners.userTasks();
+    if (unsubscribeUserTasks) {
+      unsubscribeUserTasks();
+      unsubscribeUserTasks = null;
     }
-    
-    return null;
-  }
+  },
 );
 
 const taskSlice = createSlice({
@@ -231,14 +226,16 @@ const taskSlice = createSlice({
       if (index !== -1) {
         state.tasks[index] = action.payload;
       }
-      
+
       // Update selected task if it's the same
       if (state.selectedTask?.id === action.payload.id) {
         state.selectedTask = action.payload;
       }
-      
+
       // Update user tasks
-      const userIndex = state.userTasks.findIndex(t => t.id === action.payload.id);
+      const userIndex = state.userTasks.findIndex(
+        t => t.id === action.payload.id,
+      );
       if (userIndex !== -1) {
         state.userTasks[userIndex] = action.payload;
       }
@@ -257,24 +254,15 @@ const taskSlice = createSlice({
       state.error = action.payload;
       state.loading = false;
     },
-    clearError: (state) => {
+    clearError: state => {
       state.error = null;
     },
-    setTasksListener: (state, action: PayloadAction<() => void>) => {
-      state.realtimeListeners.allTasks = action.payload;
-    },
-    setUserTasksListener: (state, action: PayloadAction<() => void>) => {
-      state.realtimeListeners.userTasks = action.payload;
-    },
-    clearListeners: (state) => {
-      state.realtimeListeners.allTasks = null;
-      state.realtimeListeners.userTasks = null;
-    },
+    // listener pointers are kept module-local to avoid non-serializable state
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
       // Fetch Tasks
-      .addCase(fetchTasks.pending, (state) => {
+      .addCase(fetchTasks.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -287,9 +275,9 @@ const taskSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Fetch User Tasks
-      .addCase(fetchUserTasks.pending, (state) => {
+      .addCase(fetchUserTasks.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -302,9 +290,9 @@ const taskSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Fetch Tasks By Date
-      .addCase(fetchTasksByDate.pending, (state) => {
+      .addCase(fetchTasksByDate.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -317,9 +305,9 @@ const taskSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Create Task
-      .addCase(createTask.pending, (state) => {
+      .addCase(createTask.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -332,73 +320,77 @@ const taskSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Update Task
-      .addCase(updateTask.pending, (state) => {
+      .addCase(updateTask.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateTask.fulfilled, (state, action) => {
         state.loading = false;
         const updatedTask = action.payload;
-        
+
         // Update in tasks array
         const taskIndex = state.tasks.findIndex(t => t.id === updatedTask.id);
         if (taskIndex !== -1) {
           state.tasks[taskIndex] = updatedTask;
         }
-        
+
         // Update selected task if it's the same
         if (state.selectedTask?.id === updatedTask.id) {
           state.selectedTask = updatedTask;
         }
-        
+
         // Update in user tasks
-        const userTaskIndex = state.userTasks.findIndex(t => t.id === updatedTask.id);
+        const userTaskIndex = state.userTasks.findIndex(
+          t => t.id === updatedTask.id,
+        );
         if (userTaskIndex !== -1) {
           state.userTasks[userTaskIndex] = updatedTask;
         }
-        
+
         state.error = null;
       })
       .addCase(updateTask.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Update Task Status
-      .addCase(updateTaskStatus.pending, (state) => {
+      .addCase(updateTaskStatus.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateTaskStatus.fulfilled, (state, action) => {
         state.loading = false;
         const updatedTask = action.payload;
-        
+
         // Update in all relevant arrays
         const taskIndex = state.tasks.findIndex(t => t.id === updatedTask.id);
         if (taskIndex !== -1) {
           state.tasks[taskIndex] = updatedTask;
         }
-        
-        const userTaskIndex = state.userTasks.findIndex(t => t.id === updatedTask.id);
+
+        const userTaskIndex = state.userTasks.findIndex(
+          t => t.id === updatedTask.id,
+        );
         if (userTaskIndex !== -1) {
           state.userTasks[userTaskIndex] = updatedTask;
         }
-        
+
         if (state.selectedTask?.id === updatedTask.id) {
           state.selectedTask = updatedTask;
         }
-        
+
         state.error = null;
       })
       .addCase(updateTaskStatus.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
+
       // Delete Task
-      .addCase(deleteTask.pending, (state) => {
+      .addCase(deleteTask.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -416,22 +408,11 @@ const taskSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      
-      // Subscribe to Tasks
-      .addCase(subscribeToTasks.fulfilled, (state, action) => {
-        state.realtimeListeners.allTasks = action.payload;
-      })
-      
-      // Subscribe to User Tasks  
-      .addCase(subscribeToUserTasks.fulfilled, (state, action) => {
-        state.realtimeListeners.userTasks = action.payload;
-      })
-      
-      // Unsubscribe from Tasks
-      .addCase(unsubscribeFromTasks.fulfilled, (state) => {
-        state.realtimeListeners.allTasks = null;
-        state.realtimeListeners.userTasks = null;
-      });
+
+      // Subscriptions: nothing to store in Redux state
+      .addCase(subscribeToTasks.fulfilled, state => state)
+      .addCase(subscribeToUserTasks.fulfilled, state => state)
+      .addCase(unsubscribeFromTasks.fulfilled, state => state);
   },
 });
 
@@ -445,9 +426,6 @@ export const {
   setLoading,
   setError,
   clearError,
-  setTasksListener,
-  setUserTasksListener,
-  clearListeners,
 } = taskSlice.actions;
 
 export default taskSlice.reducer;

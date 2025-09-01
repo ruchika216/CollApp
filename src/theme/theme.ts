@@ -9,12 +9,16 @@ import { Platform, TextStyle } from 'react-native';
 // =====================================================================================
 // BRAND COLORS
 // =====================================================================================
+// Updated to match the provided blue, iOS-like visual design
 export const BRAND_COLORS = {
-  primary: '#6a01f6',
-  primaryDark: '#5a00d6',
-  primaryLight: '#7d1aff',
-  secondary: '#9945ff',
-  accent: '#8b5cf6',
+  // Core royal-blue palette (primary CTA/buttons)
+  primary: '#2E6AF5', // deep vibrant blue
+  primaryDark: '#1F4FD4',
+  primaryLight: '#5A8CFF',
+
+  // Supporting hues used in gradients and chips
+  secondary: '#4F46E5', // indigo accent
+  accent: '#60A5FA', // sky blue accent
 } as const;
 
 // =====================================================================================
@@ -162,7 +166,7 @@ export const FONT_FAMILIES = {
     android: 'DynaPuff-Bold',
     default: 'System',
   }),
-  
+
   // Condensed variants
   dynaPuffCondensedRegular: Platform.select({
     ios: 'DynaPuff_Condensed-Regular',
@@ -185,7 +189,7 @@ export const FONT_FAMILIES = {
     default: 'System',
   }),
 
-  // Semi-condensed variants  
+  // Semi-condensed variants
   dynaPuffSemiCondensedRegular: Platform.select({
     ios: 'DynaPuff_SemiCondensed-Regular',
     android: 'DynaPuff_SemiCondensed-Regular',
@@ -429,23 +433,23 @@ export const LIGHT_THEME = {
   infoLight: SEMANTIC_COLORS.infoLight,
   infoDark: SEMANTIC_COLORS.infoDark,
 
-  // Background colors
-  background: '#ffffff',
-  surface: '#f8fafc',
-  surfaceVariant: '#f1f5f9',
-  card: '#ffffff',
-  modal: '#ffffff',
+  // Background colors (airy, cool blue-tinted surfaces)
+  background: '#F6F9FF',
+  surface: '#EEF4FF',
+  surfaceVariant: '#E6EFFF',
+  card: '#FFFFFF',
+  modal: '#FFFFFF',
 
   // Text colors
-  text: '#1e293b',
-  textSecondary: '#64748b',
-  textLight: '#94a3b8',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textLight: '#94A3B8',
   textOnPrimary: '#ffffff',
 
   // Border colors
-  border: '#e2e8f0',
-  borderLight: '#f1f5f9',
-  divider: '#e2e8f0',
+  border: '#D6E3FF',
+  borderLight: '#E6EEFF',
+  divider: '#E2E8F0',
 
   // Interactive colors
   disabled: '#d1d5db',
@@ -453,8 +457,8 @@ export const LIGHT_THEME = {
 
   // Icon colors
   iconPrimary: BRAND_COLORS.primary,
-  iconSecondary: '#64748b',
-  iconInactive: '#94a3b8',
+  iconSecondary: '#64748B',
+  iconInactive: '#94A3B8',
 
   // Status colors
   status: STATUS_COLORS,
@@ -462,19 +466,82 @@ export const LIGHT_THEME = {
 
   // Input colors
   input: {
-    background: '#ffffff',
-    border: '#d1d5db',
+    background: '#FFFFFF',
+    border: '#D6E3FF',
     borderFocus: BRAND_COLORS.primary,
-    placeholder: '#9ca3af',
+    placeholder: '#9CA3AF',
   },
 
   // Gradients - consolidated from constants/colors.ts
   gradients: {
     primary: [BRAND_COLORS.primary, BRAND_COLORS.primaryLight] as string[],
     secondary: [BRAND_COLORS.secondary, BRAND_COLORS.accent] as string[],
-    background: ['#ede1ff', '#d9c8ff'] as string[], // iOS-like colors from constants
-    card: ['#ffffff', '#f8fafc'] as string[],
-    overlay: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)'] as string[],
+    // cool soft-blue background like the mock
+    background: ['#E7F0FF', '#CFE0FF'] as string[],
+    card: ['#FFFFFF', '#F6F9FF'] as string[],
+    overlay: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.06)'] as string[],
+  },
+
+  // Glassmorphism tokens for quick reuse
+  glass: {
+    background: 'rgba(255, 255, 255, 0.6)',
+    border: 'rgba(214, 227, 255, 0.65)',
+  },
+
+  // Component tokens (Buttons, Text)
+  components: {
+    button: {
+      primary: {
+        background: BRAND_COLORS.primary,
+        text: '#FFFFFF',
+        border: 'transparent',
+        pressed: '#1F4FD4',
+        disabledBg: '#C7D7FF',
+        disabledText: '#F8FAFF',
+      },
+      secondary: {
+        background: BRAND_COLORS.secondary,
+        text: '#FFFFFF',
+        border: 'transparent',
+        pressed: '#3E3AC6',
+        disabledBg: '#D6E3FF',
+        disabledText: '#F8FAFF',
+      },
+      outline: {
+        background: 'transparent',
+        text: BRAND_COLORS.primary,
+        border: '#D6E3FF',
+        pressed: '#EDF3FF',
+        disabledBg: 'transparent',
+        disabledText: '#94A3B8',
+      },
+      ghost: {
+        background: 'transparent',
+        text: '#0F172A',
+        border: 'transparent',
+        pressed: '#EDF3FF',
+        disabledBg: 'transparent',
+        disabledText: '#94A3B8',
+      },
+      destructive: {
+        background: '#EF4444',
+        text: '#FFFFFF',
+        border: 'transparent',
+        pressed: '#DC2626',
+        disabledBg: '#FCA5A5',
+        disabledText: '#FFFFFF',
+      },
+    },
+    text: {
+      default: '#0F172A',
+      secondary: '#475569',
+      muted: '#94A3B8',
+      inverse: '#FFFFFF',
+      link: BRAND_COLORS.primary,
+      success: '#065F46',
+      warning: '#92400E',
+      error: '#991B1B',
+    },
   },
 } as const;
 
@@ -503,23 +570,23 @@ export const DARK_THEME = {
   infoLight: SEMANTIC_COLORS.infoLight,
   infoDark: SEMANTIC_COLORS.infoDark,
 
-  // Background colors
-  background: '#0f172a',
-  surface: '#1e293b',
-  surfaceVariant: '#334155',
-  card: '#1e293b',
-  modal: '#334155',
+  // Background colors (deep navy blues)
+  background: '#0A1224',
+  surface: '#121C2E',
+  surfaceVariant: '#16243E',
+  card: '#121C2E',
+  modal: '#16243E',
 
   // Text colors
-  text: '#f8fafc',
-  textSecondary: '#cbd5e1',
-  textLight: '#94a3b8',
+  text: '#E6F0FF',
+  textSecondary: '#C7D7FF',
+  textLight: '#94A3B8',
   textOnPrimary: '#ffffff',
 
   // Border colors
-  border: '#475569',
-  borderLight: '#64748b',
-  divider: '#475569',
+  border: '#223354',
+  borderLight: '#2F4570',
+  divider: '#223354',
 
   // Interactive colors
   disabled: '#64748b',
@@ -527,8 +594,8 @@ export const DARK_THEME = {
 
   // Icon colors
   iconPrimary: BRAND_COLORS.primaryLight,
-  iconSecondary: '#cbd5e1',
-  iconInactive: '#64748b',
+  iconSecondary: '#C7D7FF',
+  iconInactive: '#64748B',
 
   // Status colors
   status: STATUS_COLORS,
@@ -536,19 +603,81 @@ export const DARK_THEME = {
 
   // Input colors
   input: {
-    background: '#334155',
-    border: '#475569',
+    background: '#16243E',
+    border: '#2F4570',
     borderFocus: BRAND_COLORS.primaryLight,
-    placeholder: '#94a3b8',
+    placeholder: '#94A3B8',
   },
 
   // Gradients
   gradients: {
     primary: [BRAND_COLORS.primaryLight, BRAND_COLORS.primary] as string[],
     secondary: [BRAND_COLORS.secondary, BRAND_COLORS.accent] as string[],
-    background: ['#0f172a', '#1e293b'] as string[],
-    card: ['#1e293b', '#334155'] as string[],
+    background: ['#0A1224', '#10203D'] as string[],
+    card: ['#121C2E', '#16243E'] as string[],
     overlay: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)'] as string[],
+  },
+
+  // Glassmorphism tokens
+  glass: {
+    background: 'rgba(18, 28, 46, 0.55)',
+    border: 'rgba(47, 69, 112, 0.6)',
+  },
+
+  // Component tokens (Buttons, Text)
+  components: {
+    button: {
+      primary: {
+        background: BRAND_COLORS.primaryLight,
+        text: '#0A1224',
+        border: 'transparent',
+        pressed: BRAND_COLORS.primary,
+        disabledBg: '#2F4570',
+        disabledText: '#6B7280',
+      },
+      secondary: {
+        background: BRAND_COLORS.secondary,
+        text: '#0A1224',
+        border: 'transparent',
+        pressed: BRAND_COLORS.primaryDark,
+        disabledBg: '#223354',
+        disabledText: '#6B7280',
+      },
+      outline: {
+        background: 'transparent',
+        text: '#C7D7FF',
+        border: '#2F4570',
+        pressed: '#16243E',
+        disabledBg: 'transparent',
+        disabledText: '#64748B',
+      },
+      ghost: {
+        background: 'transparent',
+        text: '#E6F0FF',
+        border: 'transparent',
+        pressed: '#16243E',
+        disabledBg: 'transparent',
+        disabledText: '#64748B',
+      },
+      destructive: {
+        background: '#F87171',
+        text: '#0A1224',
+        border: 'transparent',
+        pressed: '#EF4444',
+        disabledBg: '#7F1D1D',
+        disabledText: '#CBD5E1',
+      },
+    },
+    text: {
+      default: '#E6F0FF',
+      secondary: '#C7D7FF',
+      muted: '#94A3B8',
+      inverse: '#0A1224',
+      link: BRAND_COLORS.primaryLight,
+      success: '#A7F3D0',
+      warning: '#FDE68A',
+      error: '#FCA5A5',
+    },
   },
 } as const;
 

@@ -3,7 +3,7 @@
  * Core API functionality and configuration
  */
 
-import { ApiResponse, ApiError, PaginatedResponse } from '../../types/api';
+import { ApiResponse, PaginatedResponse } from '../../types/api';
 
 // =====================================================================================
 // API CONFIGURATION
@@ -23,7 +23,12 @@ export class ApiServiceError extends Error {
   statusCode?: number;
   details?: any;
 
-  constructor(message: string, code: string, statusCode?: number, details?: any) {
+  constructor(
+    message: string,
+    code: string,
+    statusCode?: number,
+    details?: any,
+  ) {
     super(message);
     this.name = 'ApiServiceError';
     this.code = code;
@@ -44,7 +49,7 @@ export const handleApiError = (error: any): ApiServiceError => {
       data?.message || 'Server error occurred',
       data?.code || 'SERVER_ERROR',
       status,
-      data
+      data,
     );
   }
 
@@ -54,14 +59,14 @@ export const handleApiError = (error: any): ApiServiceError => {
       'Network error - no response received',
       'NETWORK_ERROR',
       undefined,
-      error.request
+      error.request,
     );
   }
 
   // Something else happened
   return new ApiServiceError(
     error.message || 'Unknown error occurred',
-    'UNKNOWN_ERROR'
+    'UNKNOWN_ERROR',
   );
 };
 
@@ -82,16 +87,16 @@ export class BaseApiService {
   }
 
   setAuthToken(token: string) {
-    this.headers['Authorization'] = `Bearer ${token}`;
+    this.headers.Authorization = `Bearer ${token}`;
   }
 
   removeAuthToken() {
-    delete this.headers['Authorization'];
+    delete this.headers.Authorization;
   }
 
   private async makeRequest<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     const config: RequestInit = {
@@ -111,7 +116,7 @@ export class BaseApiService {
           data.message || 'Request failed',
           data.code || 'REQUEST_FAILED',
           response.status,
-          data
+          data,
         );
       }
 
@@ -125,7 +130,10 @@ export class BaseApiService {
     }
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
+  async get<T>(
+    endpoint: string,
+    params?: Record<string, any>,
+  ): Promise<ApiResponse<T>> {
     const url = new URL(endpoint, this.baseURL);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -175,7 +183,7 @@ export const apiClient = new BaseApiService();
 // UTILITY FUNCTIONS
 // =====================================================================================
 export const isPaginatedResponse = <T>(
-  response: ApiResponse<T> | PaginatedResponse<T>
+  response: ApiResponse<T> | PaginatedResponse<T>,
 ): response is PaginatedResponse<T> => {
   return 'pagination' in response;
 };
@@ -183,7 +191,7 @@ export const isPaginatedResponse = <T>(
 export const retry = async <T>(
   fn: () => Promise<T>,
   attempts: number = API_CONFIG.RETRY_ATTEMPTS,
-  delay: number = API_CONFIG.RETRY_DELAY
+  delay: number = API_CONFIG.RETRY_DELAY,
 ): Promise<T> => {
   try {
     return await fn();
@@ -191,7 +199,7 @@ export const retry = async <T>(
     if (attempts <= 1) {
       throw error;
     }
-    
+
     await new Promise(resolve => setTimeout(resolve, delay));
     return retry(fn, attempts - 1, delay * 2);
   }

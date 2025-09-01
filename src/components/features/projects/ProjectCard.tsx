@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+// Dimensions import removed as it is unused
 import { Project } from '../../../types';
 import { useTheme } from '../../../theme/useTheme';
 
@@ -11,17 +12,19 @@ interface ProjectCardProps {
   onLongPress?: () => void;
   showAssignees?: boolean;
   compact?: boolean;
+  glassy?: boolean;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ 
-  project, 
-  onPress, 
+const ProjectCard: React.FC<ProjectCardProps> = ({
+  project,
+  onPress,
   onLongPress,
   showAssignees = true,
-  compact = false 
+  compact = false,
+  glassy = false,
 }) => {
   const theme = useTheme();
-  const styles = getStyles(theme, compact);
+  const styles = getStyles(theme, compact, glassy);
 
   const getStatusColor = (status: Project['status']) => {
     switch (status) {
@@ -61,15 +64,19 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
   const truncateText = (text: string, maxLength: number) => {
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    return text.length > maxLength
+      ? text.substring(0, maxLength) + '...'
+      : text;
   };
 
-  const completedSubtasks = project.subTasks.filter(task => task.status === 'Done').length;
+  const completedSubtasks = project.subTasks.filter(
+    task => task.status === 'Done',
+  ).length;
   const totalSubtasks = project.subTasks.length;
 
   return (
@@ -85,7 +92,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
           {project.title}
         </Text>
         <View style={styles.statusBadge}>
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor(project.status) }]} />
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: getStatusColor(project.status) },
+            ]}
+          />
           <Text style={styles.statusText}>{project.status}</Text>
         </View>
       </View>
@@ -104,14 +116,17 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
           <Text style={styles.progressText}>{project.progress}%</Text>
         </View>
         <View style={styles.progressBar}>
-          <View 
+          <View
             style={[
-              styles.progressFill, 
-              { 
+              styles.progressFill,
+              {
                 width: `${project.progress}%`,
-                backgroundColor: project.progress === 100 ? theme.colors.success : theme.colors.primary
-              }
-            ]} 
+                backgroundColor:
+                  project.progress === 100
+                    ? theme.colors.success
+                    : theme.colors.primary,
+              },
+            ]}
           />
         </View>
       </View>
@@ -119,7 +134,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
       {/* Subtasks and Files */}
       <View style={styles.statsRow}>
         <View style={styles.stat}>
-          <Text style={styles.statNumber}>{completedSubtasks}/{totalSubtasks}</Text>
+          <Text style={styles.statNumber}>
+            {completedSubtasks}/{totalSubtasks}
+          </Text>
           <Text style={styles.statLabel}>Tasks</Text>
         </View>
         <View style={styles.stat}>
@@ -136,7 +153,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
       <View style={styles.footer}>
         <View style={styles.leftFooter}>
           <View style={styles.priorityBadge}>
-            <Text style={[styles.priorityText, { color: getPriorityColor(project.priority) }]}>
+            <Text
+              style={[
+                styles.priorityText,
+                { color: getPriorityColor(project.priority) },
+              ]}
+            >
               {project.priority}
             </Text>
           </View>
@@ -144,11 +166,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
             Due: {formatDate(project.endDate)}
           </Text>
         </View>
-        
+
         {showAssignees && project.assignedUsers && (
           <View style={styles.assigneeSection}>
             <Text style={styles.assigneeCount}>
-              {project.assignedUsers.length} assignee{project.assignedUsers.length !== 1 ? 's' : ''}
+              {project.assignedUsers.length} assignee
+              {project.assignedUsers.length !== 1 ? 's' : ''}
             </Text>
           </View>
         )}
@@ -171,15 +194,19 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
   );
 };
 
-const getStyles = (theme: any, compact: boolean) =>
+const getStyles = (theme: any, compact: boolean, glassy: boolean) =>
   StyleSheet.create({
     container: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor:
+        glassy && (theme.colors as any).glass?.background
+          ? (theme.colors as any).glass.background
+          : theme.colors.surface,
       borderRadius: 12,
       padding: compact ? 12 : 16,
       marginHorizontal: 16,
       marginVertical: 8,
-      shadowColor: theme.colors.shadow,
+      ...(theme.shadows?.sm || {}),
+      shadowColor: (theme.colors as any).shadow || '#000',
       shadowOffset: {
         width: 0,
         height: 2,
@@ -188,7 +215,10 @@ const getStyles = (theme: any, compact: boolean) =>
       shadowRadius: 4,
       elevation: 3,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor:
+        glassy && (theme.colors as any).glass?.border
+          ? (theme.colors as any).glass.border
+          : theme.colors.border,
     },
     header: {
       flexDirection: 'row',

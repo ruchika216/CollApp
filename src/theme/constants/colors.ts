@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+// Note: Platform import removed; not used in this file
 
 // =====================================================================================
 // BRAND COLORS

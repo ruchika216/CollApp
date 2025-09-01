@@ -19,37 +19,39 @@ export interface UploadProgressCallback {
  */
 export const uploadFileToStorage = async (
   params: UploadFileParams,
-  onProgress?: UploadProgressCallback
+  onProgress?: UploadProgressCallback,
 ): Promise<ProjectFile> => {
-  const { filePath, fileName, fileType, fileSize, projectId, userId } = params;
-  
+  const { filePath, fileName, fileType, fileSize, projectId } = params;
+
   try {
     // Create a unique filename with timestamp
     const timestamp = Date.now();
-    const fileExtension = fileName.split('.').pop() || 'unknown';
     const uniqueFileName = `${timestamp}_${fileName}`;
-    
+
     // Create storage reference
-    const storageRef = storage().ref(`projects/${projectId}/files/${uniqueFileName}`);
-    
+    const storageRef = storage().ref(
+      `projects/${projectId}/files/${uniqueFileName}`,
+    );
+
     // Upload file
     const uploadTask = storageRef.putFile(filePath);
-    
+
     // Monitor upload progress
     if (onProgress) {
-      uploadTask.on('state_changed', (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+      uploadTask.on('state_changed', snapshot => {
+        const progress =
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         onProgress(snapshot.bytesTransferred, snapshot.totalBytes);
         console.log(`Upload is ${progress.toFixed(2)}% done`);
       });
     }
-    
+
     // Wait for upload to complete
     await uploadTask;
-    
+
     // Get download URL
     const downloadURL = await storageRef.getDownloadURL();
-    
+
     // Create file metadata
     const projectFile: ProjectFile = {
       id: `file_${timestamp}`,
@@ -59,10 +61,9 @@ export const uploadFileToStorage = async (
       size: fileSize,
       uploadedAt: new Date().toISOString(),
     };
-    
+
     console.log('File uploaded successfully:', projectFile);
     return projectFile;
-    
   } catch (error) {
     console.error('Error uploading file:', error);
     throw new Error('Failed to upload file');
@@ -116,17 +117,17 @@ export const getFileDownloadURL = async (filePath: string): Promise<string> => {
  */
 export const uploadMultipleFiles = async (
   files: UploadFileParams[],
-  onProgress?: (fileIndex: number, progress: number) => void
+  onProgress?: (fileIndex: number, progress: number) => void,
 ): Promise<ProjectFile[]> => {
-  const uploadPromises = files.map((file, index) => 
+  const uploadPromises = files.map((file, index) =>
     uploadFileToStorage(file, (bytesTransferred, totalBytes) => {
       if (onProgress) {
         const progress = (bytesTransferred / totalBytes) * 100;
         onProgress(index, progress);
       }
-    })
+    }),
   );
-  
+
   try {
     const uploadedFiles = await Promise.all(uploadPromises);
     return uploadedFiles;
@@ -140,38 +141,57 @@ export const uploadMultipleFiles = async (
  * Validate file before upload
  */
 export const validateFile = (
-  fileName: string, 
-  fileSize: number, 
-  maxSizeInMB: number = 10
+  fileName: string,
+  fileSize: number,
+  maxSizeInMB: number = 10,
 ): { isValid: boolean; error?: string } => {
   // Check file size
   const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
   if (fileSize > maxSizeInBytes) {
     return {
       isValid: false,
-      error: `File size exceeds ${maxSizeInMB}MB limit`
+      error: `File size exceeds ${maxSizeInMB}MB limit`,
     };
   }
-  
+
   // Check file type (you can customize this based on your needs)
   const allowedExtensions = [
-    'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', // Images
-    'pdf', 'doc', 'docx', 'txt', 'rtf', // Documents
-    'xls', 'xlsx', 'csv', // Spreadsheets
-    'ppt', 'pptx', // Presentations
-    'zip', 'rar', '7z', // Archives
-    'mp4', 'avi', 'mov', 'wmv', // Videos
-    'mp3', 'wav', 'aac', // Audio
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'bmp',
+    'webp', // Images
+    'pdf',
+    'doc',
+    'docx',
+    'txt',
+    'rtf', // Documents
+    'xls',
+    'xlsx',
+    'csv', // Spreadsheets
+    'ppt',
+    'pptx', // Presentations
+    'zip',
+    'rar',
+    '7z', // Archives
+    'mp4',
+    'avi',
+    'mov',
+    'wmv', // Videos
+    'mp3',
+    'wav',
+    'aac', // Audio
   ];
-  
+
   const fileExtension = fileName.split('.').pop()?.toLowerCase();
   if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
     return {
       isValid: false,
-      error: 'File type not supported'
+      error: 'File type not supported',
     };
   }
-  
+
   return { isValid: true };
 };
 
