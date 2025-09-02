@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
 import Icon from './Icon';
-import AppName from './AppName';
+import AppName from '../common/AppName';
 
 interface CustomHeaderProps {
   title?: string;
@@ -105,11 +105,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
                   />
                 </View>
                 {title === 'CollApp' ? (
-                  <AppName
-                    size="medium"
-                    variant={variant === 'transparent' ? 'primary' : 'gradient'}
-                    style={{ marginLeft: 0 }}
-                  />
+                  <AppName variant="gradientText" yOffset={2} />
                 ) : (
                   <Text
                     style={[
@@ -178,12 +174,11 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
           style={[
             styles.header,
             variant === 'minimal' && shadows.sm,
-            {
-              backgroundColor:
-                variant === 'transparent'
-                  ? 'transparent'
-                  : backgroundColor || colors.surface,
-            },
+            variant === 'transparent' ? styles.headerTransparent : null,
+            variant !== 'transparent' && !backgroundColor
+              ? { backgroundColor: colors.surface }
+              : null,
+            backgroundColor ? { backgroundColor } : null,
           ]}
         >
           {content}
@@ -220,6 +215,9 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
     }),
+  },
+  headerTransparent: {
+    backgroundColor: 'transparent',
   },
   headerContent: {
     flexDirection: 'row',

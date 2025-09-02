@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,43 +11,52 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
-import { setNotifications, markAsRead, clearNotifications } from '../store/slices/notificationSlice';
+import {
+  setNotifications,
+  markAsRead,
+} from '../store/slices/notificationSlice';
 import firestoreService from '../firebase/firestoreService';
 import { Notification } from '../types';
 import Icon from '../components/common/Icon';
-import Card from '../components/ui/Card';
-import ScreenLayout from '../components/layout/ScreenLayout';
+// import Card from '../components/ui/Card';
+// import ScreenLayout from '../components/layout/ScreenLayout';
 
 interface NotificationScreenProps {
   navigation: any;
 }
 
-const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) => {
+const NotificationScreen: React.FC<NotificationScreenProps> = ({
+  navigation,
+}) => {
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.auth.user);
-  const notifications = useAppSelector(state => state.notifications.notifications);
-  
+  const notifications = useAppSelector(
+    state => state.notifications.notifications,
+  );
+
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
   // Load notifications on component mount
-  useEffect(() => {
-    loadNotifications();
-  }, []);
-
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     if (!user?.uid) return;
-    
+
     try {
-      const userNotifications = await firestoreService.getUserNotifications(user.uid);
+      const userNotifications = await firestoreService.getUserNotifications(
+        user.uid,
+      );
       dispatch(setNotifications(userNotifications));
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
-  };
+  }, [dispatch, user?.uid]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -57,7 +66,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
 
   const handleMarkAsRead = async (notificationId: string) => {
     if (!user?.uid) return;
-    
+
     try {
       await firestoreService.markNotificationAsRead(notificationId);
       dispatch(markAsRead(notificationId));
@@ -68,7 +77,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
 
   const handleMarkAllAsRead = async () => {
     if (!user?.uid) return;
-    
+
     try {
       // Mark all unread notifications as read
       const unreadNotifications = notifications.filter(n => !n.read);
@@ -93,13 +102,17 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
           onPress: async () => {
             try {
               // Remove from local state (we don't have a delete function in firestoreService)
-              dispatch(setNotifications(notifications.filter(n => n.id !== notificationId)));
+              dispatch(
+                setNotifications(
+                  notifications.filter(n => n.id !== notificationId),
+                ),
+              );
             } catch (error) {
               console.error('Error deleting notification:', error);
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -143,9 +156,13 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
 
   const getTimeAgo = (timestamp: any) => {
     const now = new Date();
-    const notificationTime = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
-    const diffInMinutes = Math.floor((now.getTime() - notificationTime.getTime()) / (1000 * 60));
-    
+    const notificationTime = timestamp?.toDate
+      ? timestamp.toDate()
+      : new Date(timestamp);
+    const diffInMinutes = Math.floor(
+      (now.getTime() - notificationTime.getTime()) / (1000 * 60),
+    );
+
     if (diffInMinutes < 60) {
       return `${diffInMinutes} min${diffInMinutes !== 1 ? 's' : ''} ago`;
     }
@@ -159,7 +176,10 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
     return notificationTime.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: notificationTime.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+      year:
+        notificationTime.getFullYear() !== now.getFullYear()
+          ? 'numeric'
+          : undefined,
     });
   };
 
@@ -185,10 +205,12 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         if (!item.read) {
           handleMarkAsRead(item.id);
         }
-        
+
         // Navigate based on notification type
         if (item.projectId) {
-          navigation.navigate('ProjectDetailScreenNew', { projectId: item.projectId });
+          navigation.navigate('ProjectDetailScreenNew', {
+            projectId: item.projectId,
+          });
         }
       }}
       activeOpacity={0.7}
@@ -207,7 +229,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
               tintColor={getNotificationColor(item.type)}
             />
           </View>
-          
+
           <View style={styles.notificationText}>
             <Text
               style={[
@@ -218,10 +240,14 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
             >
               {item.title}
             </Text>
-            <Text style={[styles.notificationBody, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.notificationBody, { color: colors.textSecondary }]}
+            >
               {item.body}
             </Text>
-            <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.notificationTime, { color: colors.textSecondary }]}
+            >
               {getTimeAgo(item.createdAt)}
             </Text>
           </View>
@@ -229,9 +255,14 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
 
         <View style={styles.notificationActions}>
           {!item.read && (
-            <View style={[styles.unreadIndicator, { backgroundColor: colors.primary }]} />
+            <View
+              style={[
+                styles.unreadIndicator,
+                { backgroundColor: colors.primary },
+              ]}
+            />
           )}
-          
+
           <TouchableOpacity
             onPress={() => handleDeleteNotification(item.id)}
             style={styles.deleteButton}
@@ -250,11 +281,11 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
         No notifications yet
       </Text>
       <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-        {filter === 'unread' 
+        {filter === 'unread'
           ? 'All caught up! No unread notifications.'
-          : filter === 'read' 
+          : filter === 'read'
           ? 'No read notifications to show.'
-          : 'You\'ll see project updates, assignments, and other important information here.'}
+          : "You'll see project updates, assignments, and other important information here."}
       </Text>
     </View>
   );
@@ -270,20 +301,29 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
           <Icon name="arrow-left" size={24} tintColor="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity onPress={handleMarkAllAsRead} style={styles.markAllButton}>
+        <TouchableOpacity
+          onPress={handleMarkAllAsRead}
+          style={styles.markAllButton}
+        >
           <Text style={styles.markAllText}>Mark All</Text>
         </TouchableOpacity>
       </View>
 
       {/* Filter Tabs */}
-      <View style={[styles.filterContainer, { backgroundColor: colors.surface }]}>
+      <View
+        style={[styles.filterContainer, { backgroundColor: colors.surface }]}
+      >
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.filterTabs}>
             {[
               { key: 'all', label: 'All', count: notifications.length },
               { key: 'unread', label: 'Unread', count: unreadCount },
-              { key: 'read', label: 'Read', count: notifications.length - unreadCount },
-            ].map((tab) => (
+              {
+                key: 'read',
+                label: 'Read',
+                count: notifications.length - unreadCount,
+              },
+            ].map(tab => (
               <TouchableOpacity
                 key={tab.key}
                 style={[
@@ -296,7 +336,10 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
                 <Text
                   style={[
                     styles.filterTabText,
-                    { color: filter === tab.key ? colors.textOnPrimary : colors.text },
+                    {
+                      color:
+                        filter === tab.key ? colors.textOnPrimary : colors.text,
+                    },
                   ]}
                 >
                   {tab.label}
@@ -306,7 +349,10 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
                     style={[
                       styles.filterTabBadge,
                       {
-                        backgroundColor: filter === tab.key ? colors.textOnPrimary : colors.primary,
+                        backgroundColor:
+                          filter === tab.key
+                            ? colors.textOnPrimary
+                            : colors.primary,
                       },
                     ]}
                   >
@@ -314,7 +360,10 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
                       style={[
                         styles.filterTabBadgeText,
                         {
-                          color: filter === tab.key ? colors.primary : colors.textOnPrimary,
+                          color:
+                            filter === tab.key
+                              ? colors.primary
+                              : colors.textOnPrimary,
                         },
                       ]}
                     >
@@ -332,7 +381,7 @@ const NotificationScreen: React.FC<NotificationScreenProps> = ({ navigation }) =
       <FlatList
         data={filteredNotifications}
         renderItem={renderNotification}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={

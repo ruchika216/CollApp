@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -136,9 +136,19 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
     }
   };
 
+  const loadProject = useCallback(async () => {
+    try {
+      await dispatch(fetchProjectById(projectId)).unwrap();
+    } catch (error) {
+      console.error('Error loading project:', error);
+      Alert.alert('Error', 'Failed to load project details');
+      navigation.goBack();
+    }
+  }, [dispatch, navigation, projectId]);
+
   useEffect(() => {
     loadProject();
-  }, [projectId]);
+  }, [loadProject]);
 
   useEffect(() => {
     if (project) {
@@ -165,15 +175,7 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
     }
   }, [project]);
 
-  const loadProject = async () => {
-    try {
-      await dispatch(fetchProjectById(projectId)).unwrap();
-    } catch (error) {
-      console.error('Error loading project:', error);
-      Alert.alert('Error', 'Failed to load project details');
-      navigation.goBack();
-    }
-  };
+  // loadProject defined above with useCallback
 
   const onRefresh = async () => {
     setRefreshing(true);

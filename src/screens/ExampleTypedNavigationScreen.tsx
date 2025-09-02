@@ -1,25 +1,27 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 
 // Import typed navigation types
-import type { 
+import type {
   BottomTabScreenPropsType,
   BottomTabNavigationProp,
-  BottomTabRouteProp,
   MainStackNavigationProp,
-  ProjectStackNavigationProp
+  ProjectStackNavigationProp,
 } from '../types/navigation';
 
 // Example 1: Using Screen Props Type (Recommended for components)
 type ExampleScreenProps = BottomTabScreenPropsType<'Home'>;
 
-const ExampleScreenWithProps: React.FC<ExampleScreenProps> = ({ navigation, route }) => {
+const ExampleScreenWithProps: React.FC<ExampleScreenProps> = ({
+  navigation,
+  route: _route,
+}) => {
   // navigation and route are now fully typed
   const handleNavigateToProjects = () => {
     // TypeScript knows about all available routes and their params
     navigation.navigate('Projects', {
-      screen: 'ProjectList'
+      screen: 'ProjectList',
     });
   };
 
@@ -30,7 +32,10 @@ const ExampleScreenWithProps: React.FC<ExampleScreenProps> = ({ navigation, rout
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Example Screen with Props</Text>
-      <TouchableOpacity style={styles.button} onPress={handleNavigateToProjects}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleNavigateToProjects}
+      >
         <Text style={styles.buttonText}>Go to Projects</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.button} onPress={handleNavigateToProfile}>
@@ -44,7 +49,6 @@ const ExampleScreenWithProps: React.FC<ExampleScreenProps> = ({ navigation, rout
 const ExampleScreenWithHooks: React.FC = () => {
   // Type the navigation hook with specific navigator
   const navigation = useNavigation<BottomTabNavigationProp<'Home'>>();
-  const route = useRoute<BottomTabRouteProp<'Home'>>();
 
   const handleNavigateToChat = () => {
     navigation.navigate('Chat');
@@ -52,7 +56,8 @@ const ExampleScreenWithHooks: React.FC = () => {
 
   const handleNavigateToSettings = () => {
     // Navigate to a screen in a different stack
-    const mainNavigation = navigation.getParent<MainStackNavigationProp<'Main'>>();
+    const mainNavigation =
+      navigation.getParent<MainStackNavigationProp<'Main'>>();
     mainNavigation?.navigate('SettingsScreen');
   };
 
@@ -62,7 +67,10 @@ const ExampleScreenWithHooks: React.FC = () => {
       <TouchableOpacity style={styles.button} onPress={handleNavigateToChat}>
         <Text style={styles.buttonText}>Go to Chat</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={handleNavigateToSettings}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleNavigateToSettings}
+      >
         <Text style={styles.buttonText}>Go to Settings</Text>
       </TouchableOpacity>
     </View>
@@ -71,19 +79,19 @@ const ExampleScreenWithHooks: React.FC = () => {
 
 // Example 3: Navigation with Parameters (Project Detail Screen)
 const ProjectDetailExampleScreen: React.FC = () => {
-  const navigation = useNavigation<ProjectStackNavigationProp<'ProjectDetail'>>();
-  const route = useRoute<BottomTabRouteProp<'Projects'>>();
+  const navigation =
+    useNavigation<ProjectStackNavigationProp<'ProjectDetail'>>();
 
   const handleNavigateToProject = () => {
     // TypeScript enforces required parameters
     navigation.navigate('ProjectDetail', {
-      projectId: 'project-123'
+      projectId: 'project-123',
     });
   };
 
   const handleEditProject = () => {
     navigation.navigate('EditProject', {
-      projectId: 'project-123'
+      projectId: 'project-123',
     });
   };
 
@@ -125,23 +133,19 @@ const AuthenticationExampleScreen: React.FC = () => {
   const navigation = useNavigation();
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          onPress: () => {
-            // Navigate to root level (auth stack)
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
-          }
-        }
-      ]
-    );
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        onPress: () => {
+          // Navigate to root level (auth stack)
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
+        },
+      },
+    ]);
   };
 
   const handleGoToPendingApproval = () => {
@@ -157,7 +161,10 @@ const AuthenticationExampleScreen: React.FC = () => {
       <TouchableOpacity style={styles.button} onPress={handleSignOut}>
         <Text style={styles.buttonText}>Sign Out</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={handleGoToPendingApproval}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleGoToPendingApproval}
+      >
         <Text style={styles.buttonText}>Go to Pending Approval</Text>
       </TouchableOpacity>
     </View>
@@ -189,7 +196,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    color: '#white',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

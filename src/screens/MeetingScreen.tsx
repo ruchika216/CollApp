@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,13 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
-import { fetchMeetings, fetchUserMeetings, createMeeting, updateMeeting, deleteMeeting } from '../store/slices/meetingSlice';
+import {
+  fetchMeetings,
+  fetchUserMeetings,
+  createMeeting,
+  updateMeeting,
+  deleteMeeting,
+} from '../store/slices/meetingSlice';
 import { Meeting, User } from '../types';
 import firestoreService from '../firebase/firestoreService';
 import Icon from '../components/common/Icon';
@@ -22,7 +28,7 @@ import Dropdown from '../components/common/Dropdown';
 import CustomChips from '../components/common/CustomChips';
 import MeetingCard from '../components/meetings/MeetingCard';
 
-const { width } = Dimensions.get('window');
+// const { width } = Dimensions.get('window');
 
 interface MeetingScreenProps {
   navigation: any;
@@ -34,9 +40,11 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
   const user = useAppSelector(state => state.auth.user);
   const meetings = useAppSelector(state => state.meetings.meetings);
   const userMeetings = useAppSelector(state => state.meetings.userMeetings);
-  const loading = useAppSelector(state => state.meetings.loading);
+  // const loading = useAppSelector(state => state.meetings.loading);
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split('T')[0],
+  );
   const [dateScrollDates, setDateScrollDates] = useState<string[]>([]);
   const [filteredMeetings, setFilteredMeetings] = useState<Meeting[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,24 +58,20 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
     agenda: '',
     date: new Date().toISOString().split('T')[0],
     time: '10:00',
-    type: 'Individual' as 'Individual' | 'Team' | 'All Hands' | 'Project Review' | 'Client Meeting' | 'Training',
+    type: 'Individual' as
+      | 'Individual'
+      | 'Team'
+      | 'All Hands'
+      | 'Project Review'
+      | 'Client Meeting'
+      | 'Training',
     assignmentType: 'individual' as 'individual' | 'all',
     assignedTo: [] as string[], // Multiple users when assignmentType is 'individual'
   });
 
   const isAdmin = user?.role === 'admin';
 
-  useEffect(() => {
-    loadData();
-    generateDateRange();
-    loadApprovedUsers();
-  }, []);
-
-  useEffect(() => {
-    filterMeetingsByDate();
-  }, [selectedDate, meetings, userMeetings]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       if (isAdmin) {
         await dispatch(fetchMeetings()).unwrap();
@@ -77,12 +81,12 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
     } catch (error) {
       console.error('Error loading meetings:', error);
     }
-  };
+  }, [dispatch, isAdmin, user?.uid]);
 
-  const loadApprovedUsers = async () => {
+  const loadApprovedUsers = useCallback(async () => {
     try {
       const users = await firestoreService.getApprovedUsers();
-      
+
       if (users.length === 0) {
         // If no approved users, try getting all users (for development/testing)
         const allUsers = await firestoreService.getAllUsers();
@@ -94,43 +98,55 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
       console.error('Error loading users:', error);
       Alert.alert('Error', 'Failed to load users. Please try again.');
     }
-  };
+  }, []);
 
-  const generateDateRange = () => {
-    const dates = [];
+  const generateDateRange = useCallback(() => {
+    const dates = [] as string[];
     const today = new Date();
     const todayString = today.toISOString().split('T')[0];
-    
+
     // Start with today's date
     dates.push(todayString);
-    
+
     // Add future dates (next 20 days)
     for (let i = 1; i <= 20; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push(date.toISOString().split('T')[0]);
     }
-    
+
     // Add past dates (previous 10 days) at the end
     for (let i = -10; i < 0; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push(date.toISOString().split('T')[0]);
     }
-    
-    setDateScrollDates(dates);
-  };
 
-  const filterMeetingsByDate = () => {
+    setDateScrollDates(dates);
+  }, []);
+
+  useEffect(() => {
+    loadData();
+    generateDateRange();
+    loadApprovedUsers();
+  }, [loadData, generateDateRange, loadApprovedUsers]);
+
+  const filterMeetingsByDate = useCallback(() => {
     const meetingsToFilter = isAdmin ? meetings : userMeetings;
     const filtered = meetingsToFilter.filter(meeting => {
       const meetingDate = new Date(meeting.date).toISOString().split('T')[0];
       return meetingDate === selectedDate;
     });
     // Sort by time
-    filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    filtered.sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
     setFilteredMeetings(filtered);
-  };
+  }, [isAdmin, meetings, userMeetings, selectedDate]);
+
+  useEffect(() => {
+    filterMeetingsByDate();
+  }, [filterMeetingsByDate]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -185,25 +201,36 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
       return;
     }
 
-    if (meetingForm.assignmentType === 'individual' && meetingForm.assignedTo.length === 0) {
-      Alert.alert('Error', 'Please select at least one user to assign the meeting to');
+    if (
+      meetingForm.assignmentType === 'individual' &&
+      meetingForm.assignedTo.length === 0
+    ) {
+      Alert.alert(
+        'Error',
+        'Please select at least one user to assign the meeting to',
+      );
       return;
     }
 
     if (!isAdmin && user?.role !== 'developer') {
-      Alert.alert('Error', 'Only admins and developers can create/edit meetings');
+      Alert.alert(
+        'Error',
+        'Only admins and developers can create/edit meetings',
+      );
       return;
     }
 
     try {
-      const meetingDateTime = new Date(`${meetingForm.date}T${meetingForm.time}:00`);
-      
+      const meetingDateTime = new Date(
+        `${meetingForm.date}T${meetingForm.time}:00`,
+      );
+
       // Determine assignment based on type
       const isAssignedToAll = meetingForm.assignmentType === 'all';
-      const assignedTo = isAssignedToAll 
+      const assignedTo = isAssignedToAll
         ? approvedUsers.map(user => user.uid) // Assign to all approved users
         : meetingForm.assignedTo; // Assign to selected users
-      
+
       const meetingData = {
         title: meetingForm.title,
         agenda: meetingForm.agenda,
@@ -216,12 +243,14 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
         status: 'Scheduled' as const,
         createdBy: user?.uid || '',
       };
-      
+
       if (selectedMeeting) {
-        await dispatch(updateMeeting({ 
-          meetingId: selectedMeeting.id, 
-          updates: meetingData 
-        })).unwrap();
+        await dispatch(
+          updateMeeting({
+            meetingId: selectedMeeting.id,
+            updates: meetingData,
+          }),
+        ).unwrap();
         Alert.alert('Success', 'Meeting updated successfully');
       } else {
         await dispatch(createMeeting(meetingData)).unwrap();
@@ -237,8 +266,10 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
   };
 
   const handleDelete = (meeting: Meeting) => {
-    const canDelete = isAdmin || (user?.role === 'developer' && meeting.createdBy === user?.uid);
-    
+    const canDelete =
+      isAdmin ||
+      (user?.role === 'developer' && meeting.createdBy === user?.uid);
+
     if (!canDelete) {
       Alert.alert('Error', 'You can only delete meetings you created');
       return;
@@ -262,7 +293,7 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -281,10 +312,10 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
     } else if (dateString === tomorrow.toISOString().split('T')[0]) {
       return 'Tomorrow';
     } else {
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'short', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
       });
     }
   };
@@ -292,7 +323,7 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
   const renderDateItem = ({ item }: { item: string }) => {
     const isSelected = item === selectedDate;
     const date = new Date(item);
-    
+
     return (
       <TouchableOpacity
         style={[
@@ -375,7 +406,7 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
         <FlatList
           data={dateScrollDates}
           renderItem={renderDateItem}
-          keyExtractor={(item) => item}
+          keyExtractor={item => item}
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.dateScroll}
@@ -387,18 +418,24 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
       <FlatList
         data={filteredMeetings}
         renderItem={renderMeetingItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         style={styles.meetingsList}
         contentContainerStyle={styles.meetingsContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
             <Icon name="calendar" size={48} tintColor={colors.textSecondary} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
               No meetings for {formatDate(selectedDate)}
             </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-              {isAdmin ? 'Schedule a new meeting to get started' : 'No meetings scheduled for you on this date'}
+            <Text
+              style={[styles.emptySubtitle, { color: colors.textSecondary }]}
+            >
+              {isAdmin
+                ? 'Schedule a new meeting to get started'
+                : 'No meetings scheduled for you on this date'}
             </Text>
           </View>
         )}
@@ -411,7 +448,12 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
         presentationStyle="pageSheet"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
           <View style={[styles.modalHeader, { backgroundColor: colors.info }]}>
             <TouchableOpacity
               onPress={() => {
@@ -446,28 +488,42 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          <ScrollView 
+          <ScrollView
             style={styles.modalContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Title *</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Title *
+              </Text>
               <TextInput
                 value={meetingForm.title}
-                onChangeText={(text) => setMeetingForm({ ...meetingForm, title: text })}
-                style={[styles.textInput, { backgroundColor: colors.surface, color: colors.text }]}
+                onChangeText={text =>
+                  setMeetingForm({ ...meetingForm, title: text })
+                }
+                style={[
+                  styles.textInput,
+                  { backgroundColor: colors.surface, color: colors.text },
+                ]}
                 placeholder="Enter meeting title"
                 placeholderTextColor={colors.textSecondary}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Agenda *</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Agenda *
+              </Text>
               <TextInput
                 value={meetingForm.agenda}
-                onChangeText={(text) => setMeetingForm({ ...meetingForm, agenda: text })}
-                style={[styles.textArea, { backgroundColor: colors.surface, color: colors.text }]}
+                onChangeText={text =>
+                  setMeetingForm({ ...meetingForm, agenda: text })
+                }
+                style={[
+                  styles.textArea,
+                  { backgroundColor: colors.surface, color: colors.text },
+                ]}
                 placeholder="Enter meeting agenda"
                 placeholderTextColor={colors.textSecondary}
                 multiline
@@ -477,22 +533,36 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
 
             <View style={styles.row}>
               <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Date</Text>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>
+                  Date
+                </Text>
                 <TextInput
                   value={meetingForm.date}
-                  onChangeText={(text) => setMeetingForm({ ...meetingForm, date: text })}
-                  style={[styles.textInput, { backgroundColor: colors.surface, color: colors.text }]}
+                  onChangeText={text =>
+                    setMeetingForm({ ...meetingForm, date: text })
+                  }
+                  style={[
+                    styles.textInput,
+                    { backgroundColor: colors.surface, color: colors.text },
+                  ]}
                   placeholder="YYYY-MM-DD"
                   placeholderTextColor={colors.textSecondary}
                 />
               </View>
 
               <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Time</Text>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>
+                  Time
+                </Text>
                 <TextInput
                   value={meetingForm.time}
-                  onChangeText={(text) => setMeetingForm({ ...meetingForm, time: text })}
-                  style={[styles.textInput, { backgroundColor: colors.surface, color: colors.text }]}
+                  onChangeText={text =>
+                    setMeetingForm({ ...meetingForm, time: text })
+                  }
+                  style={[
+                    styles.textInput,
+                    { backgroundColor: colors.surface, color: colors.text },
+                  ]}
                   placeholder="HH:MM"
                   placeholderTextColor={colors.textSecondary}
                 />
@@ -500,18 +570,22 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Assignment Type *</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Assignment Type *
+              </Text>
               <Dropdown
                 data={[
                   { label: 'Assign to specific user', value: 'individual' },
                   { label: 'Assign to all users', value: 'all' },
                 ]}
                 selectedValue={meetingForm.assignmentType}
-                onSelect={(value) => setMeetingForm({ 
-                  ...meetingForm, 
-                  assignmentType: value as 'individual' | 'all',
-                  assignedTo: value === 'all' ? [] : meetingForm.assignedTo // Clear user selections if assigning to all
-                })}
+                onSelect={value =>
+                  setMeetingForm({
+                    ...meetingForm,
+                    assignmentType: value as 'individual' | 'all',
+                    assignedTo: value === 'all' ? [] : meetingForm.assignedTo, // Clear user selections if assigning to all
+                  })
+                }
                 placeholder="Select assignment type"
               />
             </View>
@@ -521,12 +595,17 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
                 <CustomChips
                   items={approvedUsers.map(user => ({
                     id: user.uid,
-                    label: user.name || user.email?.split('@')[0] || 'Unknown User',
+                    label:
+                      user.name || user.email?.split('@')[0] || 'Unknown User',
                     value: user.uid,
                   }))}
                   selectedItems={meetingForm.assignedTo}
                   onSelectionChange={handleUserSelectionChange}
-                  placeholder={approvedUsers.length === 0 ? "Loading users..." : "Select users to assign"}
+                  placeholder={
+                    approvedUsers.length === 0
+                      ? 'Loading users...'
+                      : 'Select users to assign'
+                  }
                   disabled={approvedUsers.length === 0}
                   label="Assignees *"
                   maxChipsToShow={3}
@@ -537,7 +616,11 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
                     style={styles.refreshUsersButton}
                   >
                     <Icon name="search" size={16} tintColor={colors.info} />
-                    <Text style={[styles.refreshUsersText, { color: colors.info }]}>Refresh Users</Text>
+                    <Text
+                      style={[styles.refreshUsersText, { color: colors.info }]}
+                    >
+                      Refresh Users
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -545,10 +628,16 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
 
             {meetingForm.assignmentType === 'all' && (
               <View style={styles.inputGroup}>
-                <View style={[styles.allUsersInfo, { backgroundColor: colors.info + '20' }]}>
+                <View
+                  style={[
+                    styles.allUsersInfo,
+                    { backgroundColor: colors.info + '20' },
+                  ]}
+                >
                   <Icon name="team" size={20} tintColor={colors.info} />
                   <Text style={[styles.allUsersText, { color: colors.info }]}>
-                    This meeting will be visible to all {approvedUsers.length} approved users
+                    This meeting will be visible to all {approvedUsers.length}{' '}
+                    approved users
                   </Text>
                 </View>
               </View>
@@ -565,7 +654,9 @@ const MeetingScreen: React.FC<MeetingScreenProps> = ({ navigation }) => {
                 { label: 'Training', value: 'Training' },
               ]}
               selectedValue={meetingForm.type}
-              onSelect={(value) => setMeetingForm({ ...meetingForm, type: value as any })}
+              onSelect={value =>
+                setMeetingForm({ ...meetingForm, type: value as any })
+              }
               placeholder="Select meeting type"
             />
           </ScrollView>

@@ -66,7 +66,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
       styles.headerContent,
       {
         paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 16,
-      }
+      },
     ];
 
     const content = (
@@ -82,27 +82,42 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
                   activeOpacity={0.7}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Icon name="arrow-left" size="lg" color={variant === 'transparent' ? colors.text : "#fff"} />
+                  <Icon
+                    name="arrow-left"
+                    size="lg"
+                    color={variant === 'transparent' ? colors.text : '#fff'}
+                  />
                 </TouchableOpacity>
               )}
               <View style={styles.appInfo}>
-                <View style={[
-                  styles.appIconContainer,
-                  variant === 'transparent' && { backgroundColor: colors.primary + '20' }
-                ]}>
-                  <Icon name="dashboard" size="lg" color={variant === 'transparent' ? colors.primary : "#fff"} />
+                <View
+                  style={[
+                    styles.appIconContainer,
+                    variant === 'transparent' && {
+                      backgroundColor: colors.primary + '20',
+                    },
+                  ]}
+                >
+                  <Icon
+                    name="dashboard"
+                    size="lg"
+                    color={variant === 'transparent' ? colors.primary : '#fff'}
+                  />
                 </View>
                 {title === 'CollApp' ? (
-                  <AppName 
-                    size="medium" 
-                    variant={variant === 'transparent' ? 'primary' : 'gradient'}
-                    style={{ marginLeft: 0 }}
+                  <AppName
+                    size="medium"
+                    variant="gradientText"
+                    uppercase={true}
+                    yOffset={2}
                   />
                 ) : (
-                  <Text style={[
-                    styles.appTitle,
-                    variant === 'transparent' && { color: colors.text }
-                  ]}>
+                  <Text
+                    style={[
+                      styles.appTitle,
+                      variant === 'transparent' && { color: colors.text },
+                    ]}
+                  >
                     {title}
                   </Text>
                 )}
@@ -118,16 +133,20 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
               <TouchableOpacity
                 style={[
                   styles.menuButton,
-                  variant === 'transparent' && { 
+                  variant === 'transparent' && {
                     backgroundColor: colors.primary + '20',
-                    borderColor: colors.primary + '30'
-                  }
+                    borderColor: colors.primary + '30',
+                  },
                 ]}
                 onPress={onMenuPress}
                 activeOpacity={0.7}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Icon name="menu" size="lg" color={variant === 'transparent' ? colors.primary : "#fff"} />
+                <Icon
+                  name="menu"
+                  size="lg"
+                  color={variant === 'transparent' ? colors.primary : '#fff'}
+                />
               </TouchableOpacity>
             ))}
         </View>
@@ -138,13 +157,17 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
     if (variant === 'default') {
       return (
         <LinearGradient
-          colors={backgroundColor ? [backgroundColor, backgroundColor] : gradients.primary}
+          colors={
+            backgroundColor
+              ? [backgroundColor, backgroundColor]
+              : gradients.primary
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[
             styles.header,
             shadows.lg,
-            { backgroundColor: backgroundColor || colors.primary }
+            { backgroundColor: backgroundColor || colors.primary },
           ]}
         >
           {content}
@@ -152,14 +175,17 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
       );
     } else {
       return (
-        <View style={[
-          styles.header,
-          variant === 'minimal' && shadows.sm,
-          {
-            backgroundColor: variant === 'transparent' ? 'transparent' : 
-                            backgroundColor || colors.surface,
-          }
-        ]}>
+        <View
+          style={[
+            styles.header,
+            variant === 'minimal' && shadows.sm,
+            variant === 'transparent' ? styles.headerTransparent : null,
+            variant !== 'transparent' && !backgroundColor
+              ? { backgroundColor: colors.surface }
+              : null,
+            backgroundColor ? { backgroundColor } : null,
+          ]}
+        >
           {content}
         </View>
       );
@@ -194,6 +220,9 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
     }),
+  },
+  headerTransparent: {
+    backgroundColor: 'transparent',
   },
   headerContent: {
     flexDirection: 'row',

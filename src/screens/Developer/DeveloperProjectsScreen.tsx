@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,6 @@ import {
   addCommentAsync,
   uploadFileToProject as uploadFileToProjectThunk,
   updateProjectProgress,
-  setLoading,
 } from '../../store/slices/projectSlice';
 import { validateFile } from '../../services/storage/fileUpload';
 import Icon from '../../components/common/Icon';
@@ -34,7 +33,7 @@ import NotificationButton from '../../components/common/NotificationButton';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { Project, SubTask, ProjectComment } from '../../types';
+import { Project } from '../../types';
 import { getStatusColor, getPriorityColor } from '../../theme/themeUtils';
 import {
   launchImageLibrary,
@@ -58,7 +57,7 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.user.user);
   const userProjects = useAppSelector(state => state.projects.userProjects);
-  const loading = useAppSelector(state => state.projects.loading);
+  // const loading = useAppSelector(state => state.projects.loading);
 
   const [activeTab, setActiveTab] = useState<TabType>('projects');
   const [refreshing, setRefreshing] = useState(false);
@@ -112,11 +111,7 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({
     };
   }, [userProjects]);
 
-  useEffect(() => {
-    loadUserProjects();
-  }, [user]);
-
-  const loadUserProjects = async () => {
+  const loadUserProjects = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -125,7 +120,11 @@ const DeveloperProjectsScreen: React.FC<DeveloperProjectsScreenProps> = ({
       console.error('Error loading user projects:', error);
       Alert.alert('Error', 'Failed to load projects');
     }
-  };
+  }, [dispatch, user]);
+
+  useEffect(() => {
+    loadUserProjects();
+  }, [loadUserProjects]);
 
   const onRefresh = async () => {
     setRefreshing(true);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ import { Project } from '../../types';
 import Icon from '../../components/common/Icon';
 import ProjectForm from '../Admin/ProjectForm';
 
-const { width } = Dimensions.get('window');
+// const { width } = Dimensions.get('window');
 
 const ProjectList = ({ navigation, route }: any) => {
   const { colors, gradients, shadows } = useTheme();
@@ -42,11 +42,7 @@ const ProjectList = ({ navigation, route }: any) => {
 
   const filter = route?.params?.filter;
 
-  useEffect(() => {
-    loadProjects();
-  }, []);
-
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     try {
       dispatch(setLoading(true));
       const projectsData = await getProjects();
@@ -55,7 +51,13 @@ const ProjectList = ({ navigation, route }: any) => {
       console.error('Error loading projects:', error);
       Alert.alert('Error', 'Failed to load projects');
     }
-  };
+  }, [dispatch]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  // loadProjects defined above
 
   const onRefresh = async () => {
     setRefreshing(true);

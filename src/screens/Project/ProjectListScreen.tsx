@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,16 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
-import { setProjects, deleteProject, setLoading } from '../../store/slices/projectSlice';
-import { getProjects, deleteProjectFromFirestore, getUserProjects } from '../../firebase/firestore';
+import {
+  setProjects,
+  deleteProject,
+  setLoading,
+} from '../../store/slices/projectSlice';
+import {
+  getProjects,
+  deleteProjectFromFirestore,
+  getUserProjects,
+} from '../../firebase/firestore';
 import { Project } from '../../types';
 import Icon from '../../components/common/Icon';
 import ProjectForm from '../Admin/ProjectForm';
@@ -29,11 +37,11 @@ interface ProjectListScreenProps {
   userId?: string; // Specific user ID to filter projects
 }
 
-const ProjectListScreen: React.FC<ProjectListScreenProps> = ({ 
-  navigation, 
-  route, 
-  userSpecific = false, 
-  userId 
+const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
+  navigation,
+  route,
+  userSpecific = false,
+  userId,
 }) => {
   const { colors, gradients, shadows } = useTheme();
   const insets = useSafeAreaInsets();
@@ -41,7 +49,7 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
   const projects = useAppSelector(state => state.projects.projects);
   const loading = useAppSelector(state => state.projects.loading);
   const user = useAppSelector(state => state.auth.user);
-  
+
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,27 +58,29 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
   const isAdmin = user?.role === 'admin';
   const targetUserId = userId || user?.uid;
 
-  useEffect(() => {
-    loadProjects();
-  }, [userSpecific, userId]);
-
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     try {
       dispatch(setLoading(true));
       let projectsData: Project[];
-      
+
       if (userSpecific && targetUserId) {
         projectsData = await getUserProjects(targetUserId);
       } else {
         projectsData = await getProjects();
       }
-      
+
       dispatch(setProjects(projectsData));
     } catch (error) {
       console.error('Error loading projects:', error);
       Alert.alert('Error', 'Failed to load projects');
     }
-  };
+  }, [dispatch, userSpecific, targetUserId]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  // loadProjects defined above
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -103,7 +113,7 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -127,42 +137,58 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
 
   const handleProjectPress = (project: Project) => {
     console.log('Navigating to project:', project.title, 'ID:', project.id);
-    
+
     if (!project.id) {
       console.error('ERROR: Project ID is missing!', project);
-      Alert.alert('Error', 'Project ID is missing. Cannot navigate to project details.');
+      Alert.alert(
+        'Error',
+        'Project ID is missing. Cannot navigate to project details.',
+      );
       return;
     }
-    
+
     navigation.navigate('ProjectDetailScreenNew', { projectId: project.id });
   };
 
   const getStatusColor = (status: Project['status']) => {
     switch (status) {
-      case 'Pending': return colors.warning;
-      case 'Development': return colors.info;
-      case 'Review': return colors.secondary;
-      case 'Testing': return colors.warning;
-      case 'Done': return colors.success;
-      case 'Deployment': return colors.primary;
-      case 'Fixing Bug': return colors.error;
-      default: return colors.textSecondary;
+      case 'Pending':
+        return colors.warning;
+      case 'Development':
+        return colors.info;
+      case 'Review':
+        return colors.secondary;
+      case 'Testing':
+        return colors.warning;
+      case 'Done':
+        return colors.success;
+      case 'Deployment':
+        return colors.primary;
+      case 'Fixing Bug':
+        return colors.error;
+      default:
+        return colors.textSecondary;
     }
   };
 
   const getPriorityColor = (priority: Project['priority']) => {
     switch (priority) {
-      case 'Low': return colors.success;
-      case 'Medium': return colors.warning;
-      case 'High': return colors.error;
-      case 'Critical': return '#ff4757';
-      default: return colors.textSecondary;
+      case 'Low':
+        return colors.success;
+      case 'Medium':
+        return colors.warning;
+      case 'High':
+        return colors.error;
+      case 'Critical':
+        return '#ff4757';
+      default:
+        return colors.textSecondary;
     }
   };
 
   const filteredProjects = projects.filter(project => {
     if (!filter) return true;
-    
+
     switch (filter) {
       case 'active':
         return ['Development', 'Review', 'Testing'].includes(project.status);
@@ -183,19 +209,28 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
     >
       <View style={styles.projectHeader}>
         <View style={styles.projectTitleRow}>
-          <Text style={[styles.projectTitle, { color: colors.text }]} numberOfLines={1}>
+          <Text
+            style={[styles.projectTitle, { color: colors.text }]}
+            numberOfLines={1}
+          >
             {project.title}
           </Text>
           {isAdmin && (
             <View style={styles.projectActions}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: `${colors.primary}20` }]}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: `${colors.primary}20` },
+                ]}
                 onPress={() => handleEdit(project)}
               >
                 <Icon name="edit" size={16} tintColor={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: `${colors.error}20` }]}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: `${colors.error}20` },
+                ]}
                 onPress={() => handleDelete(project)}
               >
                 <Icon name="delete" size={16} tintColor={colors.error} />
@@ -203,21 +238,44 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
             </View>
           )}
         </View>
-        
-        <Text style={[styles.projectDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+
+        <Text
+          style={[styles.projectDescription, { color: colors.textSecondary }]}
+          numberOfLines={2}
+        >
           {project.description}
         </Text>
       </View>
 
       <View style={styles.projectMeta}>
         <View style={styles.badges}>
-          <View style={[styles.badge, { backgroundColor: `${getStatusColor(project.status)}20` }]}>
-            <Text style={[styles.badgeText, { color: getStatusColor(project.status) }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: `${getStatusColor(project.status)}20` },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: getStatusColor(project.status) },
+              ]}
+            >
               {project.status}
             </Text>
           </View>
-          <View style={[styles.badge, { backgroundColor: `${getPriorityColor(project.priority)}20` }]}>
-            <Text style={[styles.badgeText, { color: getPriorityColor(project.priority) }]}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: `${getPriorityColor(project.priority)}20` },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: getPriorityColor(project.priority) },
+              ]}
+            >
               {project.priority}
             </Text>
           </View>
@@ -230,7 +288,7 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
               {project.assignedUser?.displayName || 'Unassigned'}
             </Text>
           </View>
-          
+
           <View style={styles.infoItem}>
             <Icon name="calendar" size={14} tintColor={colors.textSecondary} />
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
@@ -243,11 +301,19 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
           <Text style={[styles.progressText, { color: colors.textSecondary }]}>
             Progress: {project.progress}%
           </Text>
-          <View style={[styles.progressBar, { backgroundColor: `${colors.primary}20` }]}>
+          <View
+            style={[
+              styles.progressBar,
+              { backgroundColor: `${colors.primary}20` },
+            ]}
+          >
             <View
               style={[
                 styles.progressFill,
-                { backgroundColor: colors.primary, width: `${project.progress}%` }
+                {
+                  backgroundColor: colors.primary,
+                  width: `${project.progress}%`,
+                },
               ]}
             />
           </View>
@@ -269,9 +335,9 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <StatusBar 
-          barStyle={Platform.OS === 'ios' ? 'light-content' : 'light-content'} 
-          backgroundColor={colors.primary} 
+        <StatusBar
+          barStyle={Platform.OS === 'ios' ? 'light-content' : 'light-content'}
+          backgroundColor={colors.primary}
         />
         <LinearGradient
           colors={gradients.primary}
@@ -290,7 +356,7 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
             <View style={styles.placeholder} />
           </View>
         </LinearGradient>
-        
+
         <View style={[styles.centerContent, { flex: 1 }]}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
@@ -303,11 +369,11 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar 
-        barStyle={Platform.OS === 'ios' ? 'light-content' : 'light-content'} 
-        backgroundColor={colors.primary} 
+      <StatusBar
+        barStyle={Platform.OS === 'ios' ? 'light-content' : 'light-content'}
+        backgroundColor={colors.primary}
       />
-      
+
       <LinearGradient
         colors={gradients.primary}
         start={{ x: 0, y: 0 }}
@@ -323,10 +389,7 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{getScreenTitle()}</Text>
           {isAdmin && !userSpecific && (
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleAdd}
-            >
+            <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
               <Icon name="add" size={24} tintColor="#fff" />
             </TouchableOpacity>
           )}
@@ -336,20 +399,32 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
 
       <View style={styles.content}>
         {filteredProjects.length === 0 ? (
-          <View style={[styles.emptyContainer, { backgroundColor: colors.card }, shadows.sm]}>
+          <View
+            style={[
+              styles.emptyContainer,
+              { backgroundColor: colors.card },
+              shadows.sm,
+            ]}
+          >
             <Icon name="project" size={48} tintColor={colors.primary} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Projects Found</Text>
-            <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
-              {userSpecific 
-                ? 'No projects assigned to this user yet.' 
-                : filter 
-                  ? `No ${filter} projects at the moment.` 
-                  : 'No projects have been created yet.'
-              }
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              No Projects Found
+            </Text>
+            <Text
+              style={[styles.emptyMessage, { color: colors.textSecondary }]}
+            >
+              {userSpecific
+                ? 'No projects assigned to this user yet.'
+                : filter
+                ? `No ${filter} projects at the moment.`
+                : 'No projects have been created yet.'}
             </Text>
             {isAdmin && !userSpecific && (
               <TouchableOpacity
-                style={[styles.createButton, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.createButton,
+                  { backgroundColor: colors.primary },
+                ]}
                 onPress={handleAdd}
               >
                 <Icon name="add" size={20} tintColor="#fff" />
