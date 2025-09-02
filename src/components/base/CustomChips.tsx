@@ -44,9 +44,11 @@ const CustomChips: React.FC<CustomChipsProps> = ({
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const selectedItemsData = items.filter(item => selectedItems.includes(item.value));
+  const selectedItemsData = items.filter(item =>
+    selectedItems.includes(item.value),
+  );
   const filteredItems = items.filter(item =>
-    item.label.toLowerCase().includes(searchQuery.toLowerCase())
+    item.label.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleItemToggle = (itemValue: string) => {
@@ -63,7 +65,7 @@ const CustomChips: React.FC<CustomChipsProps> = ({
 
   const renderChip = (item: ChipItem, index: number) => {
     if (index >= maxChipsToShow) return null;
-    
+
     return (
       <View key={item.value} style={styles.chip}>
         <Text style={styles.chipText} numberOfLines={1}>
@@ -96,14 +98,16 @@ const CustomChips: React.FC<CustomChipsProps> = ({
 
   const renderSelectableItem = ({ item }: { item: ChipItem }) => {
     const isSelected = selectedItems.includes(item.value);
-    
+
     return (
       <TouchableOpacity
         style={[styles.selectableItem, isSelected && styles.selectedItem]}
         onPress={() => handleItemToggle(item.value)}
       >
         <View style={styles.itemContent}>
-          <Text style={[styles.itemText, isSelected && styles.selectedItemText]}>
+          <Text
+            style={[styles.itemText, isSelected && styles.selectedItemText]}
+          >
             {item.label}
           </Text>
           <View style={[styles.checkbox, isSelected && styles.checkedBox]}>
@@ -117,38 +121,39 @@ const CustomChips: React.FC<CustomChipsProps> = ({
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
-      
+
       {/* Selected Chips Display */}
       <View style={styles.chipsContainer}>
         {selectedItemsData.length > 0 ? (
           <View style={styles.chipsWrapper}>
             <View style={styles.chipsRow}>
-              {selectedItemsData.slice(0, maxChipsToShow).map((item, index) => 
-                renderChip(item, index)
-              )}
+              {selectedItemsData
+                .slice(0, maxChipsToShow)
+                .map((item, index) => renderChip(item, index))}
               {renderOverflowChip()}
             </View>
           </View>
         ) : null}
-        
+
         {/* Add/Select Button */}
         <TouchableOpacity
           style={[
             styles.addButton,
             disabled && styles.disabledButton,
-            selectedItemsData.length > 0 && styles.addButtonWithChips
+            selectedItemsData.length > 0 && styles.addButtonWithChips,
           ]}
           onPress={() => setIsModalVisible(true)}
           disabled={disabled}
         >
-          <Text style={[
-            styles.addButtonText,
-            selectedItemsData.length > 0 && styles.addButtonTextWithChips
-          ]}>
-            {selectedItemsData.length > 0 
+          <Text
+            style={[
+              styles.addButtonText,
+              selectedItemsData.length > 0 && styles.addButtonTextWithChips,
+            ]}
+          >
+            {selectedItemsData.length > 0
               ? `${selectedItemsData.length} selected • Add more`
-              : placeholder
-            }
+              : placeholder}
           </Text>
           <View style={styles.addIcon}>
             <Text style={styles.addIconText}>+</Text>
@@ -178,11 +183,9 @@ const CustomChips: React.FC<CustomChipsProps> = ({
             >
               <Text style={styles.modalCloseText}>Cancel</Text>
             </TouchableOpacity>
-            
-            <Text style={styles.modalTitle}>
-              {label || 'Select Items'}
-            </Text>
-            
+
+            <Text style={styles.modalTitle}>{label || 'Select Items'}</Text>
+
             <TouchableOpacity
               onPress={() => {
                 setIsModalVisible(false);
@@ -230,7 +233,7 @@ const CustomChips: React.FC<CustomChipsProps> = ({
           <FlatList
             data={filteredItems}
             renderItem={renderSelectableItem}
-            keyExtractor={(item) => item.value}
+            keyExtractor={item => item.value}
             style={styles.itemsList}
             showsVerticalScrollIndicator={false}
           />
@@ -337,7 +340,7 @@ const getStyles = (colors: any) =>
       fontSize: 16,
       fontWeight: 'bold',
     },
-    
+
     // Modal Styles
     modalContainer: {
       flex: 1,

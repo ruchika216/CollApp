@@ -96,8 +96,7 @@ function CurvedTabBar({ state, navigation }: any) {
     shadowColor: 'rgba(0,0,0,0.1)',
   };
 
-  // Use actual theme colors with fallbacks
-  const inactiveColor = '#8E8E93';
+  // Inactive color constant unused; icons/labels use theme primary for consistency
 
   const handleTabPress = (tab: any, index: number) => {
     const isFocused = state.index === index;
@@ -180,7 +179,7 @@ function CurvedTabBar({ state, navigation }: any) {
                     <Icon
                       name={tab.icon as any}
                       size={22}
-                      tintColor={isFocused ? '#FFFFFF' : inactiveColor}
+                      tintColor={isFocused ? '#FFFFFF' : safeColors.primary}
                     />
                   </View>
 
@@ -191,7 +190,7 @@ function CurvedTabBar({ state, navigation }: any) {
                       isFocused
                         ? styles.tabLabelActive
                         : styles.tabLabelInactive,
-                      { color: isFocused ? safeColors.primary : inactiveColor },
+                      { color: safeColors.primary },
                     ]}
                   >
                     {tab.label}
