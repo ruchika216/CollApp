@@ -41,6 +41,7 @@ export type IconName =
   | 'cancel'
   | 'theme'
   | 'help'
+  | 'more'
   | 'privacy';
 
 const iconSources: Record<IconName, any> = {
@@ -53,6 +54,7 @@ const iconSources: Record<IconName, any> = {
   project: require('../../assets/icons/project.png'),
   settings: require('../../assets/icons/settings.png'),
   chat: require('../../assets/icons/chat.png'),
+  more: require('../../assets/icons/more.png'),
 
   // Action icons
   add: require('../../assets/icons/add.png'),

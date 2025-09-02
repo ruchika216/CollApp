@@ -1,5 +1,5 @@
 // CurvedBottomNavigator.tsx - With labels below icons, no label for dashboard
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -8,6 +8,7 @@ import {
   Platform,
   Image,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -33,7 +34,7 @@ const tabs = [
   { name: 'Projects', icon: 'project', label: 'Projects' },
   { name: 'Dashboard', icon: 'dashboard', label: 'Dashboard', isCenter: true },
   { name: 'Chat', icon: 'comment', label: 'Chat' },
-  { name: 'Profile', icon: 'account', label: 'Profile' },
+  { name: 'More', icon: 'more', label: 'More' },
 ];
 
 // Curved Tab Bar Shape Component
@@ -85,6 +86,7 @@ const CurvedShape = ({
 
 // Curved Custom Tab Bar with Labels
 function CurvedTabBar({ state, navigation }: any) {
+  const [showMore, setShowMore] = useState(false);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -100,9 +102,11 @@ function CurvedTabBar({ state, navigation }: any) {
 
   const handleTabPress = (tab: any, index: number) => {
     const isFocused = state.index === index;
-    if (!isFocused) {
-      navigation.navigate(tab.name);
+    if (tab.name === 'More') {
+      setShowMore(prev => !prev);
+      return;
     }
+    if (!isFocused) navigation.navigate(tab.name);
   };
 
   return (
@@ -121,6 +125,71 @@ function CurvedTabBar({ state, navigation }: any) {
             />
           </View>
         </View>
+
+        {/* Global More Modal for outside-click dismiss */}
+        {showMore && (
+          <Modal
+            transparent
+            visible={showMore}
+            animationType="fade"
+            onRequestClose={() => setShowMore(false)}
+          >
+            <View style={StyleSheet.absoluteFillObject as any}>
+              <TouchableOpacity
+                style={StyleSheet.absoluteFillObject as any}
+                activeOpacity={1}
+                onPress={() => setShowMore(false)}
+              />
+              <View style={styles.moreMenuContainerModal}>
+                <View style={styles.moreMenu}>
+                  <TouchableOpacity
+                    style={styles.moreItem}
+                    onPress={() => {
+                      setShowMore(false);
+                      navigation.navigate('Profile');
+                    }}
+                  >
+                    <Icon
+                      name="account"
+                      size={18}
+                      tintColor={safeColors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.moreItemText,
+                        { color: safeColors.primary },
+                      ]}
+                    >
+                      Profile
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.moreItem}
+                    onPress={() => {
+                      setShowMore(false);
+                      navigation.navigate('NotificationScreen');
+                    }}
+                  >
+                    <Icon
+                      name="notification"
+                      size={18}
+                      tintColor={safeColors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.moreItemText,
+                        { color: safeColors.primary },
+                      ]}
+                    >
+                      Notifications
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.moreMenuArrow} />
+              </View>
+            </View>
+          </Modal>
+        )}
 
         {/* Tab Buttons */}
         <View style={styles.tabButtonsContainer}>
@@ -196,6 +265,8 @@ function CurvedTabBar({ state, navigation }: any) {
                     {tab.label}
                   </Text>
                 </View>
+
+                {/* Inline More popup removed; modal handles the menu */}
               </TouchableOpacity>
             );
           })}
@@ -205,6 +276,7 @@ function CurvedTabBar({ state, navigation }: any) {
   );
 }
 
+// Dashboard Screen
 // Clean Header Component
 const CleanHeader = ({ navigation }: any) => {
   const { colors } = useTheme();
@@ -381,6 +453,14 @@ const styles = StyleSheet.create({
     opacity: 0.15,
     zIndex: -1,
   },
+  overlayDismiss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+  },
   tabButtonsContainer: {
     position: 'absolute',
     top: 0,
@@ -405,6 +485,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+  },
+  moreMenuContainer: {
+    position: 'absolute',
+    bottom: 80,
+    right: 0,
+    alignItems: 'center',
+  },
+  moreMenuContainerModal: {
+    position: 'absolute',
+    bottom: 120,
+    right: 28,
+    alignItems: 'center',
+  },
+  moreMenu: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    minWidth: 140,
+  },
+  moreMenuArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#FFFFFF',
+    marginTop: -1,
+  },
+  moreItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    gap: 10,
+  },
+  moreItemText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   iconContainer: {
     alignItems: 'center',
