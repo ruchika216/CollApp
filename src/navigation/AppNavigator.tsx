@@ -11,6 +11,7 @@ import SplashScreen from '../screens/SplashScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import PendingApprovalScreen from '../screens/PendingApprovalScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -20,10 +21,12 @@ const AppNavigator = () => {
 
   useEffect(() => {
     if (user) {
-      const unsubscribe = firestore
+      // Cast firestore to any to avoid TS type mismatch from custom config wrapper
+      const fs: any = firestore as any;
+      const unsubscribe = fs
         .collection('users')
         .doc(user.uid)
-        .onSnapshot(doc => {
+        .onSnapshot((doc: any) => {
           if (doc.exists) {
             dispatch(setUser(doc.data() as User));
           }
@@ -46,6 +49,14 @@ const AppNavigator = () => {
         )
       ) : (
         <>
+          {/* Welcome is first so it's the initial route for unauthenticated users */}
+          <Stack.Screen name="Welcome">
+            {({ navigation }) => (
+              <WelcomeScreen
+                onGetStarted={() => navigation.replace('Onboarding')}
+              />
+            )}
+          </Stack.Screen>
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />

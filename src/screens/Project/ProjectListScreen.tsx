@@ -1,252 +1,119 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  RefreshControl,
   ActivityIndicator,
-  StatusBar,
+  Alert,
+  FlatList,
   Modal,
-  Platform,
+  TextInput,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/useTheme';
-import { useAppSelector, useAppDispatch } from '../../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
+  setLoading,
   setProjects,
   deleteProject,
-  setLoading,
 } from '../../store/slices/projectSlice';
 import {
   getProjects,
-  deleteProjectFromFirestore,
   getUserProjects,
+  deleteProjectFromFirestore,
 } from '../../firebase/firestore';
 import { Project } from '../../types';
 import Icon from '../../components/common/Icon';
 import ProjectForm from '../Admin/ProjectForm';
 
-interface ProjectListScreenProps {
-  navigation: any;
-  route?: any;
-  userSpecific?: boolean; // If true, show only user's assigned projects
-  userId?: string; // Specific user ID to filter projects
+// Separate item component to satisfy lint rules and avoid redefining components on each render
+type ThemeColors = ReturnType<typeof useTheme>['colors'];
+
+interface ProjectCardItemProps {
+  project: Project;
+  colors: ThemeColors;
+  isAdmin: boolean;
+  canDevUpdate?: boolean;
+  onEdit: (project: Project) => void;
+  onDelete: (project: Project) => void;
+  onPress: (project: Project) => void;
+  getStatusColor: (s: Project['status']) => string;
+  getPriorityColor: (p: Project['priority']) => string;
 }
 
-const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
-  navigation,
-  route,
-  userSpecific = false,
-  userId,
+const ProjectCardItem: React.FC<ProjectCardItemProps> = ({
+  project,
+  colors,
+  isAdmin,
+  canDevUpdate,
+  onEdit,
+  onDelete,
+  onPress,
+  getStatusColor,
+  getPriorityColor,
 }) => {
-  const { colors, gradients, shadows } = useTheme();
-  const insets = useSafeAreaInsets();
-  const dispatch = useAppDispatch();
-  const projects = useAppSelector(state => state.projects.projects);
-  const loading = useAppSelector(state => state.projects.loading);
-  const user = useAppSelector(state => state.auth.user);
+  const assigneeLabel = project.assignedUsers
+    ?.map(u => u?.displayName || u?.email || 'User')
+    .join(', ');
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const filter = route?.params?.filter;
-  const isAdmin = user?.role === 'admin';
-  const targetUserId = userId || user?.uid;
-
-  const loadProjects = useCallback(async () => {
-    try {
-      dispatch(setLoading(true));
-      let projectsData: Project[];
-
-      if (userSpecific && targetUserId) {
-        projectsData = await getUserProjects(targetUserId);
-      } else {
-        projectsData = await getProjects();
-      }
-
-      dispatch(setProjects(projectsData));
-    } catch (error) {
-      console.error('Error loading projects:', error);
-      Alert.alert('Error', 'Failed to load projects');
-    }
-  }, [dispatch, userSpecific, targetUserId]);
-
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
-
-  // loadProjects defined above
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadProjects();
-    setRefreshing(false);
+  // Truncate description to around 15-20 words
+  const truncateDescription = (text: string, wordLimit: number = 15) => {
+    if (!text) return '';
+    const words = text.split(' ');
+    if (words.length <= wordLimit) return text;
+    return words.slice(0, wordLimit).join(' ') + '...';
   };
 
-  const handleDelete = (project: Project) => {
-    if (!isAdmin) {
-      Alert.alert('Permission Denied', 'Only admins can delete projects');
-      return;
-    }
-
-    Alert.alert(
-      'Delete Project',
-      `Are you sure you want to delete "${project.title}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteProjectFromFirestore(project.id);
-              dispatch(deleteProject(project.id));
-              Alert.alert('Success', 'Project deleted successfully');
-            } catch (error) {
-              console.error('Error deleting project:', error);
-              Alert.alert('Error', 'Failed to delete project');
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  const handleEdit = (project: Project) => {
-    if (!isAdmin) {
-      Alert.alert('Permission Denied', 'Only admins can edit projects');
-      return;
-    }
-    setSelectedProject(project);
-    setModalVisible(true);
-  };
-
-  const handleAdd = () => {
-    if (!isAdmin) {
-      Alert.alert('Permission Denied', 'Only admins can create projects');
-      return;
-    }
-    setSelectedProject(null);
-    setModalVisible(true);
-  };
-
-  const handleProjectPress = (project: Project) => {
-    console.log('Navigating to project:', project.title, 'ID:', project.id);
-
-    if (!project.id) {
-      console.error('ERROR: Project ID is missing!', project);
-      Alert.alert(
-        'Error',
-        'Project ID is missing. Cannot navigate to project details.',
-      );
-      return;
-    }
-
-    navigation.navigate('ProjectDetailScreenNew', { projectId: project.id });
-  };
-
-  const getStatusColor = (status: Project['status']) => {
-    switch (status) {
-      case 'Pending':
-        return colors.warning;
-      case 'Development':
-        return colors.info;
-      case 'Review':
-        return colors.secondary;
-      case 'Testing':
-        return colors.warning;
-      case 'Done':
-        return colors.success;
-      case 'Deployment':
-        return colors.primary;
-      case 'Fixing Bug':
-        return colors.error;
-      default:
-        return colors.textSecondary;
-    }
-  };
-
-  const getPriorityColor = (priority: Project['priority']) => {
-    switch (priority) {
-      case 'Low':
-        return colors.success;
-      case 'Medium':
-        return colors.warning;
-      case 'High':
-        return colors.error;
-      case 'Critical':
-        return '#ff4757';
-      default:
-        return colors.textSecondary;
-    }
-  };
-
-  const filteredProjects = projects.filter(project => {
-    if (!filter) return true;
-
-    switch (filter) {
-      case 'active':
-        return ['Development', 'Review', 'Testing'].includes(project.status);
-      case 'completed':
-        return project.status === 'Done';
-      case 'pending':
-        return project.status === 'Pending';
-      default:
-        return true;
-    }
-  });
-
-  const ProjectCard = ({ project }: { project: Project }) => (
+  return (
     <TouchableOpacity
-      style={[styles.projectCard, { backgroundColor: colors.card }, shadows.md]}
-      onPress={() => handleProjectPress(project)}
-      activeOpacity={0.7}
+      onPress={() => onPress(project)}
+      style={[styles.projectCard, { backgroundColor: colors.card }]}
     >
       <View style={styles.projectHeader}>
         <View style={styles.projectTitleRow}>
-          <Text
-            style={[styles.projectTitle, { color: colors.text }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.projectTitle, { color: colors.text }]}>
             {project.title}
           </Text>
-          {isAdmin && (
-            <View style={styles.projectActions}>
+          <View style={styles.projectActions}>
+            {isAdmin && (
               <TouchableOpacity
                 style={[
                   styles.actionButton,
-                  { backgroundColor: `${colors.primary}20` },
+                  { backgroundColor: colors.primary },
                 ]}
-                onPress={() => handleEdit(project)}
+                onPress={() => onEdit(project)}
               >
-                <Icon name="edit" size={16} tintColor={colors.primary} />
+                <Icon name="edit" size={16} tintColor="#fff" />
               </TouchableOpacity>
+            )}
+            {isAdmin && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.error }]}
+                onPress={() => onDelete(project)}
+              >
+                <Icon name="delete" size={16} tintColor="#fff" />
+              </TouchableOpacity>
+            )}
+            {!isAdmin && canDevUpdate && (
               <TouchableOpacity
                 style={[
                   styles.actionButton,
-                  { backgroundColor: `${colors.error}20` },
+                  { backgroundColor: colors.primary },
                 ]}
-                onPress={() => handleDelete(project)}
+                onPress={() => onEdit(project)}
               >
-                <Icon name="delete" size={16} tintColor={colors.error} />
+                <Icon name="edit" size={16} tintColor="#fff" />
               </TouchableOpacity>
-            </View>
-          )}
+            )}
+          </View>
         </View>
-
         <Text
           style={[styles.projectDescription, { color: colors.textSecondary }]}
-          numberOfLines={2}
         >
-          {project.description}
+          {truncateDescription(project.description || '')}
         </Text>
       </View>
-
       <View style={styles.projectMeta}>
         <View style={styles.badges}>
           <View
@@ -280,19 +147,20 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
             </Text>
           </View>
         </View>
-
         <View style={styles.projectInfo}>
           <View style={styles.infoItem}>
             <Icon name="account" size={14} tintColor={colors.textSecondary} />
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              {project.assignedUser?.displayName || 'Unassigned'}
+              {assigneeLabel}
             </Text>
           </View>
 
           <View style={styles.infoItem}>
             <Icon name="calendar" size={14} tintColor={colors.textSecondary} />
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              {new Date(project.endDate).toLocaleDateString()}
+              {project.endDate
+                ? new Date(project.endDate).toLocaleDateString()
+                : 'No due date'}
             </Text>
           </View>
         </View>
@@ -321,134 +189,487 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
       </View>
     </TouchableOpacity>
   );
+};
 
-  const getScreenTitle = () => {
-    if (userSpecific && userId !== user?.uid) {
-      return 'User Projects';
+// (Removed AdminProjectTile in favor of a unified single-column card list)
+
+interface ProjectListScreenProps {
+  navigation: any;
+  route?: any;
+  userSpecific?: boolean;
+  userId?: string;
+}
+
+const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
+  navigation,
+  route,
+  userSpecific = false,
+  userId,
+}) => {
+  const { colors, shadows } = useTheme();
+  const dispatch = useAppDispatch();
+  const projects = useAppSelector(state => state.projects.projects);
+  const loading = useAppSelector(state => state.projects.loading);
+  const user = useAppSelector(state => state.auth.user);
+
+  // local ui state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  // visual filters/search for everyone (admin and user)
+  const [search, setSearch] = useState('');
+  const [adminFilter, setAdminFilter] = useState<
+    'all' | 'active' | 'pending' | 'completed'
+  >('active');
+  // Developer edit modal removed (unified detail screen editing)
+
+  const filter = route?.params?.filter;
+  const isAdmin = user?.role === 'admin';
+  const targetUserId = userId || user?.uid;
+
+  const loadProjects = useCallback(async () => {
+    try {
+      dispatch(setLoading(true));
+      let projectsData: Project[] = [];
+      if (userSpecific && targetUserId) {
+        projectsData = await getUserProjects(targetUserId);
+      } else {
+        projectsData = await getProjects();
+      }
+      dispatch(setProjects(projectsData));
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      Alert.alert('Error', 'Failed to load projects');
     }
-    if (userSpecific) {
-      return 'My Projects';
+  }, [dispatch, userSpecific, targetUserId]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProjects();
+    setRefreshing(false);
+  };
+
+  const handleDelete = (project: Project) => {
+    if (!isAdmin) {
+      Alert.alert('Permission Denied', 'Only admins can delete projects');
+      return;
     }
-    return 'All Projects';
+
+    Alert.alert(
+      'Delete Project',
+      `Are you sure you want to delete "${project.title}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteProjectFromFirestore(project.id);
+              dispatch(deleteProject(project.id));
+              Alert.alert('Success', 'Project deleted successfully');
+            } catch (err) {
+              console.error('Error deleting project:', err);
+              Alert.alert('Error', 'Failed to delete project');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleEdit = (project: Project) => {
+    // Allow admin or assigned developer to edit; navigate to detail screen for unified UI
+    const isAssignedDeveloper =
+      !isAdmin &&
+      !!user?.uid &&
+      Array.isArray(project.assignedTo) &&
+      project.assignedTo.includes(user.uid);
+    if (!isAdmin && !isAssignedDeveloper) {
+      Alert.alert(
+        'Permission Denied',
+        'You are not allowed to edit this project',
+      );
+      return;
+    }
+    if (project.id) {
+      navigation.navigate('ProjectDetailScreenNew', { projectId: project.id });
+    }
+  };
+
+  const handleAdd = () => {
+    // Allow admins only (business rule). If you want developers to create, adjust rules and remove this check.
+    if (!isAdmin) {
+      Alert.alert(
+        'Permission Denied',
+        'Only admins can create projects currently',
+      );
+      return;
+    }
+    setSelectedProject(null);
+    setModalVisible(true);
+  };
+
+  const handleProjectPress = (project: Project) => {
+    if (!project.id) {
+      Alert.alert(
+        'Error',
+        'Project ID is missing. Cannot navigate to details.',
+      );
+      return;
+    }
+    navigation.navigate('ProjectDetailScreenNew', { projectId: project.id });
+  };
+
+  // Filtered list for admin visuals
+  const adminVisuallyFiltered = useMemo(() => {
+    let data = projects;
+    if (isAdmin) {
+      if (adminFilter !== 'all') {
+        data = data.filter(p => {
+          if (adminFilter === 'active') {
+            return ['In Progress', 'Review', 'Testing'].includes(
+              p.status as any,
+            );
+          }
+          if (adminFilter === 'pending') return p.status === 'To Do';
+          if (adminFilter === 'completed') return p.status === 'Done';
+          return true;
+        });
+      }
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      data = data.filter(
+        p =>
+          (p.title || '').toLowerCase().includes(q) ||
+          (p.description || '').toLowerCase().includes(q),
+      );
+    }
+    return data;
+  }, [projects, isAdmin, adminFilter, search]);
+
+  const getStatusColor = (status: Project['status']) => {
+    switch (status) {
+      case 'To Do':
+        return '#FF3B30';
+      case 'In Progress':
+        return '#007AFF';
+      case 'Review':
+        return '#FF9500';
+      case 'Testing':
+        return '#30D158';
+      case 'Done':
+        return '#34C759';
+      case 'Deployment':
+        return '#5856D6';
+      default:
+        return colors.textSecondary;
+    }
+  };
+
+  const getPriorityColor = (priority: Project['priority']) => {
+    switch (priority) {
+      case 'Low':
+        return '#6B7280';
+      case 'Medium':
+        return '#2563EB';
+      case 'High':
+        return '#D97706';
+      case 'Critical':
+        return '#DC2626';
+      default:
+        return colors.textSecondary;
+    }
+  };
+
+  const renderProjectItem = ({ item }: { item: Project }) => {
+    const canDevUpdate =
+      !isAdmin &&
+      Array.isArray(item.assignedTo) &&
+      !!user?.uid &&
+      item.assignedTo.includes(user.uid);
+    return (
+      <ProjectCardItem
+        project={item}
+        colors={colors}
+        isAdmin={!!isAdmin}
+        canDevUpdate={canDevUpdate}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onPress={handleProjectPress}
+        getStatusColor={getStatusColor}
+        getPriorityColor={getPriorityColor}
+      />
+    );
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <StatusBar
-          barStyle={Platform.OS === 'ios' ? 'light-content' : 'light-content'}
-          backgroundColor={colors.primary}
-        />
-        <LinearGradient
-          colors={gradients.primary}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.header, { paddingTop: insets.top + 20 }]}
-        >
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Icon name="left-arrow" size={24} tintColor="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>{getScreenTitle()}</Text>
-            <View style={styles.placeholder} />
-          </View>
-        </LinearGradient>
-
-        <View style={[styles.centerContent, { flex: 1 }]}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-            Loading projects...
-          </Text>
-        </View>
+      <View
+        style={[
+          styles.container,
+          styles.centerContent,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+          Loading projects...
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar
-        barStyle={Platform.OS === 'ios' ? 'light-content' : 'light-content'}
-        backgroundColor={colors.primary}
-      />
-
-      <LinearGradient
-        colors={gradients.primary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 20 }]}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="left-arrow" size={24} tintColor="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{getScreenTitle()}</Text>
-          {isAdmin && !userSpecific && (
-            <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-              <Icon name="add" size={24} tintColor="#fff" />
-            </TouchableOpacity>
-          )}
-          {(!isAdmin || userSpecific) && <View style={styles.placeholder} />}
-        </View>
-      </LinearGradient>
-
-      <View style={styles.content}>
-        {filteredProjects.length === 0 ? (
-          <View
-            style={[
-              styles.emptyContainer,
-              { backgroundColor: colors.card },
-              shadows.sm,
-            ]}
-          >
-            <Icon name="project" size={48} tintColor={colors.primary} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              No Projects Found
-            </Text>
-            <Text
-              style={[styles.emptyMessage, { color: colors.textSecondary }]}
-            >
-              {userSpecific
-                ? 'No projects assigned to this user yet.'
-                : filter
-                ? `No ${filter} projects at the moment.`
-                : 'No projects have been created yet.'}
-            </Text>
-            {isAdmin && !userSpecific && (
-              <TouchableOpacity
+      {isAdmin && !userSpecific ? (
+        <>
+          {/* Admin header */}
+          <View style={styles.adminHeader}>
+            <View style={styles.adminHeaderLeft}>
+              <Text style={[styles.adminTitle, { color: colors.text }]}>
+                Projects
+              </Text>
+              <View
                 style={[
-                  styles.createButton,
-                  { backgroundColor: colors.primary },
+                  styles.countPill,
+                  { backgroundColor: `${colors.primary}15` },
                 ]}
-                onPress={handleAdd}
               >
-                <Icon name="add" size={20} tintColor="#fff" />
-                <Text style={styles.createButtonText}>Create Project</Text>
-              </TouchableOpacity>
+                <Text style={[styles.countPillText, { color: colors.primary }]}>
+                  {projects.length}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={handleAdd}
+              style={[styles.newBtn, { backgroundColor: colors.primary }]}
+            >
+              <Icon name="add" size={18} tintColor="#fff" />
+              <Text style={styles.newBtnText}>New</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Search and chips */}
+          <View style={styles.controlsRow}>
+            <View
+              style={[
+                styles.searchBox,
+                { backgroundColor: colors.card },
+                shadows.sm,
+              ]}
+            >
+              <Icon name="search" size={16} tintColor={colors.textSecondary} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search projects..."
+                placeholderTextColor={colors.textSecondary}
+                style={[styles.searchInput, { color: colors.text }]}
+              />
+            </View>
+            <View style={styles.chipsRow}>
+              {(['all', 'active', 'pending', 'completed'] as const).map(k => (
+                <TouchableOpacity
+                  key={k}
+                  style={[
+                    styles.chip,
+                    adminFilter === k && { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => setAdminFilter(k)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      adminFilter === k && styles.chipTextActive,
+                    ]}
+                  >
+                    {k[0].toUpperCase() + k.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.content}>
+            {adminVisuallyFiltered.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyContainer,
+                  { backgroundColor: colors.card },
+                  shadows.sm,
+                ]}
+              >
+                <Icon name="project" size={48} tintColor={colors.primary} />
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                  No Projects Found
+                </Text>
+                <Text
+                  style={[styles.emptyMessage, { color: colors.textSecondary }]}
+                >
+                  {search || adminFilter !== 'all'
+                    ? 'Try adjusting your search or filters.'
+                    : 'No projects have been created yet.'}
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.createButton,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={handleAdd}
+                >
+                  <Icon name="add" size={20} tintColor="#fff" />
+                  <Text style={styles.createButtonText}>Create Project</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <FlatList
+                data={adminVisuallyFiltered}
+                key={'admin-list'}
+                keyExtractor={item => item.id}
+                renderItem={renderProjectItem}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor={colors.primary}
+                  />
+                }
+                contentContainerStyle={styles.listContainer}
+              />
             )}
           </View>
-        ) : (
-          <FlatList
-            data={filteredProjects}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => <ProjectCard project={item} />}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.primary}
+        </>
+      ) : (
+        <>
+          {/* Simple top row header without back button, add inline with title */}
+          <View style={styles.topBar}>
+            <View style={styles.placeholder} />
+            <View style={styles.headerCenter}>
+              <Text style={[styles.titleText, { color: colors.text }]}>
+                All Projects ({projects.length})
+              </Text>
+              {isAdmin && !userSpecific && (
+                <TouchableOpacity
+                  style={[
+                    styles.addInlineButton,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={handleAdd}
+                >
+                  <Icon name="add" size={18} tintColor="#fff" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={styles.placeholder} />
+          </View>
+
+          {/* User: Search and chips (same as admin) */}
+          <View style={styles.controlsRow}>
+            <View
+              style={[
+                styles.searchBox,
+                { backgroundColor: colors.card },
+                shadows.sm,
+              ]}
+            >
+              <Icon name="search" size={16} tintColor={colors.textSecondary} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search projects..."
+                placeholderTextColor={colors.textSecondary}
+                style={[styles.searchInput, { color: colors.text }]}
               />
-            }
-            contentContainerStyle={styles.listContainer}
-          />
-        )}
-      </View>
+            </View>
+            <View style={styles.chipsRow}>
+              {(['all', 'active', 'pending', 'completed'] as const).map(k => (
+                <TouchableOpacity
+                  key={k}
+                  style={[
+                    styles.chip,
+                    adminFilter === k && { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() => setAdminFilter(k)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      adminFilter === k && styles.chipTextActive,
+                    ]}
+                  >
+                    {k[0].toUpperCase() + k.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.content}>
+            {adminVisuallyFiltered.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyContainer,
+                  { backgroundColor: colors.card },
+                  shadows.sm,
+                ]}
+              >
+                <Icon name="project" size={48} tintColor={colors.primary} />
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                  No Projects Found
+                </Text>
+                <Text
+                  style={[styles.emptyMessage, { color: colors.textSecondary }]}
+                >
+                  {search || adminFilter !== 'all'
+                    ? 'Try adjusting your search or filters.'
+                    : userSpecific
+                    ? 'No projects assigned to this user yet.'
+                    : filter
+                    ? `No ${filter} projects at the moment.`
+                    : 'No projects have been created yet.'}
+                </Text>
+                {isAdmin && !userSpecific && (
+                  <TouchableOpacity
+                    style={[
+                      styles.createButton,
+                      { backgroundColor: colors.primary },
+                    ]}
+                    onPress={handleAdd}
+                  >
+                    <Icon name="add" size={20} tintColor="#fff" />
+                    <Text style={styles.createButtonText}>Create Project</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <FlatList
+                data={adminVisuallyFiltered}
+                key={'user-list'}
+                keyExtractor={item => item.id}
+                renderItem={renderProjectItem}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor={colors.primary}
+                  />
+                }
+                contentContainerStyle={styles.listContainer}
+              />
+            )}
+          </View>
+        </>
+      )}
+
+      {/* No floating action button; bottom nav is present */}
 
       {isAdmin && (
         <Modal
@@ -461,7 +682,7 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
             onClose={() => {
               setModalVisible(false);
               setSelectedProject(null);
-              loadProjects(); // Refresh the list
+              loadProjects();
             }}
             navigation={navigation}
           />
@@ -472,81 +693,60 @@ const ProjectListScreen: React.FC<ProjectListScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingBottom: 20,
+  container: { flex: 1 },
+  content: { flex: 1, padding: 20, paddingBottom: 80 },
+  loadingText: { marginTop: 12, fontSize: 16 },
+  listContainer: { paddingBottom: 40 },
+  listContainerGrid: { paddingBottom: 40, paddingTop: 8 },
+  centerContent: { justifyContent: 'center', alignItems: 'center' },
+  topBar: {
     paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  headerContent: {
+  headerCenter: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
   },
+  titleText: { fontSize: 18, fontWeight: '700' },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholder: {
-    width: 40,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  centerContent: {
+  addInlineButton: {
+    marginLeft: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-  },
-  listContainer: {
-    paddingBottom: 20,
-  },
-  projectCard: {
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-  },
-  projectHeader: {
-    marginBottom: 12,
-  },
+  placeholder: { width: 36, height: 36 },
+
+  projectCard: { marginBottom: 16, padding: 16, borderRadius: 12 },
+  projectHeader: { marginBottom: 12 },
   projectTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  projectTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    flex: 1,
-    marginRight: 12,
-  },
-  projectActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  projectTitle: { fontSize: 18, fontWeight: 'bold', flex: 1, marginRight: 12 },
+  projectActions: { flexDirection: 'row', gap: 8 },
   actionButton: {
     width: 32,
     height: 32,
@@ -554,53 +754,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  projectDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  projectMeta: {
-    gap: 12,
-  },
-  badges: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  projectInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  infoText: {
-    fontSize: 12,
-  },
-  progressContainer: {
-    gap: 4,
-  },
-  progressText: {
-    fontSize: 12,
-  },
-  progressBar: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
+  projectDescription: { fontSize: 14, lineHeight: 20 },
+  projectMeta: { gap: 12 },
+  badges: { flexDirection: 'row', gap: 8 },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  badgeText: { fontSize: 12, fontWeight: '600' },
+  projectInfo: { flexDirection: 'row', justifyContent: 'space-between' },
+  infoItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  infoText: { fontSize: 12 },
+  progressContainer: { gap: 4 },
+  progressText: { fontSize: 12 },
+  progressBar: { height: 4, borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 2 },
+  tileProgressBar: { marginTop: 8 },
+
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -628,11 +795,114 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 8,
   },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+  createButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
   },
+  // Dev modal styles
+  devModalContainer: { flex: 1, padding: 20 },
+  devModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  devModalTitle: { fontSize: 18, fontWeight: '700' },
+  devCloseBtn: { padding: 8 },
+  devFieldGroup: { marginBottom: 16 },
+  devLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  devInput: { borderWidth: 1, borderRadius: 8, padding: 12 },
+  devActionsRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  cancelButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  cancelButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  submitButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  submitButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  // Admin UI additions
+  adminHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  adminHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  adminTitle: { fontSize: 22, fontWeight: '800' },
+  countPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  countPillText: { fontSize: 12, fontWeight: '700' },
+  newBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  newBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  controlsRow: { paddingHorizontal: 20, gap: 12 },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  searchInput: { flex: 1, fontSize: 14 },
+  chipsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#125ae92b',
+  },
+  chipText: { fontSize: 12, fontWeight: '600', color: '#031a49' },
+  chipTextActive: { color: '#fff' },
+  gridColumnWrapper: { gap: 12 },
+  adminTile: {
+    flex: 1,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+  },
+  tileHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  tileTitle: { fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 },
+  tileActions: { flexDirection: 'row', gap: 6 },
+  tileActionBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileDesc: { fontSize: 12, lineHeight: 18 },
+  tileBadgesRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  tileBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 },
+  tileBadgeText: { fontSize: 11, fontWeight: '700' },
 });
 
 export default ProjectListScreen;

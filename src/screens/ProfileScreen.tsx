@@ -1,69 +1,41 @@
 import React, { useEffect, useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  Dimensions,
-} from 'react-native';
+import { StyleSheet, Text, View, Image, ScrollView, Alert } from 'react-native';
 import { useTheme } from '../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { signOut } from '../store/slices/authSlice';
-import { fetchUserTasks } from '../store/slices/taskSlice';
 import { fetchUserProjects } from '../store/slices/projectSlice';
 import Icon from '../components/common/Icon';
-import { Task, Project } from '../types';
+// import { Project } from '../types';
 import { ProjectHeader } from './Project/components';
 
 interface ProfileScreenProps {
   navigation: any;
 }
 
-const { width } = Dimensions.get('window');
+// const { width } = Dimensions.get('window');
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { colors, shadows } = useTheme();
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.auth.user);
-  const userTasks = useAppSelector(state => state.tasks.userTasks);
   const userProjects = useAppSelector(state => state.projects.userProjects);
 
   const [stats, setStats] = useState({
-    totalTasks: 0,
-    completedTasks: 0,
-    activeTasks: 0,
     totalProjects: 0,
   });
 
   useEffect(() => {
-    if (user) {
-      // Fetch user-specific data
-      dispatch(fetchUserTasks(user.uid));
-      dispatch(fetchUserProjects(user.uid));
-    }
+    if (user) dispatch(fetchUserProjects(user.uid));
   }, [user, dispatch]);
 
   useEffect(() => {
     // Calculate stats
-    const totalTasks = userTasks.length;
-    const completedTasks = userTasks.filter(
-      task => task.status === 'Done',
-    ).length;
-    const activeTasks = userTasks.filter(
-      task => task.status === 'In Progress',
-    ).length;
     const totalProjects = userProjects.length;
 
     setStats({
-      totalTasks,
-      completedTasks,
-      activeTasks,
       totalProjects,
     });
-  }, [userTasks, userProjects]);
+  }, [userProjects]);
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -183,37 +155,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: colors.surface },
-              shadows.sm,
-            ]}
-          >
-            <Icon name="check" size={32} tintColor={colors.success} />
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              {stats.completedTasks}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              Completed Tasks
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: colors.surface },
-              shadows.sm,
-            ]}
-          >
-            <Icon name="time" size={32} tintColor={colors.primary} />
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              {stats.activeTasks}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              Active Tasks
-            </Text>
-          </View>
+          {/* Task stats removed */}
 
           <View
             style={[
@@ -232,70 +174,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Recent Activity Section */}
-        <View
-          style={[
-            styles.section,
-            { backgroundColor: colors.surface },
-            shadows.sm,
-          ]}
-        >
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Recent Tasks
-            </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('TaskScreen')}>
-              <Text style={[styles.viewAllText, { color: colors.primary }]}>
-                View All
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {userTasks.slice(0, 3).map(task => (
-            <View key={task.id} style={styles.taskItem}>
-              <View style={styles.taskInfo}>
-                <Text
-                  style={[styles.taskTitle, { color: colors.text }]}
-                  numberOfLines={1}
-                >
-                  {task.title}
-                </Text>
-                <Text
-                  style={[
-                    styles.taskDescription,
-                    { color: colors.textSecondary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {task.description}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.taskStatus,
-                  { backgroundColor: getStatusColor(task.status) + '20' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.taskStatusText,
-                    { color: getStatusColor(task.status) },
-                  ]}
-                >
-                  {task.status}
-                </Text>
-              </View>
-            </View>
-          ))}
-
-          {userTasks.length === 0 && (
-            <Text
-              style={[styles.emptyMessage, { color: colors.textSecondary }]}
-            >
-              No tasks assigned to you
-            </Text>
-          )}
-        </View>
+        {/* Recent tasks section removed */}
 
         {/* Account Information */}
         <View
@@ -347,21 +226,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     </View>
   );
 
-  function getStatusColor(status: string) {
-    switch (status) {
-      case 'To Do':
-      case 'Pending':
-        return colors.warning;
-      case 'In Progress':
-        return colors.primary;
-      case 'Done':
-        return colors.success;
-      case 'Testing':
-        return colors.info;
-      default:
-        return colors.textSecondary;
-    }
-  }
+  // Task helpers removed
 };
 
 export default ProfileScreen;

@@ -15,7 +15,8 @@ export type RootStackParamList = {
 // Main Stack Navigator (After Authentication)
 export type MainStackParamList = {
   Main: NavigatorScreenParams<DrawerParamList>;
-  TaskScreen: undefined;
+  TaskListScreen: undefined;
+  TaskDetailScreen: { taskId: string };
   MeetingScreen: undefined;
   ReportScreen: undefined;
   NotificationScreen: undefined;
@@ -27,6 +28,7 @@ export type MainStackParamList = {
 // Drawer Navigator
 export type DrawerParamList = {
   Dashboard: NavigatorScreenParams<BottomTabParamList>;
+  'Task List': undefined;
   Settings: undefined;
 };
 
@@ -48,51 +50,51 @@ export type ProjectStackParamList = {
 };
 
 // Screen Props Types for Type-Safe Navigation
-export type RootStackScreenProps<T extends keyof RootStackParamList> = 
+export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;
 
-export type MainStackScreenProps<T extends keyof MainStackParamList> = 
+export type MainStackScreenProps<T extends keyof MainStackParamList> =
   NativeStackScreenProps<MainStackParamList, T>;
 
-export type DrawerScreenPropsType<T extends keyof DrawerParamList> = 
+export type DrawerScreenPropsType<T extends keyof DrawerParamList> =
   DrawerScreenProps<DrawerParamList, T>;
 
-export type BottomTabScreenPropsType<T extends keyof BottomTabParamList> = 
+export type BottomTabScreenPropsType<T extends keyof BottomTabParamList> =
   BottomTabScreenProps<BottomTabParamList, T>;
 
-export type ProjectStackScreenProps<T extends keyof ProjectStackParamList> = 
+export type ProjectStackScreenProps<T extends keyof ProjectStackParamList> =
   NativeStackScreenProps<ProjectStackParamList, T>;
 
 // Navigation Prop Types
-export type RootStackNavigationProp<T extends keyof RootStackParamList> = 
+export type RootStackNavigationProp<T extends keyof RootStackParamList> =
   RootStackScreenProps<T>['navigation'];
 
-export type MainStackNavigationProp<T extends keyof MainStackParamList> = 
+export type MainStackNavigationProp<T extends keyof MainStackParamList> =
   MainStackScreenProps<T>['navigation'];
 
-export type DrawerNavigationProp<T extends keyof DrawerParamList> = 
+export type DrawerNavigationProp<T extends keyof DrawerParamList> =
   DrawerScreenPropsType<T>['navigation'];
 
-export type BottomTabNavigationProp<T extends keyof BottomTabParamList> = 
+export type BottomTabNavigationProp<T extends keyof BottomTabParamList> =
   BottomTabScreenPropsType<T>['navigation'];
 
-export type ProjectStackNavigationProp<T extends keyof ProjectStackParamList> = 
+export type ProjectStackNavigationProp<T extends keyof ProjectStackParamList> =
   ProjectStackScreenProps<T>['navigation'];
 
 // Route Prop Types
-export type RootStackRouteProp<T extends keyof RootStackParamList> = 
+export type RootStackRouteProp<T extends keyof RootStackParamList> =
   RootStackScreenProps<T>['route'];
 
-export type MainStackRouteProp<T extends keyof MainStackParamList> = 
+export type MainStackRouteProp<T extends keyof MainStackParamList> =
   MainStackScreenProps<T>['route'];
 
-export type DrawerRouteProp<T extends keyof DrawerParamList> = 
+export type DrawerRouteProp<T extends keyof DrawerParamList> =
   DrawerScreenPropsType<T>['route'];
 
-export type BottomTabRouteProp<T extends keyof BottomTabParamList> = 
+export type BottomTabRouteProp<T extends keyof BottomTabParamList> =
   BottomTabScreenPropsType<T>['route'];
 
-export type ProjectStackRouteProp<T extends keyof ProjectStackParamList> = 
+export type ProjectStackRouteProp<T extends keyof ProjectStackParamList> =
   ProjectStackScreenProps<T>['route'];
 
 // Declare global navigation types for TypeScript

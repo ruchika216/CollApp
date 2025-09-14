@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+} from 'react-native';
 import { SubTask, User } from '../../types';
 import { useTheme } from '../../theme/useTheme';
+import Icon from '../common/Icon';
+import auth from '@react-native-firebase/auth';
 
 interface SubTaskItemProps {
   subTask: SubTask;
@@ -20,12 +29,14 @@ const SubTaskItem: React.FC<SubTaskItemProps> = ({
   onDelete,
   canEdit = false,
   assignee,
-  isEditable = false
+  isEditable = false,
 }) => {
   const theme = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(subTask.title);
-  const [editedDescription, setEditedDescription] = useState(subTask.description || '');
+  const [editedDescription, setEditedDescription] = useState(
+    subTask.description || '',
+  );
   const styles = getStyles(theme);
 
   const getStatusColor = (status: SubTask['status']) => {
@@ -62,7 +73,11 @@ const SubTaskItem: React.FC<SubTaskItemProps> = ({
   };
 
   const handleSaveEdit = () => {
-    if (onEdit && (editedTitle.trim() !== subTask.title || editedDescription.trim() !== (subTask.description || ''))) {
+    if (
+      onEdit &&
+      (editedTitle.trim() !== subTask.title ||
+        editedDescription.trim() !== (subTask.description || ''))
+    ) {
       onEdit(subTask.id, {
         title: editedTitle.trim(),
         description: editedDescription.trim() || undefined,
@@ -84,8 +99,12 @@ const SubTaskItem: React.FC<SubTaskItemProps> = ({
         'Are you sure you want to delete this subtask?',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => onDelete(subTask.id) }
-        ]
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => onDelete(subTask.id),
+          },
+        ],
       );
     }
   };
@@ -93,28 +112,28 @@ const SubTaskItem: React.FC<SubTaskItemProps> = ({
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     });
   };
 
   return (
     <View style={styles.container}>
       {/* Status Indicator */}
-      <TouchableOpacity 
-        style={styles.statusIndicator} 
+      <TouchableOpacity
+        style={styles.statusIndicator}
         onPress={canEdit ? handleStatusPress : undefined}
         disabled={!canEdit}
       >
-        <View style={[
-          styles.statusDot, 
-          { 
-            backgroundColor: getStatusColor(subTask.status),
-            opacity: subTask.status === 'Done' ? 1 : 0.7
-          }
-        ]}>
-          {subTask.status === 'Done' && (
-            <Text style={styles.checkMark}>✓</Text>
-          )}
+        <View
+          style={[
+            styles.statusDot,
+            {
+              backgroundColor: getStatusColor(subTask.status),
+              opacity: subTask.status === 'Done' ? 1 : 0.7,
+            },
+          ]}
+        >
+          {subTask.status === 'Done' && <Text style={styles.checkMark}>✓</Text>}
         </View>
       </TouchableOpacity>
 
@@ -138,32 +157,44 @@ const SubTaskItem: React.FC<SubTaskItemProps> = ({
               multiline
             />
             <View style={styles.editActions}>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveEdit}>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSaveEdit}
+              >
                 <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelButton} onPress={handleCancelEdit}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={handleCancelEdit}
+              >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.taskContent}
             onPress={isEditable ? () => setIsEditing(true) : undefined}
             onLongPress={canEdit ? handleDelete : undefined}
           >
-            <Text style={[
-              styles.title,
-              subTask.status === 'Done' && styles.completedTitle
-            ]} numberOfLines={2}>
+            <Text
+              style={[
+                styles.title,
+                subTask.status === 'Done' && styles.completedTitle,
+              ]}
+              numberOfLines={2}
+            >
               {subTask.title}
             </Text>
-            
+
             {subTask.description && (
-              <Text style={[
-                styles.description,
-                subTask.status === 'Done' && styles.completedText
-              ]} numberOfLines={3}>
+              <Text
+                style={[
+                  styles.description,
+                  subTask.status === 'Done' && styles.completedText,
+                ]}
+                numberOfLines={3}
+              >
                 {subTask.description}
               </Text>
             )}
@@ -171,15 +202,30 @@ const SubTaskItem: React.FC<SubTaskItemProps> = ({
             {/* Meta Information */}
             <View style={styles.metaContainer}>
               <View style={styles.leftMeta}>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(subTask.status) + '20' }]}>
-                  <Text style={[styles.statusText, { color: getStatusColor(subTask.status) }]}>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: getStatusColor(subTask.status) + '20' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      { color: getStatusColor(subTask.status) },
+                    ]}
+                  >
                     {subTask.status}
                   </Text>
                 </View>
 
                 {subTask.priority && (
                   <View style={styles.priorityBadge}>
-                    <Text style={[styles.priorityText, { color: getPriorityColor(subTask.priority) }]}>
+                    <Text
+                      style={[
+                        styles.priorityText,
+                        { color: getPriorityColor(subTask.priority) },
+                      ]}
+                    >
                       {subTask.priority}
                     </Text>
                   </View>
@@ -192,7 +238,7 @@ const SubTaskItem: React.FC<SubTaskItemProps> = ({
                     Due: {formatDate(subTask.dueDate)}
                   </Text>
                 )}
-                
+
                 {assignee && (
                   <Text style={styles.assigneeText}>
                     {assignee.name || assignee.email}
@@ -217,19 +263,21 @@ const SubTaskItem: React.FC<SubTaskItemProps> = ({
       {canEdit && !isEditing && (
         <View style={styles.actions}>
           {isEditable && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.editAction}
               onPress={() => setIsEditing(true)}
             >
-              <Text style={styles.editActionText}>✏️</Text>
+              <Icon name="edit" size={16} tintColor={theme.colors.primary} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
-            style={styles.deleteAction}
-            onPress={handleDelete}
-          >
-            <Text style={styles.deleteActionText}>🗑️</Text>
-          </TouchableOpacity>
+          {subTask.createdBy === auth().currentUser?.uid && (
+            <TouchableOpacity
+              style={styles.editAction}
+              onPress={() => setIsEditing(true)}
+            >
+              <Icon name="edit" size={16} tintColor={theme.colors.primary} />
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>

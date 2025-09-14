@@ -17,22 +17,23 @@ import { clearUser, signOut } from '../store/slices/userSlice';
 import { CommonActions } from '@react-navigation/native';
 
 // Import the new screens
-import TaskScreen from '../screens/TaskScreen';
 import MeetingScreen from '../screens/MeetingScreen';
 import ReportScreen from '../screens/ReportScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProjectDetailScreenNew from '../screens/Project/ProjectDetailScreen';
+import TaskNavigator from './TaskNavigator';
 import ProjectFormNew from '../screens/Admin/ProjectFormNew';
 
 type DrawerParamList = {
   Dashboard: undefined;
+  'Task List': undefined;
   Settings: undefined;
 };
 
 type RootStackParamList = {
   Main: undefined;
-  TaskScreen: undefined;
+  Tasks: undefined;
   MeetingScreen: undefined;
   ReportScreen: undefined;
   NotificationScreen: undefined;
@@ -46,7 +47,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const dispatch = useAppDispatch();
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
   const user = useAppSelector(state => state.user.user);
   const styles = makeStyles(isDark);
 
@@ -66,11 +67,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   };
 
   return (
-    <DrawerContentScrollView
-      {...props}
-      style={styles.drawerContent}
-      contentContainerStyle={{ flexGrow: 1 }}
-    >
+    <DrawerContentScrollView {...props} style={styles.drawerContent}>
       {/* User Profile Section */}
       <View style={styles.profileSection}>
         {user?.photoURL ? (
@@ -93,7 +90,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         </Text>
       </View>
 
-      <View style={{ flex: 1, marginTop: 16 }}>
+      <View style={styles.drawerItemsWrap}>
         <DrawerItemList {...props} />
       </View>
 
@@ -115,13 +112,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         <DrawerItem
           label="Sign Out"
           onPress={handleSignOut}
-          icon={({ size }) => (
-            <Icon
-              name="logout"
-              size={size}
-              tintColor={isDark ? '#ae9cff' : '#4611f8'}
-            />
-          )}
+          icon={logoutIconRenderer(isDark)}
           labelStyle={styles.signOutLabel}
           style={styles.signOutButton}
           pressColor={isDark ? '#232155' : '#dcd6ff'}
@@ -136,7 +127,7 @@ function MainDrawerNavigator() {
   const { isDark } = useTheme();
   return (
     <Drawer.Navigator
-      drawerContent={props => <CustomDrawerContent {...props} />}
+      drawerContent={drawerContentRenderer}
       screenOptions={{
         headerShown: false,
         drawerActiveBackgroundColor: isDark ? '#28214b80' : '#dcd6ff60',
@@ -164,18 +155,21 @@ function MainDrawerNavigator() {
         name="Dashboard"
         component={BottomNavigator}
         options={{
-          drawerIcon: ({ color, size }) => (
-            <Icon name="dashboard" size={size} tintColor={color} />
-          ),
+          drawerIcon: dashboardIconRenderer,
+        }}
+      />
+      <Drawer.Screen
+        name="Task List"
+        component={TaskNavigator}
+        options={{
+          drawerIcon: taskListIconRenderer,
         }}
       />
       <Drawer.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
-          drawerIcon: ({ color, size }) => (
-            <Icon name="settings" size={size} tintColor={color} />
-          ),
+          drawerIcon: settingsIconRenderer,
         }}
       />
     </Drawer.Navigator>
@@ -191,7 +185,7 @@ export default function DrawerNavigator() {
         }}
       >
         <Stack.Screen name="Main" component={MainDrawerNavigator} />
-        <Stack.Screen name="TaskScreen" component={TaskScreen} />
+        <Stack.Screen name="Tasks" component={TaskNavigator} />
         <Stack.Screen name="MeetingScreen" component={MeetingScreen} />
         <Stack.Screen name="ReportScreen" component={ReportScreen} />
         <Stack.Screen
@@ -203,10 +197,7 @@ export default function DrawerNavigator() {
           name="ProjectDetailScreenNew"
           component={ProjectDetailScreenNew}
         />
-        <Stack.Screen
-          name="ProjectFormNew"
-          component={ProjectFormNew}
-        />
+        <Stack.Screen name="ProjectFormNew" component={ProjectFormNew} />
       </Stack.Navigator>
     </RouteProtection>
   );
@@ -217,6 +208,10 @@ function makeStyles(isDark: boolean) {
     drawerContent: {
       flex: 1,
       backgroundColor: isDark ? '#181533' : '#fff',
+    },
+    drawerItemsWrap: {
+      flex: 1,
+      marginTop: 16,
     },
     profileSection: {
       marginHorizontal: 18,
@@ -295,3 +290,43 @@ function makeStyles(isDark: boolean) {
     },
   });
 }
+
+// Stable renderers to satisfy lint rules
+const drawerContentRenderer = (props: DrawerContentComponentProps) => (
+  <CustomDrawerContent {...props} />
+);
+
+const dashboardIconRenderer = ({
+  color,
+  size,
+}: {
+  color: string;
+  size: number;
+}) => <Icon name="dashboard" size={size} tintColor={color} />;
+
+const settingsIconRenderer = ({
+  color,
+  size,
+}: {
+  color: string;
+  size: number;
+}) => <Icon name="settings" size={size} tintColor={color} />;
+
+const taskListIconRenderer = ({
+  color,
+  size,
+}: {
+  color: string;
+  size: number;
+}) => <Icon name="status" size={size} tintColor={color} />;
+
+const logoutIconRenderer =
+  (isDark: boolean) =>
+  ({ size }: { size: number }) =>
+    (
+      <Icon
+        name="logout"
+        size={size}
+        tintColor={isDark ? '#ae9cff' : '#4611f8'}
+      />
+    );

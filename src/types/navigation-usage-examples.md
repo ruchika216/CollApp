@@ -23,10 +23,10 @@ interface HomeScreenProps extends BottomTabScreenPropsType<'Home'> {}
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // navigation and route are fully typed
-  
+
   const handleNavigateToProjects = () => {
     navigation.navigate('Projects', {
-      screen: 'ProjectList'
+      screen: 'ProjectList',
     });
   };
 
@@ -34,11 +34,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     navigation.navigate('Profile');
   };
 
-  return (
-    <View>
-      {/* Your component JSX */}
-    </View>
-  );
+  return <View>{/* Your component JSX */}</View>;
 };
 ```
 
@@ -46,9 +42,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
 ```typescript
 import { useNavigation, useRoute } from '@react-navigation/native';
-import type { 
-  BottomTabNavigationProp, 
-  BottomTabRouteProp 
+import type {
+  BottomTabNavigationProp,
+  BottomTabRouteProp,
 } from '../types/navigation';
 
 const MyComponent: React.FC = () => {
@@ -59,11 +55,7 @@ const MyComponent: React.FC = () => {
     navigation.navigate('Chat');
   };
 
-  return (
-    <View>
-      {/* Your component JSX */}
-    </View>
-  );
+  return <View>{/* Your component JSX */}</View>;
 };
 ```
 
@@ -84,20 +76,16 @@ const ProjectListScreen: React.FC = () => {
     navigation.navigate('EditProject', { projectId });
   };
 
-  return (
-    <View>
-      {/* Your component JSX */}
-    </View>
-  );
+  return <View>{/* Your component JSX */}</View>;
 };
 ```
 
 ### 4. Cross-Stack Navigation
 
 ```typescript
-import type { 
+import type {
   BottomTabNavigationProp,
-  MainStackNavigationProp 
+  MainStackNavigationProp,
 } from '../types/navigation';
 
 const HomeScreen: React.FC = () => {
@@ -105,20 +93,12 @@ const HomeScreen: React.FC = () => {
 
   const handleGoToSettings = () => {
     // Navigate to a screen in the parent Main Stack
-    const mainNavigation = navigation.getParent<MainStackNavigationProp<'Main'>>();
+    const mainNavigation =
+      navigation.getParent<MainStackNavigationProp<'Main'>>();
     mainNavigation?.navigate('SettingsScreen');
   };
 
-  const handleGoToTaskScreen = () => {
-    const mainNavigation = navigation.getParent<MainStackNavigationProp<'Main'>>();
-    mainNavigation?.navigate('TaskScreen');
-  };
-
-  return (
-    <View>
-      {/* Your component JSX */}
-    </View>
-  );
+  return <View>{/* Your component JSX */}</View>;
 };
 ```
 
@@ -136,7 +116,7 @@ const SignOutButton: React.FC = () => {
       CommonActions.reset({
         index: 0,
         routes: [{ name: 'Login' }],
-      })
+      }),
     );
   };
 
@@ -145,7 +125,7 @@ const SignOutButton: React.FC = () => {
       CommonActions.reset({
         index: 0,
         routes: [{ name: 'PendingApproval' }],
-      })
+      }),
     );
   };
 
@@ -191,11 +171,12 @@ const DashboardButton: React.FC = () => {
 ```typescript
 import type { ProjectStackScreenPropsType } from '../types/navigation';
 
-interface ProjectDetailScreenProps extends ProjectStackScreenPropsType<'ProjectDetail'> {}
+interface ProjectDetailScreenProps
+  extends ProjectStackScreenPropsType<'ProjectDetail'> {}
 
-const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({ 
-  navigation, 
-  route 
+const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
+  navigation,
+  route,
 }) => {
   const { projectId } = route.params; // TypeScript knows projectId exists and is a string
 
@@ -239,16 +220,16 @@ const ProjectListScreen: React.FC = () => {
     React.useCallback(() => {
       // Screen focused - refresh data
       console.log('Projects screen focused');
-      
+
       return () => {
         // Screen unfocused - cleanup
         console.log('Projects screen unfocused');
       };
-    }, [])
+    }, []),
   );
 
   React.useEffect(() => {
-    const unsubscribe = navigation.addListener('tabPress', (e) => {
+    const unsubscribe = navigation.addListener('tabPress', e => {
       // Handle tab press
       console.log('Projects tab pressed');
     });
@@ -256,11 +237,7 @@ const ProjectListScreen: React.FC = () => {
     return unsubscribe;
   }, [navigation]);
 
-  return (
-    <View>
-      {/* Your component JSX */}
-    </View>
-  );
+  return <View>{/* Your component JSX */}</View>;
 };
 ```
 
@@ -276,6 +253,7 @@ const ProjectListScreen: React.FC = () => {
 ## Common TypeScript Errors and Solutions
 
 ### Error: Property 'navigate' does not exist
+
 **Solution**: Import and use the correct navigation type
 
 ```typescript
@@ -287,6 +265,7 @@ const navigation = useNavigation<BottomTabNavigationProp<'Home'>>();
 ```
 
 ### Error: Argument of type 'X' is not assignable to parameter
+
 **Solution**: Check your param list definitions and ensure parameters match
 
 ```typescript
@@ -298,6 +277,7 @@ navigation.navigate('ProjectDetail', { projectId: 'project-123' });
 ```
 
 ### Error: Cannot find name 'ReactNavigation'
+
 **Solution**: Make sure you've imported the global declaration from navigation.ts
 
 The global declaration in `src/types/navigation.ts` should automatically provide global types for all React Navigation hooks.

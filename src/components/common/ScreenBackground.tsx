@@ -2,7 +2,7 @@ import React from 'react';
 import { StatusBar, ViewStyle } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
-import { getStatusBarStyle } from '../../utils/platformUtils';
+import { getStatusBarStyle } from '../../shared/platformUtils';
 
 /**
  * Props for ScreenBackground component
@@ -40,7 +40,7 @@ export const ScreenBackground: React.FC<ScreenBackgroundProps> = ({
     if (customGradient) return customGradient;
 
     const gradients = colors.gradients;
-    
+
     switch (gradientType) {
       case 'primary':
         return gradients?.primary || ['#6a01f6', '#7d1aff'];
@@ -96,18 +96,20 @@ export const ScreenBackgrounds = {
   Default: (props: Omit<ScreenBackgroundProps, 'gradientType'>) => (
     <ScreenBackground {...props} gradientType="background" />
   ),
-  
+
   Primary: (props: Omit<ScreenBackgroundProps, 'gradientType'>) => (
     <ScreenBackground {...props} gradientType="primary" />
   ),
-  
+
   Card: (props: Omit<ScreenBackgroundProps, 'gradientType'>) => (
     <ScreenBackground {...props} gradientType="card" />
   ),
-  
-  Auth: (props: Omit<ScreenBackgroundProps, 'gradientType' | 'gradientDirection'>) => (
-    <ScreenBackground 
-      {...props} 
+
+  Auth: (
+    props: Omit<ScreenBackgroundProps, 'gradientType' | 'gradientDirection'>,
+  ) => (
+    <ScreenBackground
+      {...props}
       gradientType="background"
       gradientDirection={{ start: { x: 0, y: 0 }, end: { x: 1, y: 1 } }}
     />

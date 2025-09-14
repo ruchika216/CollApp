@@ -83,7 +83,12 @@ const StatusPrioritySelector: React.FC<StatusPrioritySelectorProps> = ({
     'Deployment',
   ];
 
-  const priorityOptions: Project['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
+  const priorityOptions: Project['priority'][] = [
+    'Low',
+    'Medium',
+    'High',
+    'Critical',
+  ];
 
   const styles = getStyles(theme);
 
@@ -103,16 +108,16 @@ const StatusPrioritySelector: React.FC<StatusPrioritySelectorProps> = ({
           <View style={styles.dropdownHeader}>
             <Text style={styles.dropdownTitle}>Select Status</Text>
             <TouchableOpacity onPress={() => setShowStatusDropdown(false)}>
-              <Image 
-                source={require('../../../assets/icons/cancel.png')} 
+              <Image
+                source={require('../../../assets/icons/cancel.png')}
                 style={styles.cancelIcon}
                 resizeMode="contain"
               />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.optionsContainer}>
-            {statusOptions.map((option) => (
+            {statusOptions.map(option => (
               <TouchableOpacity
                 key={option}
                 style={[
@@ -170,16 +175,16 @@ const StatusPrioritySelector: React.FC<StatusPrioritySelectorProps> = ({
           <View style={styles.dropdownHeader}>
             <Text style={styles.dropdownTitle}>Select Priority</Text>
             <TouchableOpacity onPress={() => setShowPriorityDropdown(false)}>
-              <Image 
-                source={require('../../../assets/icons/cancel.png')} 
+              <Image
+                source={require('../../../assets/icons/cancel.png')}
                 style={styles.cancelIcon}
                 resizeMode="contain"
               />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.optionsContainer}>
-            {priorityOptions.map((option) => (
+            {priorityOptions.map(option => (
               <TouchableOpacity
                 key={option}
                 style={[
@@ -211,7 +216,11 @@ const StatusPrioritySelector: React.FC<StatusPrioritySelectorProps> = ({
                   </Text>
                 </View>
                 {priority === option && (
-                  <Icon name="check" size={16} color={getPriorityColor(option)} />
+                  <Icon
+                    name="check"
+                    size={16}
+                    color={getPriorityColor(option)}
+                  />
                 )}
               </TouchableOpacity>
             ))}

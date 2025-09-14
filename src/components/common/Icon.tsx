@@ -22,14 +22,17 @@ export type IconName =
   | 'up-arrow'
   | 'logout'
   | 'search'
+  | 'magnifier'
   | 'filter'
   | 'calendar'
   | 'file'
   | 'comment'
+  | 'message'
   | 'status'
   | 'user'
   | 'team'
   | 'priority'
+  | 'link'
   | 'close'
   | 'check'
   | 'star'
@@ -42,6 +45,7 @@ export type IconName =
   | 'theme'
   | 'help'
   | 'more'
+  | 'error'
   | 'privacy';
 
 const iconSources: Record<IconName, any> = {
@@ -73,15 +77,18 @@ const iconSources: Record<IconName, any> = {
 
   // Other icons
   logout: require('../../assets/icons/account.png'),
-  search: require('../../assets/icons/notification.png'),
+  search: require('../../assets/icons/search.png'),
+  magnifier: require('../../assets/icons/search.png'),
   filter: require('../../assets/icons/settings.png'),
   calendar: require('../../assets/icons/dashboard.png'),
   file: require('../../assets/icons/project.png'),
-  comment: require('../../assets/icons/chat.png'),
+  comment: require('../../assets/icons/message.png'),
+  message: require('../../assets/icons/message.png'),
   status: require('../../assets/icons/dashboard.png'),
   user: require('../../assets/icons/account.png'),
   team: require('../../assets/icons/dashboard.png'),
   priority: require('../../assets/icons/settings.png'),
+  link: require('../../assets/icons/project.png'),
   close: require('../../assets/icons/cancel.png'),
   check: require('../../assets/icons/notification.png'),
   star: require('../../assets/icons/project.png'),
@@ -92,6 +99,7 @@ const iconSources: Record<IconName, any> = {
   info: require('../../assets/icons/notification.png'),
   theme: require('../../assets/icons/settings.png'),
   help: require('../../assets/icons/notification.png'),
+  error: require('../../assets/icons/cancel.png'), // using cancel as fallback for error/alert
   privacy: require('../../assets/icons/settings.png'),
 };
 

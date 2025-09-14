@@ -7,6 +7,7 @@ import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import activityReducer from './slices/activitySlice';
 import taskReducer from './slices/taskSlice';
+import enhancedTaskReducer from './slices/enhancedTaskSlice';
 import meetingReducer from './slices/meetingSlice';
 import reportReducer from './slices/reportSlice';
 
@@ -17,6 +18,7 @@ export const store = configureStore({
     theme: themeReducer,
     projects: projectReducer,
     tasks: taskReducer,
+    enhancedTasks: enhancedTaskReducer,
     meetings: meetingReducer,
     reports: reportReducer,
     notifications: notificationReducer,
@@ -37,17 +39,23 @@ export const store = configureStore({
           'user.allUsers',
           'projects.projects',
           'tasks.tasks',
-          'meetings.meetings', 
+          'enhancedTasks.tasks',
+          'enhancedTasks.filteredTasks',
+          'meetings.meetings',
           'reports.reports',
           'activities.activities',
-          'notifications.notifications'
+          'notifications.notifications',
         ],
         ignoredActionsPaths: [
           'payload.createdAt',
-          'payload.updatedAt', 
+          'payload.updatedAt',
+          'payload.dueDate',
           'payload.lastSeen',
+          'payload.date',
+          'payload.startTime',
+          'payload.endTime',
           'meta.arg',
-          'meta.baseQueryMeta'
+          'meta.baseQueryMeta',
         ],
       },
     }),

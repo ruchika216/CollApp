@@ -1,26 +1,25 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  RefreshControl,
+  Button,
+} from 'react-native';
 import { useTheme } from '../theme/useTheme';
 import AppText from '../components/common/AppText';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { fetchProjects, fetchUserProjects } from '../store/slices/projectSlice';
-import {
-  fetchTasks,
-  subscribeToTasks,
-  unsubscribeFromTasks,
-} from '../store/slices/taskSlice';
 import {
   fetchMeetings,
   fetchUserMeetings,
   fetchUpcomingMeetings,
 } from '../store/slices/meetingSlice';
 import { fetchApprovedUsers } from '../store/slices/userSlice';
-import { Task, Meeting } from '../types';
+import { Meeting, Task } from '../types';
 import WelcomeCardSection from '../components/homepage/WelcomeCard';
 import UsersScrollBarSection from '../components/homepage/UsersScrollBar';
-import TodaysTasksCardSection from '../components/homepage/TodaysTasksCard';
 import UpcomingMeetingsSection from '../components/homepage/UpcomingMeetingsSection';
-import AllTasksScrollSection from '../components/homepage/AllTasksScrollSection';
 import ProjectCardsSection from '../components/homepage/ProjectCardsSection';
 import QuickActionsGrid from '../components/homepage/QuickActionsGrid';
 import TodaysScheduleSection from '../components/homepage/TodaysScheduleSection';
@@ -29,6 +28,8 @@ import {
   filterUpcomingMeetings,
   filterTodaysMeetings,
 } from '../utils/meetingUtils';
+import { testFirestoreRules } from '../utils/testFirestoreRules';
+import { getUserTasks } from '../firebase/taskServices';
 
 // const { width } = Dimensions.get('window');
 
@@ -42,55 +43,45 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
   const user = useAppSelector(state => state.auth.user);
   const projects = useAppSelector(state => state.projects.projects);
   const userProjects = useAppSelector(state => state.projects.userProjects);
-  const allTasks = useAppSelector(state => state.tasks.tasks);
-  // const userTasks = useAppSelector(state => state.tasks.userTasks);
+  // Tasks removed
   const allMeetings = useAppSelector(state => state.meetings.meetings);
   const userMeetings = useAppSelector(state => state.meetings.userMeetings);
   const approvedUsers = useAppSelector(state => state.user.approvedUsers);
 
-  const [todaysTasks, setTodaysTasks] = useState<Task[]>([]);
+  // Tasks removed
   const [todaysMeetings, setTodaysMeetings] = useState<Meeting[]>([]);
   const [nextMeetings, setNextMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [userTaskCount, setUserTaskCount] = useState(0);
 
   const userUid = user?.uid;
   const userRole = user?.role;
   const isAdmin = userRole === 'admin';
   const displayProjects = isAdmin ? projects : userProjects;
-  const displayTasks = allTasks; // Show all tasks to all users
   const displayMeetings = isAdmin ? allMeetings : userMeetings; // Show appropriate meetings based on role
 
   const loadTodaysData = useCallback(async () => {
     if (!user || !user.approved) {
-      setTodaysTasks([]);
       setTodaysMeetings([]);
       setNextMeetings([]);
       return;
     }
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const todaysTasksFiltered = displayTasks.filter(task => {
-        const taskDate = new Date(task.startDate).toISOString().split('T')[0];
-        return taskDate === today;
-      });
       const userSpecificMeetings = isAdmin ? displayMeetings : userMeetings;
       const todaysMeetingsFiltered = filterTodaysMeetings(userSpecificMeetings);
       const upcomingMeetingsFiltered = filterUpcomingMeetings(
         userSpecificMeetings,
         5,
       );
-
-      setTodaysTasks(todaysTasksFiltered);
       setTodaysMeetings(todaysMeetingsFiltered);
       setNextMeetings(upcomingMeetingsFiltered);
     } catch (error) {
       console.error("Error loading today's data:", error);
-      setTodaysTasks([]);
       setTodaysMeetings([]);
       setNextMeetings([]);
     }
-  }, [user, displayTasks, isAdmin, displayMeetings, userMeetings]);
+  }, [user, isAdmin, displayMeetings, userMeetings]);
 
   const loadHomeData = useCallback(async () => {
     if (!userUid) {
@@ -114,7 +105,6 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
           dispatch(fetchUserMeetings(userUid)) as unknown as Promise<any>,
         );
       }
-      promises.push(dispatch(fetchTasks()) as unknown as Promise<any>);
       promises.push(
         dispatch(
           fetchUpcomingMeetings({ userId: userUid, limit: 5 }),
@@ -137,6 +127,22 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
     loadHomeData();
   }, [loadHomeData]);
 
+  // Load user tasks count
+  useEffect(() => {
+    const loadUserTaskCount = async () => {
+      if (user?.uid) {
+        try {
+          const userTasks = await getUserTasks(user.uid);
+          setUserTaskCount(userTasks.length);
+        } catch (error) {
+          console.error('Error loading user tasks count:', error);
+        }
+      }
+    };
+
+    loadUserTaskCount();
+  }, [user?.uid]);
+
   // If user is not available, ensure we don't show endless loading
   useEffect(() => {
     if (!userUid) {
@@ -144,37 +150,33 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   }, [userUid]);
 
-  // Manage real-time subscription separately; only depends on user id/approval
-  useEffect(() => {
-    if (user?.approved) {
-      console.log(
-        'HomeScreen: Subscribing to tasks for user:',
-        userRole,
-        userUid,
-      );
-      dispatch(subscribeToTasks());
-      return () => {
-        dispatch(unsubscribeFromTasks());
-      };
-    }
-    // If not approved or no user, ensure we clean up any existing subscription
-    return () => {
-      dispatch(unsubscribeFromTasks());
-    };
-  }, [dispatch, user?.approved, userUid, userRole]);
+  // Task subscriptions removed
 
-  // Update today's data whenever tasks or meetings change
+  // Update today's data whenever meetings change
   useEffect(() => {
     if (user && user.approved) {
       loadTodaysData();
     }
-  }, [allTasks, allMeetings, user, loadTodaysData]);
+  }, [allMeetings, user, loadTodaysData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadHomeData();
+
+    // Also refresh task count
+    if (user?.uid) {
+      try {
+        const userTasks = await getUserTasks(user.uid);
+        setUserTaskCount(userTasks.length);
+      } catch (error) {
+        console.error('Error refreshing user tasks count:', error);
+      }
+    }
+
     setRefreshing(false);
   };
+
+  // Task deletion removed
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -183,48 +185,7 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
     return 'Good Evening';
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'To Do':
-      case 'Pending':
-        return colors.warning;
-      case 'In Progress':
-        return colors.primary;
-      case 'Done':
-        return colors.success;
-      case 'Testing':
-        return colors.info;
-      case 'Review':
-        return '#9C27B0';
-      case 'Deployment':
-        return '#FF5722';
-      default:
-        return colors.textSecondary;
-    }
-  };
-
-  const getAssigneeName = (userId: string) => {
-    const foundUser = approvedUsers.find(u => u.uid === userId);
-    return (
-      foundUser?.name ||
-      foundUser?.displayName ||
-      foundUser?.email?.split('@')[0] ||
-      'Unknown User'
-    );
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High':
-        return colors.error;
-      case 'Medium':
-        return colors.warning;
-      case 'Low':
-        return colors.success;
-      default:
-        return colors.textSecondary;
-    }
-  };
+  // Task helpers removed
 
   if (loading) {
     return (
@@ -270,8 +231,12 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
             {
               key: 'tasks',
               label: 'Tasks',
-              icon: 'dashboard',
-              onPress: () => navigation.navigate('TaskScreen' as never),
+              icon: 'status',
+              badge: userTaskCount > 0 ? userTaskCount.toString() : undefined,
+              onPress: () => {
+                // Navigate to the enhanced task management system
+                navigation.navigate('Tasks' as never);
+              },
             },
             {
               key: 'meet',
@@ -311,16 +276,6 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
           contentPaddingHorizontal={0}
           sections={[
             {
-              key: 'today_tasks',
-              render: () => (
-                <TodaysTasksCardSection
-                  todaysTasks={todaysTasks}
-                  navigation={navigation}
-                  shadows={shadows}
-                />
-              ),
-            },
-            {
               key: 'today_schedule',
               render: () => (
                 <TodaysScheduleSection
@@ -342,15 +297,7 @@ const HomeScreenEnhanced: React.FC<HomeScreenProps> = ({ navigation }) => {
           ]}
         />
 
-        {/* All Tasks Scroll Section */}
-        <AllTasksScrollSection
-          displayTasks={displayTasks}
-          navigation={navigation}
-          getPriorityColor={getPriorityColor}
-          getStatusColor={getStatusColor}
-          getAssigneeName={getAssigneeName}
-          shadows={shadows}
-        />
+        {/* All Tasks section removed */}
 
         {/* Project Cards */}
         <ProjectCardsSection

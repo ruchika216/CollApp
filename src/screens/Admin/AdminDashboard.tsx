@@ -19,20 +19,9 @@ import { useTheme } from '../../theme/useTheme';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import { fetchProjects } from '../../store/slices/projectSlice';
 import { fetchPendingUsers } from '../../store/slices/userSlice';
-import {
-  fetchTasks,
-  createTask,
-  updateTask,
-  deleteTask,
-} from '../../store/slices/taskSlice';
-import {
-  fetchMeetings,
-  createMeeting,
-  updateMeeting,
-  deleteMeeting,
-} from '../../store/slices/meetingSlice';
+import { fetchMeetings, deleteMeeting } from '../../store/slices/meetingSlice';
 import firestoreService from '../../firebase/firestoreService';
-import { User, Task, Meeting } from '../../types';
+import { User, Meeting } from '../../types';
 import Icon from '../../components/common/Icon';
 import NotificationButton from '../../components/common/NotificationButton';
 import ProjectList from '../Project/ProjectList';
@@ -46,42 +35,21 @@ const { width } = Dimensions.get('window');
 
 const AdminDashboard = ({ navigation }: any) => {
   const { colors, gradients, shadows } = useTheme();
-  const insets = useSafeAreaInsets();
+  useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const user = useAppSelector(state => state.auth.user);
   const projects = useAppSelector(state => state.projects.projects);
   const loading = useAppSelector(state => state.projects.loading);
   const pendingUsers = useAppSelector(state => state.user.pendingUsers);
-  const tasks = useAppSelector(state => state.tasks.tasks);
   const meetings = useAppSelector(state => state.meetings.meetings);
 
   // Modal states
-  const [, setTaskModalVisible] = useState(false);
-  const [, setMeetingModalVisible] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  // Meeting modal state removed; navigating to MeetingScreen instead
 
   // Form states
-  const [taskForm, setTaskForm] = useState({
-    title: '',
-    description: '',
-    priority: 'Medium' as 'Low' | 'Medium' | 'High',
-    status: 'Pending' as 'Pending' | 'In Progress' | 'Done',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0], // 7 days later
-    assignedTo: [] as string[],
-  });
+  // Task management removed
 
-  const [meetingForm, setMeetingForm] = useState({
-    title: '',
-    agenda: '',
-    date: new Date().toISOString().split('T')[0],
-    time: '10:00',
-    type: 'Group' as 'Individual' | 'Group',
-    assignedTo: [] as string[],
-  });
+  // Meeting form state removed
 
   const [approvedUsers, setApprovedUsers] = useState<User[]>([]);
   const [_loadingUsers, setLoadingUsers] = useState(false);
@@ -95,10 +63,6 @@ const AdminDashboard = ({ navigation }: any) => {
     const todoProjects = projects.filter(p => p.status === 'To Do').length;
     const pendingApprovals = pendingUsers.length;
 
-    const totalTasks = tasks.length;
-    const activeTasks = tasks.filter(t => t.status === 'In Progress').length;
-    const completedTasks = tasks.filter(t => t.status === 'Done').length;
-
     const totalMeetings = meetings.length;
     const upcomingMeetings = meetings.filter(
       m => new Date(m.date) > new Date(),
@@ -110,13 +74,10 @@ const AdminDashboard = ({ navigation }: any) => {
       completedProjects,
       todoProjects,
       pendingApprovals,
-      totalTasks,
-      activeTasks,
-      completedTasks,
       totalMeetings,
       upcomingMeetings,
     };
-  }, [projects, pendingUsers, tasks, meetings]);
+  }, [projects, pendingUsers, meetings]);
 
   const loadApprovedUsers = useCallback(async () => {
     try {
@@ -135,7 +96,6 @@ const AdminDashboard = ({ navigation }: any) => {
       await Promise.all([
         dispatch(fetchProjects()),
         dispatch(fetchPendingUsers()),
-        dispatch(fetchTasks()),
         dispatch(fetchMeetings()),
         loadApprovedUsers(),
       ]);
@@ -155,45 +115,7 @@ const AdminDashboard = ({ navigation }: any) => {
     }, [loadDashboardData]),
   );
 
-  // Task Management Functions
-  // create/update handlers are defined in modal components elsewhere; none here
-
-  const handleDeleteTask = (task: Task) => {
-    Alert.alert(
-      'Delete Task',
-      `Are you sure you want to delete "${task.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await dispatch(deleteTask(task.id)).unwrap();
-              Alert.alert('Success', 'Task deleted successfully');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete task');
-              console.error('Error deleting task:', error);
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  const resetTaskForm = () => {
-    setTaskForm({
-      title: '',
-      description: '',
-      priority: 'Medium',
-      status: 'Pending',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0],
-      assignedTo: [],
-    });
-  };
+  // Task management removed
 
   // Meeting Management Functions
 
@@ -220,113 +142,63 @@ const AdminDashboard = ({ navigation }: any) => {
     );
   };
 
-  const resetMeetingForm = () => {
-    setMeetingForm({
-      title: '',
-      agenda: '',
-      date: new Date().toISOString().split('T')[0],
-      time: '10:00',
-      type: 'Group',
-      assignedTo: [],
-    });
-  };
+  // Meeting form helpers removed
 
-  const openTaskModal = (task?: Task) => {
-    if (task) {
-      setSelectedTask(task);
-      setTaskForm({
-        title: task.title,
-        description: task.description,
-        priority: task.priority,
-        status: task.status,
-        startDate: task.startDate,
-        endDate: task.endDate,
-        assignedTo: task.assignedTo,
-      });
-    } else {
-      setSelectedTask(null);
-      resetTaskForm();
-    }
-    setTaskModalVisible(true);
-  };
+  // Task modal removed
 
-  const openMeetingModal = (meeting?: Meeting) => {
-    if (meeting) {
-      setSelectedMeeting(meeting);
-      const meetingDate = new Date(meeting.date);
-      setMeetingForm({
-        title: meeting.title,
-        agenda: meeting.agenda,
-        date: meetingDate.toISOString().split('T')[0],
-        time: meetingDate.toTimeString().slice(0, 5),
-        type: meeting.type,
-        assignedTo: meeting.assignedTo,
-      });
-    } else {
-      setSelectedMeeting(null);
-      resetMeetingForm();
-    }
-    setMeetingModalVisible(true);
-  };
+  // Meeting modal removed
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High':
-        return colors.error;
-      case 'Medium':
-        return colors.warning;
-      case 'Low':
-        return colors.success;
-      default:
-        return colors.textSecondary;
-    }
-  };
+  // Task helpers removed
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Done':
-        return colors.success;
-      case 'In Progress':
-        return colors.primary;
-      case 'Pending':
-        return colors.warning;
-      default:
-        return colors.textSecondary;
-    }
-  };
-
-  const StatCard = ({ title, value, color, icon, onPress }: any) => (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-      <LinearGradient
-        colors={[color, `${color}80`]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.statCard, shadows.md]}
-      >
-        <View style={styles.statContent}>
-          <View style={styles.statHeader}>
-            <Icon name={icon} size={24} tintColor="#fff" />
-            <Text style={styles.statValue}>{value}</Text>
-          </View>
-          <Text style={styles.statTitle}>{title}</Text>
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
+  // Small presentational components extracted to avoid re-defining on each render
+  const StatCard = useCallback(
+    ({ title, value, color, icon, onPress }: any) => {
+      return (
+        <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+          <LinearGradient
+            colors={[color, `${color}80`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.statCard, shadows.md]}
+          >
+            <View style={styles.statContent}>
+              <View style={styles.statHeader}>
+                <Icon name={icon} size={24} tintColor="#fff" />
+                <Text style={styles.statValue}>{value}</Text>
+              </View>
+              <Text style={styles.statTitle}>{title}</Text>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      );
+    },
+    [shadows.md],
   );
 
-  const QuickAction = ({ title, icon, onPress, color }: any) => (
-    <TouchableOpacity
-      style={[styles.quickAction, { backgroundColor: colors.card }, shadows.sm]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.quickActionIcon, { backgroundColor: `${color}20` }]}>
-        <Icon name={icon} size={24} tintColor={color} />
-      </View>
-      <Text style={[styles.quickActionText, { color: colors.text }]}>
-        {title}
-      </Text>
-    </TouchableOpacity>
+  const QuickAction = useCallback(
+    ({ title, icon, onPress, color }: any) => {
+      return (
+        <TouchableOpacity
+          style={[
+            styles.quickAction,
+            { backgroundColor: colors.card },
+            shadows.sm,
+          ]}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
+          <View
+            style={[styles.quickActionIcon, { backgroundColor: `${color}20` }]}
+          >
+            <Icon name={icon} size={24} tintColor={color} />
+          </View>
+          <Text style={[styles.quickActionText, { color: colors.text }]}>
+            {title}
+          </Text>
+        </TouchableOpacity>
+      );
+    },
+    [colors.card, colors.text, shadows.sm],
   );
 
   return (
@@ -342,10 +214,7 @@ const AdminDashboard = ({ navigation }: any) => {
         colors={gradients.primary}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[
-          styles.header,
-          { paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 16 },
-        ]}
+        style={styles.header}
       >
         <View style={styles.headerContent}>
           <View>
@@ -442,179 +311,7 @@ const AdminDashboard = ({ navigation }: any) => {
           </View>
         </View>
 
-        {/* Task Management Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Task Management
-            </Text>
-            <TouchableOpacity
-              onPress={() => openTaskModal()}
-              style={[styles.addButton, { backgroundColor: colors.primary }]}
-            >
-              <Icon name="add" size={20} tintColor="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.statsRow}>
-            <View
-              style={[
-                styles.miniStatCard,
-                { backgroundColor: colors.primary + '20' },
-              ]}
-            >
-              <Text style={[styles.miniStatValue, { color: colors.primary }]}>
-                {stats.totalTasks}
-              </Text>
-              <Text style={[styles.miniStatLabel, { color: colors.text }]}>
-                Total Tasks
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.miniStatCard,
-                { backgroundColor: colors.warning + '20' },
-              ]}
-            >
-              <Text style={[styles.miniStatValue, { color: colors.warning }]}>
-                {stats.activeTasks}
-              </Text>
-              <Text style={[styles.miniStatLabel, { color: colors.text }]}>
-                In Progress
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.miniStatCard,
-                { backgroundColor: colors.success + '20' },
-              ]}
-            >
-              <Text style={[styles.miniStatValue, { color: colors.success }]}>
-                {stats.completedTasks}
-              </Text>
-              <Text style={[styles.miniStatLabel, { color: colors.text }]}>
-                Completed
-              </Text>
-            </View>
-          </View>
-
-          {tasks.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Icon name="check" size={32} tintColor={colors.textSecondary} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                No tasks created yet
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.taskList}>
-              {tasks.slice(0, 3).map(task => (
-                <View
-                  key={task.id}
-                  style={[
-                    styles.taskCard,
-                    { backgroundColor: colors.card },
-                    shadows.sm,
-                  ]}
-                >
-                  <View style={styles.taskCardHeader}>
-                    <Text
-                      style={[styles.taskTitle, { color: colors.text }]}
-                      numberOfLines={1}
-                    >
-                      {task.title}
-                    </Text>
-                    <View style={styles.taskActions}>
-                      <TouchableOpacity
-                        onPress={() => openTaskModal(task)}
-                        style={styles.actionButton}
-                      >
-                        <Icon
-                          name="edit"
-                          size={16}
-                          tintColor={colors.primary}
-                        />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleDeleteTask(task)}
-                        style={styles.actionButton}
-                      >
-                        <Icon
-                          name="delete"
-                          size={16}
-                          tintColor={colors.error}
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  <Text
-                    style={[
-                      styles.taskDescription,
-                      { color: colors.textSecondary },
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {task.description}
-                  </Text>
-                  <View style={styles.taskMeta}>
-                    <View
-                      style={[
-                        styles.priorityBadge,
-                        {
-                          backgroundColor:
-                            getPriorityColor(task.priority) + '20',
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.priorityText,
-                          { color: getPriorityColor(task.priority) },
-                        ]}
-                      >
-                        {task.priority}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        { backgroundColor: getStatusColor(task.status) + '20' },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.statusText,
-                          { color: getStatusColor(task.status) },
-                        ]}
-                      >
-                        {task.status}
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.assigneeCount,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {task.assignedTo.length} assignees
-                    </Text>
-                  </View>
-                </View>
-              ))}
-              {tasks.length > 3 && (
-                <TouchableOpacity
-                  style={styles.viewMoreButton}
-                  onPress={() => navigation.navigate('TaskScreen')}
-                >
-                  <Text
-                    style={[styles.viewMoreText, { color: colors.primary }]}
-                  >
-                    View {tasks.length - 3} more tasks →
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-        </View>
+        {/* Task Management Section removed */}
 
         {/* Meeting Arrangement Section */}
         <View style={styles.section}>
@@ -623,7 +320,7 @@ const AdminDashboard = ({ navigation }: any) => {
               Meeting Arrangement
             </Text>
             <TouchableOpacity
-              onPress={() => openMeetingModal()}
+              onPress={() => navigation.navigate('MeetingScreen')}
               style={[styles.addButton, { backgroundColor: colors.info }]}
             >
               <Icon name="add" size={20} tintColor="#fff" />
@@ -690,7 +387,11 @@ const AdminDashboard = ({ navigation }: any) => {
                     </Text>
                     <View style={styles.meetingActions}>
                       <TouchableOpacity
-                        onPress={() => openMeetingModal(meeting)}
+                        onPress={() =>
+                          navigation.navigate('MeetingScreen', {
+                            meetingId: meeting.id,
+                          })
+                        }
                         style={styles.actionButton}
                       >
                         <Icon name="edit" size={16} tintColor={colors.info} />
@@ -810,13 +511,10 @@ const AdminDashboard = ({ navigation }: any) => {
               showsHorizontalScrollIndicator={false}
               style={styles.userScroll}
             >
-              {approvedUsers.map((teamUser, index) => (
+              {approvedUsers.map(teamUser => (
                 <TouchableOpacity
                   key={teamUser.uid}
-                  style={[
-                    styles.userImageContainer,
-                    { marginLeft: index === 0 ? 0 : 12 },
-                  ]}
+                  style={styles.userImageContainer}
                   onPress={() =>
                     navigation.navigate('ProjectListScreen', {
                       userSpecific: true,

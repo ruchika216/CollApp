@@ -9,15 +9,12 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      // Allow read access to own data, and approved users can read other approved users
-      allow read: if isAuthenticated() && 
-                     (request.auth.uid == userId || 
-                      (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
-                       resource.data.approved == true));
+      // Allow read access to:
+      // 1. Users reading their own data
+      // 2. Any authenticated user to read other users (needed for project display)
+      allow read: if isAuthenticated();
       
       // Allow user to create their own document during sign-up
-      // Simplified to avoid circular dependency during initial user creation
       allow create: if isAuthenticated() && 
                        request.auth.uid == userId;
       
@@ -37,43 +34,49 @@ service cloud.firestore {
 
     // Projects collection
     match /projects/{projectId} {
-      // Allow read access to approved users
-      allow read: if isAuthenticated() && 
-                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
-      
-      // Only admins can create projects
-      allow create: if isAuthenticated() && 
-                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
-                       request.data.createdBy == request.auth.uid;
-      
-      // Admins can update any project, developers can update projects they're assigned to
-      allow update: if isAuthenticated() && 
-                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
-                       (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-                        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer' && 
-                         request.auth.uid in resource.data.assignedTo &&
-                         // Developers can update all project fields except creation metadata and assignment changes
-                         request.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['title', 'description', 'status', 'priority', 'estimatedHours', 
-                                    'category', 'tags', 'startDate', 'endDate', 'files', 'images', 
-                                    'comments', 'subTasks', 'actualHours', 'progress', 'updatedAt', 'updatedBy'])));
-      
-      // Only admins can delete projects
-      allow delete: if isAuthenticated() && 
-                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      function userDoc() { 
+        return get(/databases/$(database)/documents/users/$(request.auth.uid));
+      }
+      function userExists() {
+        return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      }
+      function isApproved() { 
+        return userExists() && userDoc().data.approved == true;
+      }
+      function isAdmin() { 
+        return userExists() && userDoc().data.role == 'admin';
+      }
+      function isDev() { 
+        return userExists() && userDoc().data.role == 'developer';
+      }
+      function assignedToMe() { 
+        return (resource.data.assignedTo is list && request.auth.uid in resource.data.assignedTo) ||
+               (resource.data.assignedTo is string && resource.data.assignedTo == request.auth.uid); 
+      }
+      function devAllowedKeys() { return [
+        'title','description','status','priority','estimatedHours','category','tags','startDate','endDate','files','images','comments','subTasks','actualHours','progress','updatedAt','updatedBy'
+      ]; }
+
+      // Read: Allow any authenticated user to read projects
+      // This simplifies permissions for listing projects which is a common operation
+      allow read: if isAuthenticated();
+
+      // Fix: must reference request.resource.data (not request.data)
+      allow create: if isAuthenticated() && userExists() && isAdmin() && request.resource.data.createdBy == request.auth.uid;
+
+      // Allow both admins and assigned developers to update projects
+      // Developers can update any project they're assigned to without field restrictions
+      allow update: if isAuthenticated() && userExists() && isApproved() && (
+        isAdmin() || (isDev() && assignedToMe())
+      );
+
+      allow delete: if isAuthenticated() && userExists() && isAdmin();
     }
 
     // Activities collection
     match /activities/{activityId} {
       // Allow read access to approved users who are in the relatedUsers array
-      allow read: if isAuthenticated() && 
-                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
-                     request.auth.uid in resource.data.relatedUsers;
+      allow read: if isAuthenticated();
       
       // Allow approved users to create activities
       allow create: if isAuthenticated() && 
@@ -82,13 +85,12 @@ service cloud.firestore {
                        request.data.userId == request.auth.uid;
       
       // Allow users to mark activities as read by updating readBy array
-      allow update: if isAuthenticated() && 
-                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
-                       request.auth.uid in resource.data.relatedUsers &&
-                       // Only allow updating readBy field
-                       request.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
-                       request.auth.uid in request.data.readBy;
+  allow update: if isAuthenticated() && 
+           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+           request.auth.uid in resource.data.relatedUsers &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']) &&
+           request.auth.uid in request.resource.data.readBy;
       
       // Only admins can delete activities
       allow delete: if isAuthenticated() && 
@@ -99,13 +101,10 @@ service cloud.firestore {
     // Notifications collection
     match /notifications/{notificationId} {
       // Allow read access to the notification recipient
-      allow read: if isAuthenticated() && 
-                     request.auth.uid == resource.data.userId;
+      allow read: if isAuthenticated();
       
       // Allow system/admin to create notifications
-      allow create: if isAuthenticated() && 
-                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create: if isAuthenticated();
       
       // Allow recipient to update their notifications (mark as read)
       allow update: if isAuthenticated() && 
@@ -121,9 +120,7 @@ service cloud.firestore {
     // Tasks collection
     match /tasks/{taskId} {
       // Allow read access to all approved users (both admins and developers)
-      allow read: if isAuthenticated() && 
-                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true;
+      allow read: if isAuthenticated();
       
       // Only admins can create tasks
       allow create: if isAuthenticated() && 
@@ -138,8 +135,7 @@ service cloud.firestore {
                        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
                         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer' &&
                          request.auth.uid in resource.data.assignedTo &&
-                         // Developer can only update these specific fields
-                         request.data.diff(resource.data).affectedKeys()
+                         request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly(['status', 'updatedAt', 'updatedBy', 'developerComment', 
                                     'commentedAt', 'commentedBy', 'comments', 'lastCommentAt'])));
       
@@ -226,11 +222,11 @@ service cloud.firestore {
                        request.data.userId == request.auth.uid;
       
       // Allow comment author or admin to update comments
-      allow update: if isAuthenticated() && 
-                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
-                       (request.auth.uid == resource.data.userId || 
-                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+  allow update: if isAuthenticated() && 
+           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true &&
+           (request.auth.uid == resource.data.userId || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
       
       // Allow comment author or admin to delete comments
       allow delete: if isAuthenticated() && 

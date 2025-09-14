@@ -3,11 +3,11 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Meeting } from '../../types';
 import { useTheme } from '../../theme/useTheme';
 import Icon from '../common/Icon';
-import { 
-  getMeetingCountdown, 
-  formatMeetingTime, 
+import {
+  getMeetingCountdown,
+  formatMeetingTime,
   getMeetingDuration,
-  getMeetingStatusColor 
+  getMeetingStatusColor,
 } from '../../utils/meetingUtils';
 
 interface MeetingCardProps {
@@ -20,18 +20,18 @@ interface MeetingCardProps {
   compact?: boolean;
 }
 
-const MeetingCard: React.FC<MeetingCardProps> = ({ 
-  meeting, 
+const MeetingCard: React.FC<MeetingCardProps> = ({
+  meeting,
   onPress,
   onEdit,
   onDelete,
   showActions = false,
   showCountdown = true,
-  compact = false 
+  compact = false,
 }) => {
   const theme = useTheme();
   const styles = getStyles(theme, compact);
-  
+
   const [countdown, setCountdown] = useState(getMeetingCountdown(meeting));
 
   useEffect(() => {
@@ -97,9 +97,10 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     }
   };
 
-
   const truncateText = (text: string, maxLength: number) => {
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    return text.length > maxLength
+      ? text.substring(0, maxLength) + '...'
+      : text;
   };
 
   return (
@@ -116,20 +117,29 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
             {formatMeetingTime(meeting.startTime, false)}
           </Text>
           {showCountdown && (
-            <View style={[
-              styles.countdownBadge,
-              { backgroundColor: getMeetingStatusColor(meeting) + '20' }
-            ]}>
-              <Text style={[
-                styles.countdownText,
-                { color: countdown.status === 'live' ? '#ffffff' : getMeetingStatusColor(meeting) }
-              ]}>
+            <View
+              style={[
+                styles.countdownBadge,
+                { backgroundColor: getMeetingStatusColor(meeting) + '20' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.countdownText,
+                  {
+                    color:
+                      countdown.status === 'live'
+                        ? '#ffffff'
+                        : getMeetingStatusColor(meeting),
+                  },
+                ]}
+              >
                 {countdown.displayText}
               </Text>
             </View>
           )}
         </View>
-        
+
         {showActions && (
           <View style={styles.actions}>
             {onEdit && (
@@ -153,7 +163,12 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
             {meeting.title}
           </Text>
           <View style={styles.statusBadge}>
-            <View style={[styles.statusDot, { backgroundColor: getStatusColor(meeting.status) }]} />
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: getStatusColor(meeting.status) },
+              ]}
+            />
             <Text style={styles.statusText}>{meeting.status}</Text>
           </View>
         </View>
@@ -177,7 +192,11 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
         {/* Location */}
         {meeting.location && (
           <View style={styles.locationSection}>
-            <Icon name="info" size={14} tintColor={theme.colors.textSecondary} />
+            <Icon
+              name="info"
+              size={14}
+              tintColor={theme.colors.textSecondary}
+            />
             <Text style={styles.locationText} numberOfLines={1}>
               {meeting.location}
             </Text>
@@ -188,14 +207,26 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
       {/* Footer */}
       <View style={styles.footer}>
         <View style={styles.leftFooter}>
-          <View style={[styles.typeBadge, { backgroundColor: getTypeColor(meeting.type) + '20' }]}>
-            <Text style={[styles.typeText, { color: getTypeColor(meeting.type) }]}>
+          <View
+            style={[
+              styles.typeBadge,
+              { backgroundColor: getTypeColor(meeting.type) + '20' },
+            ]}
+          >
+            <Text
+              style={[styles.typeText, { color: getTypeColor(meeting.type) }]}
+            >
               {meeting.type}
             </Text>
           </View>
-          
+
           <View style={styles.priorityBadge}>
-            <Text style={[styles.priorityText, { color: getPriorityColor(meeting.priority) }]}>
+            <Text
+              style={[
+                styles.priorityText,
+                { color: getPriorityColor(meeting.priority) },
+              ]}
+            >
               {meeting.priority}
             </Text>
           </View>
@@ -212,10 +243,11 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
           )}
           {meeting.assignedUsers && meeting.assignedUsers.length > 0 && (
             <Text style={styles.assigneeText}>
-              {meeting.isAssignedToAll ? 'All users' : 
-               meeting.assignedUsers.length === 1 ? 
-               meeting.assignedUsers[0].name || 'Unknown' :
-               `${meeting.assignedUsers.length} attendees`}
+              {meeting.isAssignedToAll
+                ? 'All users'
+                : meeting.assignedUsers.length === 1
+                ? meeting.assignedUsers[0].name || 'Unknown'
+                : `${meeting.assignedUsers.length} attendees`}
             </Text>
           )}
         </View>
@@ -226,7 +258,8 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
         <View style={styles.commentsSection}>
           <Icon name="chat" size={14} tintColor={theme.colors.textSecondary} />
           <Text style={styles.commentsText}>
-            {meeting.comments.length} comment{meeting.comments.length !== 1 ? 's' : ''}
+            {meeting.comments.length} comment
+            {meeting.comments.length !== 1 ? 's' : ''}
           </Text>
         </View>
       )}

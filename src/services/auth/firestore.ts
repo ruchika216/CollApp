@@ -3,6 +3,27 @@ import { firestore } from '../../firebase/firebaseConfig';
 import { User } from '../../types';
 import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
+// Utility function to sanitize user data and convert any Firestore Timestamps to ISO strings
+const sanitizeUserDates = (userData: any): User => {
+  const convertTimestamp = (field: any): string => {
+    if (field && typeof field === 'object' && field._seconds !== undefined) {
+      // This is a Firestore Timestamp
+      return new Date(field._seconds * 1000 + field._nanoseconds / 1000000).toISOString();
+    }
+    if (field instanceof Date) {
+      return field.toISOString();
+    }
+    return field;
+  };
+
+  return {
+    ...userData,
+    createdAt: convertTimestamp(userData.createdAt),
+    updatedAt: convertTimestamp(userData.updatedAt),
+    lastSeen: convertTimestamp(userData.lastSeen),
+  } as User;
+};
+
 /** The three roles you support in your app */
 export type UserRole = 'admin' | 'developer' | 'scrum' | null;
 
@@ -66,7 +87,7 @@ export async function createOrUpdateUser(
         lastSeen: timestamp,
       });
 
-      return updatedUser;
+      return sanitizeUserDates(updatedUser);
     } else {
       // New user, create with default settings
       const role = determineUserRole(firebaseUser.email);
@@ -95,7 +116,7 @@ export async function createOrUpdateUser(
         await createNewUserNotification(newUser);
       }
 
-      return newUser;
+      return sanitizeUserDates(newUser);
     }
   } catch (error) {
     console.error('Error creating/updating user:', error);
@@ -148,7 +169,8 @@ export async function getUserById(uid: string): Promise<User | null> {
   try {
     const doc = await firestore().collection('users').doc(uid).get();
     if (!doc.exists()) return null;
-    return doc.data() as User;
+    const userData = doc.data();
+    return userData ? sanitizeUserDates(userData) : null;
   } catch (e) {
     console.error('Error fetching user:', e);
     return null;

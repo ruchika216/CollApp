@@ -1,6 +1,29 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { User } from '../../types';
 
+// Utility function to sanitize user dates from Firestore
+const sanitizeUserDates = (userData: any): User => {
+  if (!userData) return userData;
+  
+  const convertTimestamp = (field: any): string => {
+    if (field && typeof field === 'object' && field._seconds !== undefined) {
+      // This is a Firestore Timestamp
+      return new Date(field._seconds * 1000 + field._nanoseconds / 1000000).toISOString();
+    }
+    if (field instanceof Date) {
+      return field.toISOString();
+    }
+    return field;
+  };
+
+  return {
+    ...userData,
+    createdAt: convertTimestamp(userData.createdAt),
+    updatedAt: convertTimestamp(userData.updatedAt),
+    lastSeen: convertTimestamp(userData.lastSeen),
+  } as User;
+};
+
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
@@ -28,7 +51,7 @@ export const signInWithGoogle = createAsyncThunk(
     try {
       const { signInWithGoogle: signIn } = await import('../../services/auth/googleAuth');
       const result = await signIn();
-      return result.appUser;
+      return sanitizeUserDates(result.appUser);
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -54,7 +77,7 @@ export const checkAuthState = createAsyncThunk(
     try {
       const { getCurrentUser } = await import('../../services/auth/googleAuth');
       const user = await getCurrentUser();
-      return user;
+      return user ? sanitizeUserDates(user) : null;
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -66,7 +89,7 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setUser: (state, action: PayloadAction<User | null>) => {
-      state.user = action.payload;
+      state.user = action.payload ? sanitizeUserDates(action.payload) : null;
       state.isAuthenticated = !!action.payload;
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
@@ -104,7 +127,7 @@ const authSlice = createSlice({
       })
       .addCase(signInWithGoogle.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload;
+        state.user = action.payload ? sanitizeUserDates(action.payload) : null;
         state.isAuthenticated = true;
         state.error = null;
         state.approvalStatus = action.payload?.approved ? 'approved' : 'pending';
@@ -135,7 +158,7 @@ const authSlice = createSlice({
       })
       .addCase(checkAuthState.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload;
+        state.user = action.payload ? sanitizeUserDates(action.payload) : null;
         state.isAuthenticated = !!action.payload;
       })
       .addCase(checkAuthState.rejected, (state, action) => {

@@ -1,7 +1,7 @@
 /**
  * COMPONENTS INDEX
- * Centralized exports for all component categories
+ * Centralized exports for component categories
+ * Note: Removed legacy './base' exports (replaced by './common').
  */
-export * from './base';
 export * from './features';
 export * from './layout';

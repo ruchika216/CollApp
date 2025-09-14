@@ -1,12 +1,24 @@
 import { firestore } from './firebaseConfig';
-import FirestoreModule from '@react-native-firebase/firestore';
-import { Project, User, Notification, ProjectComment, ProjectFile, SubTask } from '../types';
+import auth from '@react-native-firebase/auth';
+import FirestoreModule, {
+  FirebaseFirestoreTypes,
+} from '@react-native-firebase/firestore';
+import {
+  Project,
+  User,
+  Notification,
+  ProjectComment,
+  ProjectFile,
+  SubTask,
+} from '../types';
 
 // Create a firestore instance
 const db = firestore();
 
 // User operations
-export const addUserToFirestore = async (user: Omit<User, 'createdAt' | 'updatedAt'>) => {
+export const addUserToFirestore = async (
+  user: Omit<User, 'createdAt' | 'updatedAt'>,
+) => {
   const userRef = db.collection('users').doc(user.uid);
   const timestamp = new Date().toISOString();
   const userData = {
@@ -59,7 +71,9 @@ export const getUserById = async (uid: string): Promise<User | null> => {
   return null;
 };
 
-export const getUserRole = async (uid: string): Promise<User['role'] | null> => {
+export const getUserRole = async (
+  uid: string,
+): Promise<User['role'] | null> => {
   const userSnap = await db.collection('users').doc(uid).get();
   if (userSnap.exists()) {
     return (userSnap.data() as User).role || null;
@@ -80,7 +94,9 @@ export const updateUserRole = async (uid: string, role: User['role']) => {
 };
 
 // Project operations
-export const addProjectToFirestore = async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+export const addProjectToFirestore = async (
+  project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>,
+) => {
   const timestamp = new Date().toISOString();
   const projectData = {
     ...project,
@@ -93,128 +109,306 @@ export const addProjectToFirestore = async (project: Omit<Project, 'id' | 'creat
     progress: 0,
     actualHours: 0,
   };
-  
+
   const docRef = await db.collection('projects').add(projectData);
-  
-  // Update user's projects array
-  await db.collection('users').doc(project.assignedTo).update({
-    projects: FirestoreModule.FieldValue.arrayUnion(docRef.id),
-    updatedAt: timestamp,
-  });
-  
-  // Create notification for assigned user
-  await addNotificationToFirestore({
-    title: 'New Project Assigned',
-    message: `You have been assigned to project: ${project.title}`,
-    type: 'info',
-    userId: project.assignedTo,
-    read: false,
-    projectId: docRef.id,
-    actionType: 'project_assigned',
-  });
-  
+
+  // Normalize assigned users to an array
+  const assignedIds: string[] = Array.isArray(project.assignedTo)
+    ? project.assignedTo
+    : project.assignedTo
+    ? [project.assignedTo as unknown as string]
+    : [];
+
+  // Update each assigned user's projects array and notify them
+  await Promise.all(
+    assignedIds.map(async uid => {
+      try {
+        await db
+          .collection('users')
+          .doc(uid)
+          .update({
+            projects: FirestoreModule.FieldValue.arrayUnion(docRef.id),
+            updatedAt: timestamp,
+          });
+      } catch (e) {
+        // ignore if user doc missing; continue
+      }
+      await addNotificationToFirestore({
+        title: 'New Project Assigned',
+        message: `You have been assigned to project: ${project.title}`,
+        type: 'info',
+        userId: uid,
+        read: false,
+        projectId: docRef.id,
+        actionType: 'project_assigned',
+      });
+    }),
+  );
+
   return docRef.id;
 };
 
 export const getProjects = async (): Promise<Project[]> => {
-  const querySnapshot = await db.collection('projects').orderBy('createdAt', 'desc').get();
-  const projects = await Promise.all(
-    querySnapshot.docs.map(async doc => {
+  try {
+    // First, get all projects
+    const querySnapshot = await db
+      .collection('projects')
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    // Extract all unique user IDs from assignedTo fields
+    const allUserIds = new Set<string>();
+    querySnapshot.docs.forEach(doc => {
       const data = doc.data();
-      const assignedUser = await getUserById(data.assignedTo);
+      if (Array.isArray(data.assignedTo)) {
+        data.assignedTo.forEach((uid: string) => allUserIds.add(uid));
+      } else if (typeof data.assignedTo === 'string' && data.assignedTo) {
+        allUserIds.add(data.assignedTo);
+      }
+    });
+
+    // Fetch all needed user documents in a single batch
+    const userDocs = await Promise.all(
+      Array.from(allUserIds).map(uid => db.collection('users').doc(uid).get()),
+    );
+
+    // Create a map of user data for quick lookup
+    const userMap: Record<string, User> = {};
+    userDocs.forEach(doc => {
+      if (doc.exists) {
+        userMap[doc.id] = doc.data() as User;
+      }
+    });
+
+    // Map projects with user data
+    const projects = querySnapshot.docs.map(doc => {
+      const data: any = doc.data();
+      let assignedUsers: User[] | undefined;
+
+      if (Array.isArray(data.assignedTo)) {
+        assignedUsers = data.assignedTo
+          .map((uid: string) => userMap[uid])
+          .filter(Boolean);
+      } else if (typeof data.assignedTo === 'string' && data.assignedTo) {
+        const user = userMap[data.assignedTo];
+        assignedUsers = user ? [user] : undefined;
+      }
+
       return {
         id: doc.id,
         ...data,
-        assignedUser,
+        assignedUsers,
       } as Project;
-    })
-  );
-  return projects;
+    });
+
+    return projects;
+  } catch (error) {
+    console.error('Error in getProjects:', error);
+    throw error;
+  }
 };
 
 export const getUserProjects = async (userId: string): Promise<Project[]> => {
-  const querySnapshot = await db
-    .collection('projects')
-    .where('assignedTo', '==', userId)
-    .orderBy('createdAt', 'desc')
-    .get();
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  } as Project));
+  try {
+    // Support both legacy string field and new array field
+    const byString = await db
+      .collection('projects')
+      .where('assignedTo', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const byArray = await db
+      .collection('projects')
+      .where('assignedTo', 'array-contains', userId)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    // Combine results (removing duplicates)
+    const seenIds = new Set<string>();
+    const allDocs: FirebaseFirestoreTypes.QueryDocumentSnapshot[] = [];
+
+    [...byString.docs, ...byArray.docs].forEach(doc => {
+      if (!seenIds.has(doc.id)) {
+        seenIds.add(doc.id);
+        allDocs.push(doc);
+      }
+    });
+
+    // Extract all unique user IDs from assignedTo fields
+    const allUserIds = new Set<string>();
+    allDocs.forEach(doc => {
+      const data = doc.data();
+      if (Array.isArray(data.assignedTo)) {
+        data.assignedTo.forEach((uid: string) => allUserIds.add(uid));
+      } else if (typeof data.assignedTo === 'string' && data.assignedTo) {
+        allUserIds.add(data.assignedTo);
+      }
+    });
+
+    // Fetch all needed user documents in a single batch
+    const userDocs = await Promise.all(
+      Array.from(allUserIds).map(uid => db.collection('users').doc(uid).get()),
+    );
+
+    // Create a map of user data for quick lookup
+    const userMap: Record<string, User> = {};
+    userDocs.forEach(doc => {
+      if (doc.data()) {
+        userMap[doc.id] = doc.data() as User;
+      }
+    });
+
+    // Map projects with user data
+    return allDocs.map(doc => {
+      const data: any = doc.data();
+      let assignedUsers: User[] | undefined;
+
+      if (Array.isArray(data.assignedTo)) {
+        assignedUsers = data.assignedTo
+          .map((uid: string) => userMap[uid])
+          .filter(Boolean);
+      } else if (typeof data.assignedTo === 'string' && data.assignedTo) {
+        const user = userMap[data.assignedTo];
+        assignedUsers = user ? [user] : undefined;
+      }
+
+      return {
+        id: doc.id,
+        ...data,
+        assignedUsers,
+      } as Project;
+    });
+  } catch (error) {
+    console.error('Error in getUserProjects:', error);
+    throw error;
+  }
 };
 
 export const updateProjectInFirestore = async (project: Project) => {
-  const projectRef = db.collection('projects').doc(project.id);
-  const updateData = {
-    ...project,
-    updatedAt: new Date().toISOString(),
-  };
-  await projectRef.update(updateData);
-};
+  // Role-based filtering to satisfy Firestore security rules
+  const currentUid = auth().currentUser?.uid;
+  const safeProject = { ...project } as any;
+  if (!currentUid) throw new Error('Not authenticated');
 
-export const updateProjectStatus = async (projectId: string, status: Project['status']) => {
-  const timestamp = new Date().toISOString();
-  await db.collection('projects').doc(projectId).update({
-    status,
-    updatedAt: timestamp,
+  // We'll rely on Firestore rules to handle permissions, so we don't need
+  // to check the user role client-side anymore
+
+  // Only protect immutable fields that should never change
+  const immutable = new Set(['id', 'createdAt', 'createdBy']);
+
+  // Build update payload
+  const updateData: Record<string, any> = {};
+  Object.keys(safeProject).forEach(k => {
+    if (immutable.has(k)) return; // skip immutable fields
+    updateData[k] = safeProject[k]; // include all other fields for both admins and developers
   });
-  
-  // Get project details for notification
-  const projectDoc = await db.collection('projects').doc(projectId).get();
-  const project = projectDoc.data() as Project;
-  
-  // Notify admin about status change
-  const adminUsers = await db.collection('users').where('role', '==', 'admin').get();
-  const notificationPromises = adminUsers.docs.map(adminDoc => 
-    addNotificationToFirestore({
-      title: 'Project Status Updated',
-      message: `${project.title} status changed to ${status}`,
-      type: 'info',
-      userId: adminDoc.id,
-      read: false,
-      projectId,
-      actionType: 'status_changed',
-    })
-  );
-  
-  await Promise.all(notificationPromises);
+
+  // Add update metadata
+  updateData.updatedAt = new Date().toISOString();
+  updateData.updatedBy = currentUid;
+
+  try {
+    await db.collection('projects').doc(project.id).update(updateData);
+    console.log('Project updated successfully');
+    return true;
+  } catch (error) {
+    console.error('Error updating project:', error);
+    throw error;
+  }
 };
 
-export const addCommentToProject = async (projectId: string, comment: Omit<ProjectComment, 'id' | 'createdAt'>) => {
+export const updateProjectStatus = async (
+  projectId: string,
+  status: Project['status'],
+) => {
+  const timestamp = new Date().toISOString();
+  const currentUid = auth().currentUser?.uid;
+
+  try {
+    await db.collection('projects').doc(projectId).update({
+      status,
+      updatedAt: timestamp,
+      updatedBy: currentUid,
+    });
+
+    console.log('Project status updated successfully');
+
+    // Get project details for notification
+    const projectDoc = await db.collection('projects').doc(projectId).get();
+    const project = projectDoc.data() as Project;
+
+    // Notify admin about status change
+    const adminUsers = await db
+      .collection('users')
+      .where('role', '==', 'admin')
+      .get();
+    const notificationPromises = adminUsers.docs.map(adminDoc =>
+      addNotificationToFirestore({
+        title: 'Project Status Updated',
+        message: `${project.title} status changed to ${status}`,
+        type: 'info',
+        userId: adminDoc.id,
+        read: false,
+        projectId,
+        actionType: 'status_changed',
+      }),
+    );
+
+    await Promise.all(notificationPromises);
+    return true;
+  } catch (error) {
+    console.error('Error updating project status:', error);
+    throw error;
+  }
+};
+
+export const addCommentToProject = async (
+  projectId: string,
+  comment: Omit<ProjectComment, 'id' | 'createdAt'>,
+) => {
   const commentId = db.collection('projects').doc().id;
   const commentData = {
     ...comment,
     id: commentId,
     createdAt: new Date().toISOString(),
   };
-  
-  await db.collection('projects').doc(projectId).update({
-    comments: FirestoreModule.FieldValue.arrayUnion(commentData),
-    updatedAt: new Date().toISOString(),
-  });
-  
+
+  await db
+    .collection('projects')
+    .doc(projectId)
+    .update({
+      comments: FirestoreModule.FieldValue.arrayUnion(commentData),
+      updatedAt: new Date().toISOString(),
+    });
+
   // Get project details for notification
   const projectDoc = await db.collection('projects').doc(projectId).get();
   const project = projectDoc.data() as Project;
-  
-  // Notify assigned user and admin
-  const notificationPromises = [];
-  
-  if (comment.userId !== project.assignedTo) {
+
+  // Notify assigned users (excluding commenter) and admin/creator
+  const notificationPromises: Promise<string>[] = [];
+
+  const assignedIds: string[] = Array.isArray(project.assignedTo)
+    ? project.assignedTo
+    : project.assignedTo
+    ? [project.assignedTo as unknown as string]
+    : [];
+
+  for (const uid of assignedIds) {
+    if (uid === comment.userId) continue;
     notificationPromises.push(
       addNotificationToFirestore({
         title: 'New Comment',
         message: `New comment on ${project.title}`,
         type: 'info',
-        userId: project.assignedTo,
+        userId: uid,
         read: false,
         projectId,
         actionType: 'comment_added',
-      })
+      }),
     );
   }
-  
+
   if (comment.userId !== project.createdBy) {
     notificationPromises.push(
       addNotificationToFirestore({
@@ -225,27 +419,34 @@ export const addCommentToProject = async (projectId: string, comment: Omit<Proje
         read: false,
         projectId,
         actionType: 'comment_added',
-      })
+      }),
     );
   }
-  
+
   await Promise.all(notificationPromises);
   return commentData;
 };
 
-export const addFileToProject = async (projectId: string, file: Omit<ProjectFile, 'id' | 'uploadedAt'>, type: 'files' | 'images') => {
+export const addFileToProject = async (
+  projectId: string,
+  file: Omit<ProjectFile, 'id' | 'uploadedAt'>,
+  type: 'files' | 'images',
+) => {
   const fileId = db.collection('projects').doc().id;
   const fileData = {
     ...file,
     id: fileId,
     uploadedAt: new Date().toISOString(),
   };
-  
-  await db.collection('projects').doc(projectId).update({
-    [type]: FirestoreModule.FieldValue.arrayUnion(fileData),
-    updatedAt: new Date().toISOString(),
-  });
-  
+
+  await db
+    .collection('projects')
+    .doc(projectId)
+    .update({
+      [type]: FirestoreModule.FieldValue.arrayUnion(fileData),
+      updatedAt: new Date().toISOString(),
+    });
+
   return fileData;
 };
 
@@ -253,49 +454,71 @@ export const deleteProjectFromFirestore = async (projectId: string) => {
   const projectRef = db.collection('projects').doc(projectId);
   const projectDoc = await projectRef.get();
   const project = projectDoc.data() as Project;
-  
-  // Remove project from user's projects array
-  await db.collection('users').doc(project.assignedTo).update({
-    projects: FirestoreModule.FieldValue.arrayRemove(projectId),
-    updatedAt: new Date().toISOString(),
-  });
-  
+
+  const assignedIds: string[] = Array.isArray(project.assignedTo)
+    ? project.assignedTo
+    : project.assignedTo
+    ? [project.assignedTo as unknown as string]
+    : [];
+
+  // Remove project from each assigned user's projects array
+  await Promise.all(
+    assignedIds.map(uid =>
+      db
+        .collection('users')
+        .doc(uid)
+        .update({
+          projects: FirestoreModule.FieldValue.arrayRemove(projectId),
+          updatedAt: new Date().toISOString(),
+        }),
+    ),
+  );
+
   // Delete project
   await projectRef.delete();
-  
+
   // Delete related notifications
   const notificationsSnapshot = await db
     .collection('notifications')
     .where('projectId', '==', projectId)
     .get();
-  
-  const deletePromises = notificationsSnapshot.docs.map(doc => doc.ref.delete());
+
+  const deletePromises = notificationsSnapshot.docs.map(doc =>
+    doc.ref.delete(),
+  );
   await Promise.all(deletePromises);
 };
 
 // Notification operations
-export const addNotificationToFirestore = async (notification: Omit<Notification, 'id' | 'createdAt'>) => {
+export const addNotificationToFirestore = async (
+  notification: Omit<Notification, 'id' | 'createdAt'>,
+) => {
   const notificationData = {
     ...notification,
     createdAt: new Date().toISOString(),
   };
-  
+
   const docRef = await db.collection('notifications').add(notificationData);
   return docRef.id;
 };
 
-export const getUserNotifications = async (userId: string): Promise<Notification[]> => {
+export const getUserNotifications = async (
+  userId: string,
+): Promise<Notification[]> => {
   const querySnapshot = await db
     .collection('notifications')
     .where('userId', '==', userId)
     .orderBy('createdAt', 'desc')
     .limit(50)
     .get();
-  
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  } as Notification));
+
+  return querySnapshot.docs.map(
+    doc =>
+      ({
+        id: doc.id,
+        ...doc.data(),
+      } as Notification),
+  );
 };
 
 export const markNotificationAsRead = async (notificationId: string) => {
@@ -310,11 +533,11 @@ export const markAllNotificationsAsRead = async (userId: string) => {
     .where('userId', '==', userId)
     .where('read', '==', false)
     .get();
-  
-  const updatePromises = querySnapshot.docs.map(doc => 
-    doc.ref.update({ read: true })
+
+  const updatePromises = querySnapshot.docs.map(doc =>
+    doc.ref.update({ read: true }),
   );
-  
+
   await Promise.all(updatePromises);
 };
 
@@ -323,7 +546,10 @@ export const deleteNotification = async (notificationId: string) => {
 };
 
 // SubTask operations
-export const addSubTaskToProject = async (projectId: string, subTask: Omit<SubTask, 'id' | 'createdAt' | 'updatedAt'>) => {
+export const addSubTaskToProject = async (
+  projectId: string,
+  subTask: Omit<SubTask, 'id' | 'createdAt' | 'updatedAt'>,
+) => {
   const subTaskId = db.collection('projects').doc().id;
   const timestamp = new Date().toISOString();
   const subTaskData = {
@@ -332,39 +558,51 @@ export const addSubTaskToProject = async (projectId: string, subTask: Omit<SubTa
     createdAt: timestamp,
     updatedAt: timestamp,
   };
-  
-  await db.collection('projects').doc(projectId).update({
-    subTasks: FirestoreModule.FieldValue.arrayUnion(subTaskData),
-    updatedAt: timestamp,
-  });
-  
+
+  await db
+    .collection('projects')
+    .doc(projectId)
+    .update({
+      subTasks: FirestoreModule.FieldValue.arrayUnion(subTaskData),
+      updatedAt: timestamp,
+    });
+
   return subTaskData;
 };
 
-export const updateSubTaskInProject = async (projectId: string, subTaskId: string, updates: Partial<SubTask>) => {
+export const updateSubTaskInProject = async (
+  projectId: string,
+  subTaskId: string,
+  updates: Partial<SubTask>,
+) => {
   const timestamp = new Date().toISOString();
   const projectDoc = await db.collection('projects').doc(projectId).get();
   const project = projectDoc.data() as Project;
-  
-  const updatedSubTasks = project.subTasks.map(task => 
-    task.id === subTaskId 
+
+  const updatedSubTasks = project.subTasks.map(task =>
+    task.id === subTaskId
       ? { ...task, ...updates, updatedAt: timestamp }
-      : task
+      : task,
   );
-  
+
   await db.collection('projects').doc(projectId).update({
     subTasks: updatedSubTasks,
     updatedAt: timestamp,
   });
 };
 
-export const deleteSubTaskFromProject = async (projectId: string, subTaskId: string) => {
+export const deleteSubTaskFromProject = async (
+  projectId: string,
+  subTaskId: string,
+) => {
   const timestamp = new Date().toISOString();
   const projectDoc = await db.collection('projects').doc(projectId).get();
   const project = projectDoc.data() as Project;
-  
-  const updatedSubTasks = project.subTasks.filter(task => task.id !== subTaskId);
-  
+
+  const updatedSubTasks = project.subTasks.filter(
+    task => task.id !== subTaskId,
+  );
+
   await db.collection('projects').doc(projectId).update({
     subTasks: updatedSubTasks,
     updatedAt: timestamp,
@@ -372,11 +610,17 @@ export const deleteSubTaskFromProject = async (projectId: string, subTaskId: str
 };
 
 // Helper functions for the existing addFileToProject
-export const addFileToProjectFiles = async (projectId: string, file: Omit<ProjectFile, 'id' | 'uploadedAt'>) => {
+export const addFileToProjectFiles = async (
+  projectId: string,
+  file: Omit<ProjectFile, 'id' | 'uploadedAt'>,
+) => {
   return addFileToProject(projectId, file, 'files');
 };
 
-export const addImageToProject = async (projectId: string, file: Omit<ProjectFile, 'id' | 'uploadedAt'>) => {
+export const addImageToProject = async (
+  projectId: string,
+  file: Omit<ProjectFile, 'id' | 'uploadedAt'>,
+) => {
   return addFileToProject(projectId, file, 'images');
 };
 

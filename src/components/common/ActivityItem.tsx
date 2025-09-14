@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import CustomIcon from './CustomIcon';
-import { getTimeAgo } from '../../utils/helpers';
+import { getTimeAgo } from '../../shared/helpers';
 
 const ActivityItem = ({ activity, theme, onPress }) => {
   const getActivityIcon = type => {

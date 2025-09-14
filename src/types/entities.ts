@@ -65,7 +65,13 @@ export interface Project {
   images: ProjectFile[];
   startDate: string;
   endDate: string;
-  status: 'To Do' | 'In Progress' | 'Done' | 'Testing' | 'Review' | 'Deployment';
+  status:
+    | 'To Do'
+    | 'In Progress'
+    | 'Done'
+    | 'Testing'
+    | 'Review'
+    | 'Deployment';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   comments: ProjectComment[];
   subTasks: SubTask[];
@@ -84,38 +90,7 @@ export interface Project {
 // =====================================================================================
 // TASK ENTITIES
 // =====================================================================================
-export interface TaskComment {
-  id: string;
-  text: string;
-  userId: string;
-  userName: string;
-  timestamp: string;
-  type: 'developer_update' | 'admin_update' | 'status_change';
-}
-
-export interface Task {
-  id: string;
-  title: string;
-  description: string;
-  assignedTo: string[]; // Array of User IDs
-  assignedUsers?: User[]; // Populated user data
-  priority: 'Low' | 'Medium' | 'High';
-  status: 'Pending' | 'In Progress' | 'Done';
-  startDate: string;
-  endDate: string;
-  projectId?: string; // Optional reference to project
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
-  // Comment-related fields
-  comments?: TaskComment[]; // Array of comments visible to everyone
-  lastCommentAt?: string;
-  lastCommentBy?: string;
-  // Legacy fields for backward compatibility
-  developerComment?: string;
-  commentedAt?: string;
-  commentedBy?: string;
-}
+// Task entity removed
 
 // =====================================================================================
 // MEETING ENTITIES
@@ -142,7 +117,13 @@ export interface Meeting {
   assignedTo: string[]; // Array of User IDs - can be "all" for everyone
   assignedUsers?: User[]; // Populated user data
   isAssignedToAll: boolean; // If true, show to everyone
-  type: 'Individual' | 'Team' | 'All Hands' | 'Project Review' | 'Client Meeting' | 'Training';
+  type:
+    | 'Individual'
+    | 'Team'
+    | 'All Hands'
+    | 'Project Review'
+    | 'Client Meeting'
+    | 'Training';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled';
   projectId?: string; // Optional reference to project
@@ -182,12 +163,23 @@ export interface Report {
   id: string;
   title: string;
   description: string;
-  reportType: 'Daily' | 'Weekly' | 'Monthly' | 'Project Summary' | 'Bug Report' | 'Performance Review';
+  reportType:
+    | 'Daily'
+    | 'Weekly'
+    | 'Monthly'
+    | 'Project Summary'
+    | 'Bug Report'
+    | 'Performance Review';
   assignedTo: string[];
   assignedUsers?: User[]; // Populated user data
   isAssignedToAll: boolean; // If true, show to everyone
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
-  status: 'Pending' | 'In Progress' | 'Under Review' | 'Completed' | 'Cancelled';
+  status:
+    | 'Pending'
+    | 'In Progress'
+    | 'Under Review'
+    | 'Completed'
+    | 'Cancelled';
   dueDate: string;
   submissionDate?: string; // When report was actually submitted
   projectId?: string;
@@ -224,7 +216,16 @@ export interface Notification {
   taskId?: string;
   meetingId?: string;
   reportId?: string;
-  actionType?: 'project_assigned' | 'status_changed' | 'comment_added' | 'file_uploaded' | 'user_approval_needed' | 'account_approved' | 'task_assigned' | 'meeting_scheduled' | 'report_assigned';
+  actionType?:
+    | 'project_assigned'
+    | 'status_changed'
+    | 'comment_added'
+    | 'file_uploaded'
+    | 'user_approval_needed'
+    | 'account_approved'
+    | 'task_assigned'
+    | 'meeting_scheduled'
+    | 'report_assigned';
   metadata?: {
     newUserId?: string;
     newUserEmail?: string;
@@ -235,7 +236,15 @@ export interface Notification {
 
 export interface Activity {
   id: string;
-  type: 'project_created' | 'project_updated' | 'status_updated' | 'comment_added' | 'user_assigned' | 'file_uploaded' | 'task_completed' | 'subtask_added';
+  type:
+    | 'project_created'
+    | 'project_updated'
+    | 'status_updated'
+    | 'comment_added'
+    | 'user_assigned'
+    | 'file_uploaded'
+    | 'task_completed'
+    | 'subtask_added';
   message: string;
   userId: string;
   userName: string;

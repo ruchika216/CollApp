@@ -7,6 +7,7 @@ import { User } from '../../types';
 
 // configure once at module load
 GoogleSignin.configure({
+  scopes: ['profile', 'email', 'openid'],
   webClientId:
     '217635740089-o1qp2cpvd8krvcf6tcekpeaj59un6hls.apps.googleusercontent.com',
 });
@@ -33,19 +34,29 @@ export async function signInWithGoogle(): Promise<SignInResult> {
     // 2) optional: clear previous session
     await GoogleSignin.signOut();
 
-    // 3) launch native Google dialog
-    await GoogleSignin.signIn();
+    // 3) launch native Google dialog and prefer idToken from signIn result
+    const signInResponse: any = await GoogleSignin.signIn();
+    let idToken: string | null = signInResponse?.idToken ?? null;
 
-    // 4) grab the ID token
-    const { idToken } = await GoogleSignin.getTokens();
+    // 4) Fallback to getTokens() for older devices/configs if needed
     if (!idToken) {
-      throw new Error('No Google ID token returned. Please try again.');
+      try {
+        const tokens = await GoogleSignin.getTokens();
+        idToken = tokens?.idToken ?? null;
+      } catch (e) {
+        // Ignore; we'll handle missing idToken below
+      }
+    }
+    if (!idToken) {
+      throw new Error(
+        'No Google ID token returned. Check your network and try again.',
+      );
     }
 
     // 5) exchange for a Firebase credential & sign in
     const credential = auth.GoogleAuthProvider.credential(idToken);
     const userCredential = await auth().signInWithCredential(credential);
-    
+
     if (!userCredential.user) {
       throw new Error('No user returned from Firebase authentication.');
     }
@@ -61,7 +72,8 @@ export async function signInWithGoogle(): Promise<SignInResult> {
     };
   } catch (error: any) {
     // map known errors to friendlier messages
-    switch (error.code) {
+    const code = error?.code || error?.status || error?.message;
+    switch (code) {
       case 'SIGN_IN_CANCELLED':
         throw new Error('Sign-in was cancelled by the user.');
       case 'SIGN_IN_REQUIRED':
@@ -69,6 +81,15 @@ export async function signInWithGoogle(): Promise<SignInResult> {
       case 'PLAY_SERVICES_NOT_AVAILABLE':
         throw new Error(
           'Google Play Services is not available on this device.',
+        );
+      case 'DEVELOPER_ERROR':
+        throw new Error(
+          'Configuration error. Verify your webClientId and SHA-1 in Firebase.',
+        );
+      case 'NETWORK_ERROR':
+      case 7:
+        throw new Error(
+          'Network error during Google Sign-In. Please check your internet connection and try again.',
         );
       default:
         throw new Error(
@@ -93,7 +114,7 @@ export async function getCurrentUser(): Promise<User | null> {
   try {
     const firebaseUser = auth().currentUser;
     if (!firebaseUser) return null;
-    
+
     // Get the app user data from Firestore
     const appUser = await createOrUpdateUser(firebaseUser);
     return appUser;

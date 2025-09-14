@@ -1,10 +1,31 @@
-import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import firestore, {
+  FirebaseFirestoreTypes,
+} from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 import storage from '@react-native-firebase/storage';
 import { COLLECTIONS, STORAGE_PATHS } from './firebaseConfig';
-import { User, Project, Activity, Notification, ProjectComment, SubTask, Task, Meeting, Report } from '../types';
+import {
+  User,
+  Project,
+  Activity,
+  Notification,
+  ProjectComment,
+  SubTask,
+  Meeting,
+  Report,
+  Task,
+} from '../types';
+
+// Some RNFirebase typings expose `exists` as a method, others as a boolean property.
+function docExists(doc: FirebaseFirestoreTypes.DocumentSnapshot): boolean {
+  const e: any = (doc as any).exists;
+  return typeof e === 'function' ? !!e.call(doc) : !!e;
+}
 
 // Helper function to ensure document data includes the document ID
-function mapDocToData<T extends { id: string }>(doc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>): T {
+function mapDocToData<T extends { id: string }>(
+  doc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>,
+): T {
   const data = doc.data() as T;
   return {
     ...data,
@@ -14,7 +35,9 @@ function mapDocToData<T extends { id: string }>(doc: FirebaseFirestoreTypes.Quer
 
 class FirestoreService {
   // User operations
-  async createUser(userData: Omit<User, 'createdAt' | 'updatedAt'>): Promise<User> {
+  async createUser(
+    userData: Omit<User, 'createdAt' | 'updatedAt'>,
+  ): Promise<User> {
     const timestamp = firestore.Timestamp.now();
     const user: User = {
       ...userData,
@@ -38,7 +61,7 @@ class FirestoreService {
 
   async getUser(uid: string): Promise<User | null> {
     const doc = await firestore().collection(COLLECTIONS.USERS).doc(uid).get();
-    return doc.exists ? (doc.data() as User) : null;
+    return docExists(doc) ? (doc.data() as User) ?? null : null;
   }
 
   async getPendingUsers(): Promise<User[]> {
@@ -49,27 +72,30 @@ class FirestoreService {
       .get();
 
     return snapshot.docs.map(doc => {
-        const data = doc.data() as User;
-        return {
-          ...data,
-          uid: data.uid || doc.id, // Users use uid as ID, fallback to doc.id
-        };
-      });
+      const data = doc.data() as User;
+      return {
+        ...data,
+        uid: data.uid || doc.id, // Users use uid as ID, fallback to doc.id
+      };
+    });
   }
 
   async getApprovedUsers(): Promise<User[]> {
     try {
       console.log('getApprovedUsers: Starting Firestore query...');
       console.log('getApprovedUsers: Using collection:', COLLECTIONS.USERS);
-      
+
       // Simplified query without orderBy to avoid index requirement
       const snapshot = await firestore()
         .collection(COLLECTIONS.USERS)
         .where('approved', '==', true)
         .get();
 
-      console.log('getApprovedUsers: Query completed. Snapshot size:', snapshot.size);
-      
+      console.log(
+        'getApprovedUsers: Query completed. Snapshot size:',
+        snapshot.size,
+      );
+
       const users = snapshot.docs.map(doc => {
         const userData = doc.data() as User;
         console.log('getApprovedUsers: User data:', userData);
@@ -87,16 +113,19 @@ class FirestoreService {
       return users;
     } catch (error) {
       console.error('getApprovedUsers: Error occurred:', error);
-      
+
       // If approved users query fails, try getting all users as fallback
       console.log('getApprovedUsers: Fallback - trying to get all users...');
       try {
         const allUsersSnapshot = await firestore()
           .collection(COLLECTIONS.USERS)
           .get();
-        
+
         const allUsers = allUsersSnapshot.docs.map(doc => doc.data() as User);
-        console.log('getApprovedUsers: Fallback successful. All users:', allUsers);
+        console.log(
+          'getApprovedUsers: Fallback successful. All users:',
+          allUsers,
+        );
         return allUsers;
       } catch (fallbackError) {
         console.error('getApprovedUsers: Fallback also failed:', fallbackError);
@@ -112,17 +141,17 @@ class FirestoreService {
       .get();
 
     return snapshot.docs.map(doc => {
-        const data = doc.data() as User;
-        return {
-          ...data,
-          uid: data.uid || doc.id, // Users use uid as ID, fallback to doc.id
-        };
-      });
+      const data = doc.data() as User;
+      return {
+        ...data,
+        uid: data.uid || doc.id, // Users use uid as ID, fallback to doc.id
+      };
+    });
   }
 
   async approveUser(uid: string): Promise<void> {
     await this.updateUser(uid, { approved: true });
-    
+
     // Create approval notification
     await this.createNotification({
       title: 'Account Approved',
@@ -135,10 +164,32 @@ class FirestoreService {
   }
 
   // Project operations
-  async createProject(projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
+  async createProject(
+    projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<Project> {
+    // Validate current user is admin (defensive – rules enforce too, but gives clearer error client-side)
+    const authUid = auth().currentUser?.uid;
+    if (!authUid) {
+      throw new Error('Not authenticated');
+    }
+    const userSnap = await firestore()
+      .collection(COLLECTIONS.USERS)
+      .doc(authUid)
+      .get();
+    let userExists: any = (userSnap as any).exists;
+    if (typeof userExists === 'function')
+      userExists = userExists.call(userSnap);
+    const userData: any = userExists ? userSnap.data() : null; // supports both property & function styles
+    if (!userData || userData.role !== 'admin') {
+      throw new Error('Only admins can create projects');
+    }
+    if (projectData.createdBy !== authUid) {
+      // Align with security rule requirement
+      projectData = { ...projectData, createdBy: authUid } as any;
+    }
     const timestamp = firestore.Timestamp.now();
     const docRef = firestore().collection(COLLECTIONS.PROJECTS).doc();
-    
+
     const project: Project = {
       ...projectData,
       id: docRef.id,
@@ -175,30 +226,69 @@ class FirestoreService {
     return project;
   }
 
-  async updateProject(projectId: string, updates: Partial<Project>): Promise<void> {
-    const updateData = {
-      ...updates,
-      updatedAt: firestore.Timestamp.now().toDate().toISOString(),
-      updatedBy: auth().currentUser?.uid,
-    };
+  async updateProject(
+    projectId: string,
+    updates: Partial<Project>,
+  ): Promise<void> {
+    const authUid = auth().currentUser?.uid;
+    if (!authUid) throw new Error('Not authenticated');
 
-    console.log('Updating project with data:', updateData);
-    
-    try {
-      await firestore().collection(COLLECTIONS.PROJECTS).doc(projectId).update(updateData);
-      console.log('Project updated successfully');
-      
-      // If assignedTo field is updated, sync with users collection
-      if (updates.assignedTo && Array.isArray(updates.assignedTo)) {
-        await this.syncProjectWithUsers(projectId, updates.assignedTo);
+    // Fetch user role for filtering
+    const userSnap = await firestore()
+      .collection(COLLECTIONS.USERS)
+      .doc(authUid)
+      .get();
+    let userExists: any = (userSnap as any).exists;
+    if (typeof userExists === 'function')
+      userExists = userExists.call(userSnap);
+    const userData: any = userExists ? userSnap.data() : null;
+    const role = userData?.role;
+
+    // Defensive: never allow client to change immutable fields via this method
+    const forbiddenAlways = new Set(['id', 'createdAt', 'createdBy']);
+
+    let cleaned: Record<string, any> = {};
+    // Allow all fields for both admins and developers, except immutable ones
+    Object.keys(updates).forEach(k => {
+      if (!forbiddenAlways.has(k)) {
+        cleaned[k] = (updates as any)[k];
       }
-    } catch (error) {
-      console.error('Error updating project:', error);
+    });
+
+    // If developer tried to modify assignment or createdBy, it will silently ignore.
+    const updateData = {
+      ...cleaned,
+      updatedAt: firestore.Timestamp.now().toDate().toISOString(),
+      updatedBy: authUid,
+    } as any;
+
+    console.log(
+      '[updateProject] role=',
+      role,
+      'projectId=',
+      projectId,
+      'finalFields=',
+      Object.keys(updateData),
+    );
+
+    try {
+      await firestore()
+        .collection(COLLECTIONS.PROJECTS)
+        .doc(projectId)
+        .update(updateData);
+      console.log('Project updated successfully');
+
+      if (cleaned.assignedTo && Array.isArray(cleaned.assignedTo)) {
+        await this.syncProjectWithUsers(projectId, cleaned.assignedTo);
+      }
+    } catch (error: any) {
+      console.error('Error updating project:', error?.code, error?.message);
       throw error;
     }
 
     // If status changed, create activity
     if (updates.status) {
+      // Use original requested updates to decide activity
       const project = await this.getProject(projectId);
       if (project) {
         await this.createActivity({
@@ -219,9 +309,12 @@ class FirestoreService {
 
   async getProject(projectId: string): Promise<Project | null> {
     try {
-      const doc = await firestore().collection(COLLECTIONS.PROJECTS).doc(projectId).get();
-      
-      if (doc.exists) {
+      const doc = await firestore()
+        .collection(COLLECTIONS.PROJECTS)
+        .doc(projectId)
+        .get();
+
+      if (docExists(doc)) {
         const data = doc.data() as Project;
         return {
           ...data,
@@ -237,7 +330,9 @@ class FirestoreService {
   }
 
   async getProjects(filters?: { assignedTo?: string }): Promise<Project[]> {
-    let query = firestore().collection(COLLECTIONS.PROJECTS).orderBy('updatedAt', 'desc');
+    let query = firestore()
+      .collection(COLLECTIONS.PROJECTS)
+      .orderBy('updatedAt', 'desc');
 
     if (filters?.assignedTo) {
       query = query.where('assignedTo', 'array-contains', filters.assignedTo);
@@ -251,17 +346,23 @@ class FirestoreService {
     await firestore().collection(COLLECTIONS.PROJECTS).doc(projectId).delete();
   }
 
-  async syncProjectWithUsers(projectId: string, assignedUserIds: string[]): Promise<void> {
+  async syncProjectWithUsers(
+    projectId: string,
+    assignedUserIds: string[],
+  ): Promise<void> {
     try {
       console.log('Syncing project with users:', projectId, assignedUserIds);
-      
+
       // Update each user's document to include this project in their projects array
-      const updatePromises = assignedUserIds.map(async (userId) => {
+      const updatePromises = assignedUserIds.map(async userId => {
         try {
-          await firestore().collection(COLLECTIONS.USERS).doc(userId).update({
-            projects: firestore.FieldValue.arrayUnion(projectId),
-            updatedAt: firestore.Timestamp.now().toDate().toISOString(),
-          });
+          await firestore()
+            .collection(COLLECTIONS.USERS)
+            .doc(userId)
+            .update({
+              projects: firestore.FieldValue.arrayUnion(projectId),
+              updatedAt: firestore.Timestamp.now().toDate().toISOString(),
+            });
           console.log(`Updated user ${userId} with project ${projectId}`);
         } catch (error) {
           console.warn(`Failed to update user ${userId}:`, error);
@@ -278,7 +379,10 @@ class FirestoreService {
   }
 
   // Comment operations
-  async addComment(projectId: string, comment: Omit<ProjectComment, 'id' | 'createdAt'>): Promise<ProjectComment> {
+  async addComment(
+    projectId: string,
+    comment: Omit<ProjectComment, 'id' | 'createdAt'>,
+  ): Promise<ProjectComment> {
     const timestamp = firestore.Timestamp.now();
     const commentData: ProjectComment = {
       ...comment,
@@ -311,7 +415,10 @@ class FirestoreService {
   }
 
   // SubTask operations
-  async addSubTask(projectId: string, subTask: Omit<SubTask, 'id' | 'createdAt' | 'updatedAt'>): Promise<SubTask> {
+  async addSubTask(
+    projectId: string,
+    subTask: Omit<SubTask, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<SubTask> {
     const timestamp = firestore.Timestamp.now();
     const subTaskData: SubTask = {
       ...subTask,
@@ -330,14 +437,22 @@ class FirestoreService {
     return subTaskData;
   }
 
-  async updateSubTask(projectId: string, subTaskId: string, updates: Partial<SubTask>): Promise<void> {
+  async updateSubTask(
+    projectId: string,
+    subTaskId: string,
+    updates: Partial<SubTask>,
+  ): Promise<void> {
     const project = await this.getProject(projectId);
     if (!project) return;
 
     const updatedSubTasks = project.subTasks.map(subTask =>
       subTask.id === subTaskId
-        ? { ...subTask, ...updates, updatedAt: firestore.Timestamp.now().toDate().toISOString() }
-        : subTask
+        ? {
+            ...subTask,
+            ...updates,
+            updatedAt: firestore.Timestamp.now().toDate().toISOString(),
+          }
+        : subTask,
     );
 
     await firestore()
@@ -347,7 +462,9 @@ class FirestoreService {
   }
 
   // Activity operations
-  async createActivity(activityData: Omit<Activity, 'id' | 'createdAt' | 'readBy'>): Promise<Activity> {
+  async createActivity(
+    activityData: Omit<Activity, 'id' | 'createdAt' | 'readBy'>,
+  ): Promise<Activity> {
     const timestamp = firestore.Timestamp.now();
     const docRef = firestore().collection(COLLECTIONS.ACTIVITIES).doc();
 
@@ -377,7 +494,9 @@ class FirestoreService {
   }
 
   // Notification operations
-  async createNotification(notificationData: Omit<Notification, 'id' | 'createdAt'>): Promise<Notification> {
+  async createNotification(
+    notificationData: Omit<Notification, 'id' | 'createdAt'>,
+  ): Promise<Notification> {
     const timestamp = firestore.Timestamp.now();
     const docRef = firestore().collection(COLLECTIONS.NOTIFICATIONS).doc();
 
@@ -409,223 +528,102 @@ class FirestoreService {
   }
 
   // File upload operations
-  async uploadFile(filePath: string, fileName: string, projectId: string, type: 'files' | 'images'): Promise<string> {
-    const storagePath = STORAGE_PATHS.PROJECT_FILES
-      .replace('{projectId}', projectId)
-      .replace('files', type);
-    
+  async uploadFile(
+    filePath: string,
+    fileName: string,
+    projectId: string,
+    type: 'files' | 'images',
+  ): Promise<string> {
+    const storagePath = STORAGE_PATHS.PROJECT_FILES.replace(
+      '{projectId}',
+      projectId,
+    ).replace('files', type);
+
     const reference = storage().ref(`${storagePath}/${fileName}`);
     await reference.putFile(filePath);
     return await reference.getDownloadURL();
   }
 
   // Task operations
-  async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
+  async createTask(
+    taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<Task> {
     const docRef = firestore().collection(COLLECTIONS.TASKS).doc();
-    const timestamp = firestore.Timestamp.now();
+    const now = new Date().toISOString();
     const task: Task = {
       ...taskData,
       id: docRef.id,
-      createdAt: timestamp.toDate().toISOString(),
-      updatedAt: timestamp.toDate().toISOString(),
-    };
-
+      createdAt: now,
+      updatedAt: now,
+    } as Task;
     await docRef.set(task);
-
-    // Get creator's name for better notifications
-    const creator = await this.getUser(task.createdBy);
-    const creatorName = creator?.name || creator?.displayName || creator?.email?.split('@')[0] || 'Admin';
-
-    // Create activity
-    await this.createActivity({
-      type: 'task_assigned',
-      message: `assigned task "${task.title}"`,
-      userId: task.createdBy,
-      userName: creatorName,
-      relatedUsers: [...task.assignedTo, task.createdBy],
-      metadata: { taskId: task.id },
-    });
-
-    // Notify assigned users with better messaging
-    for (const userId of task.assignedTo) {
-      const assignedUser = await this.getUser(userId);
-      const assignedUserName = assignedUser?.name || assignedUser?.displayName || assignedUser?.email?.split('@')[0] || 'User';
-      
-      await this.createNotification({
-        title: 'New Task Assigned! 🎯',
-        message: `Hi ${assignedUserName}, you have been assigned task "${task.title}" by ${creatorName}. Priority: ${task.priority}`,
-        type: 'info',
-        userId,
-        taskId: task.id,
-        actionType: 'task_assigned',
-        read: false,
-      });
-    }
-
     return task;
   }
 
   async updateTask(taskId: string, updates: Partial<Task>): Promise<void> {
-    const updateData = {
-      ...updates,
-      updatedAt: firestore.Timestamp.now().toDate().toISOString(),
-    };
-
-    await firestore().collection(COLLECTIONS.TASKS).doc(taskId).update(updateData);
-
-    // If task is being updated, create activity and notify assigned users
-    const task = await this.getTask(taskId);
-    if (task) {
-      // Get updater's information
-      const updaterId = updates.updatedBy || updates.createdBy || task.createdBy;
-      const updater = await this.getUser(updaterId);
-      const updaterName = updater?.name || updater?.displayName || updater?.email?.split('@')[0] || 'User';
-
-      // Create activity for task update
-      await this.createActivity({
-        type: 'task_assigned', // Using existing type, could add 'task_updated'
-        message: `updated task "${task.title}"`,
-        userId: updaterId,
-        userName: updaterName,
-        relatedUsers: [...task.assignedTo, task.createdBy],
-        metadata: { taskId: task.id, updateType: 'task_updated' },
+    await firestore()
+      .collection(COLLECTIONS.TASKS)
+      .doc(taskId)
+      .update({
+        ...updates,
+        updatedAt: new Date().toISOString(),
       });
-
-      // Notify all assigned users and admin about the update (except the person who made the update)
-      const usersToNotify = [...new Set([...task.assignedTo, task.createdBy])]; // Unique users
-      
-      for (const userId of usersToNotify) {
-        if (userId !== updaterId) { // Don't notify the person who made the update
-          const notifyUser = await this.getUser(userId);
-          const notifyUserName = notifyUser?.name || notifyUser?.displayName || notifyUser?.email?.split('@')[0] || 'User';
-          
-          let message = `Hi ${notifyUserName}, task "${task.title}" has been updated by ${updaterName}`;
-          let notificationTitle = 'Task Updated! 📝';
-          let notificationType: 'info' | 'success' | 'warning' = 'info';
-          
-          // Special handling for task completion
-          if (updates.status === 'Done') {
-            notificationTitle = 'Task Completed! 🎉';
-            message = `Great news ${notifyUserName}! Task "${task.title}" has been marked as DONE by ${updaterName}`;
-            notificationType = 'success';
-          } else if (updates.status === 'In Progress') {
-            notificationTitle = 'Task In Progress! ⚡';
-            message = `${notifyUserName}, task "${task.title}" is now IN PROGRESS by ${updaterName}`;
-            notificationType = 'info';
-          } else if (updates.status) {
-            message += `. Status changed to: ${updates.status}`;
-          }
-          
-          // Add comment info if it exists
-          if (updates.comments && Array.isArray(updates.comments) && updates.comments.length > 0) {
-            const latestComment = updates.comments[updates.comments.length - 1];
-            message += `. New comment: "${latestComment.text}"`;
-          }
-
-          await this.createNotification({
-            title: notificationTitle,
-            message,
-            type: notificationType,
-            userId,
-            taskId: task.id,
-            actionType: updates.status === 'Done' ? 'task_completed' : 'task_updated',
-            read: false,
-          });
-        }
-      }
-
-      // If admin updated the task and it has assigned users, notify them too
-      if (updater?.role === 'admin' && task.assignedTo.length > 0) {
-        for (const userId of task.assignedTo) {
-          if (userId !== updaterId) {
-            await this.createNotification({
-              title: 'Admin Task Update! ⚡',
-              message: `Task "${task.title}" has been updated by admin ${updaterName}. Please check the latest details.`,
-              type: 'warning',
-              userId,
-              taskId: task.id,
-              actionType: 'admin_task_update',
-              read: false,
-            });
-          }
-        }
-      }
-    }
   }
 
   async getTask(taskId: string): Promise<Task | null> {
-    const doc = await firestore().collection(COLLECTIONS.TASKS).doc(taskId).get();
-    return doc.exists ? { ...doc.data() as Task, id: doc.id } : null;
+    const doc = await firestore()
+      .collection(COLLECTIONS.TASKS)
+      .doc(taskId)
+      .get();
+    return docExists(doc) ? { ...(doc.data() as Task), id: doc.id } : null;
   }
 
   async getTasks(): Promise<Task[]> {
-    try {
-      const snapshot = await firestore()
-        .collection(COLLECTIONS.TASKS)
-        .orderBy('createdAt', 'desc')
-        .get();
-
-      return snapshot.docs.map(doc => mapDocToData<Task>(doc));
-    } catch (error) {
-      console.warn('Error fetching all tasks:', error);
-      return [];
-    }
+    const snapshot = await firestore()
+      .collection(COLLECTIONS.TASKS)
+      .orderBy('updatedAt', 'desc')
+      .get();
+    return snapshot.docs.map(doc => mapDocToData<Task>(doc));
   }
 
-  async getTasksForUser(userId: string): Promise<Task[]> {
-    try {
-      const snapshot = await firestore()
-        .collection(COLLECTIONS.TASKS)
-        .where('assignedTo', 'array-contains', userId)
-        .orderBy('createdAt', 'desc')
-        .get();
-
-      return snapshot.docs.map(doc => mapDocToData<Task>(doc));
-    } catch (error) {
-      console.warn('Error fetching user tasks:', error);
-      return [];
-    }
-  }
-
-  async getTasksByDate(userId: string, date: string): Promise<Task[]> {
-    try {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      // Get all user tasks first, then filter by date in memory
-      // This avoids compound index requirement
-      const snapshot = await firestore()
-        .collection(COLLECTIONS.TASKS)
-        .where('assignedTo', 'array-contains', userId)
-        .get();
-
-      const tasks = snapshot.docs.map(doc => mapDocToData<Task>(doc));
-      
-      // Filter by date in memory
-      const filteredTasks = tasks.filter(task => {
-        const taskDate = new Date(task.startDate);
-        return taskDate >= startOfDay && taskDate <= endOfDay;
-      });
-
-      // Sort by startDate
-      filteredTasks.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-
-      return filteredTasks;
-    } catch (error) {
-      console.warn('Error fetching tasks by date:', error);
-      return []; // Return empty array on error
-    }
+  async getTasksPaginated(
+    limitCount: number,
+    startAfterDoc?: FirebaseFirestoreTypes.QueryDocumentSnapshot,
+  ): Promise<{
+    tasks: Task[];
+    lastDoc: FirebaseFirestoreTypes.QueryDocumentSnapshot | null;
+  }> {
+    let query = firestore()
+      .collection(COLLECTIONS.TASKS)
+      .orderBy('updatedAt', 'desc')
+      .limit(limitCount);
+    if (startAfterDoc) query = query.startAfter(startAfterDoc);
+    const snapshot = await query.get();
+    const tasks = snapshot.docs.map(doc => mapDocToData<Task>(doc));
+    const lastDoc = snapshot.docs.length
+      ? snapshot.docs[snapshot.docs.length - 1]
+      : null;
+    return { tasks, lastDoc };
   }
 
   async deleteTask(taskId: string): Promise<void> {
     await firestore().collection(COLLECTIONS.TASKS).doc(taskId).delete();
   }
 
+  onTasksChange(callback: (tasks: Task[]) => void): () => void {
+    return firestore()
+      .collection(COLLECTIONS.TASKS)
+      .orderBy('updatedAt', 'desc')
+      .onSnapshot(snapshot => {
+        const tasks = snapshot.docs.map(doc => mapDocToData<Task>(doc));
+        callback(tasks);
+      });
+  }
+
   // Meeting operations
-  async createMeeting(meetingData: Omit<Meeting, 'id' | 'createdAt' | 'updatedAt'>): Promise<Meeting> {
+  async createMeeting(
+    meetingData: Omit<Meeting, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<Meeting> {
     const docRef = firestore().collection(COLLECTIONS.MEETINGS).doc();
     const timestamp = firestore.Timestamp.now();
     const meeting: Meeting = {
@@ -641,7 +639,9 @@ class FirestoreService {
     for (const userId of meeting.assignedTo) {
       await this.createNotification({
         title: 'Meeting Scheduled',
-        message: `Meeting "${meeting.title}" scheduled for ${new Date(meeting.date).toLocaleDateString()}`,
+        message: `Meeting "${meeting.title}" scheduled for ${new Date(
+          meeting.date,
+        ).toLocaleDateString()}`,
         type: 'info',
         userId,
         meetingId: meeting.id,
@@ -653,18 +653,27 @@ class FirestoreService {
     return meeting;
   }
 
-  async updateMeeting(meetingId: string, updates: Partial<Meeting>): Promise<void> {
+  async updateMeeting(
+    meetingId: string,
+    updates: Partial<Meeting>,
+  ): Promise<void> {
     const updateData = {
       ...updates,
       updatedAt: firestore.Timestamp.now().toDate().toISOString(),
     };
 
-    await firestore().collection(COLLECTIONS.MEETINGS).doc(meetingId).update(updateData);
+    await firestore()
+      .collection(COLLECTIONS.MEETINGS)
+      .doc(meetingId)
+      .update(updateData);
   }
 
   async getMeeting(meetingId: string): Promise<Meeting | null> {
-    const doc = await firestore().collection(COLLECTIONS.MEETINGS).doc(meetingId).get();
-    return doc.exists ? { ...doc.data() as Meeting, id: doc.id } : null;
+    const doc = await firestore()
+      .collection(COLLECTIONS.MEETINGS)
+      .doc(meetingId)
+      .get();
+    return docExists(doc) ? { ...(doc.data() as Meeting), id: doc.id } : null;
   }
 
   async getMeetings(): Promise<Meeting[]> {
@@ -697,19 +706,27 @@ class FirestoreService {
 
       const [userSnapshot, allSnapshot] = await Promise.all([
         userMeetingsQuery.get(),
-        allMeetingsQuery.get()
+        allMeetingsQuery.get(),
       ]);
 
-      const userMeetings = userSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
-      const allMeetings = allSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+      const userMeetings = userSnapshot.docs.map(doc =>
+        mapDocToData<Meeting>(doc),
+      );
+      const allMeetings = allSnapshot.docs.map(doc =>
+        mapDocToData<Meeting>(doc),
+      );
 
       // Combine and deduplicate
       const combinedMeetings = [...userMeetings, ...allMeetings];
-      const uniqueMeetings = combinedMeetings.filter((meeting, index, self) => 
-        index === self.findIndex(m => m.id === meeting.id)
+      const uniqueMeetings = combinedMeetings.filter(
+        (meeting, index, self) =>
+          index === self.findIndex(m => m.id === meeting.id),
       );
 
-      return uniqueMeetings.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      return uniqueMeetings.sort(
+        (a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+      );
     } catch (error) {
       console.warn('Error fetching user meetings:', error);
       return [];
@@ -720,7 +737,7 @@ class FirestoreService {
     try {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
-      
+
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
@@ -736,18 +753,23 @@ class FirestoreService {
 
       const [userSnapshot, allSnapshot] = await Promise.all([
         userMeetingsQuery.get(),
-        allMeetingsQuery.get()
+        allMeetingsQuery.get(),
       ]);
 
-      const userMeetings = userSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
-      const allMeetings = allSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+      const userMeetings = userSnapshot.docs.map(doc =>
+        mapDocToData<Meeting>(doc),
+      );
+      const allMeetings = allSnapshot.docs.map(doc =>
+        mapDocToData<Meeting>(doc),
+      );
 
       // Combine and deduplicate
       const combinedMeetings = [...userMeetings, ...allMeetings];
-      const uniqueMeetings = combinedMeetings.filter((meeting, index, self) => 
-        index === self.findIndex(m => m.id === meeting.id)
+      const uniqueMeetings = combinedMeetings.filter(
+        (meeting, index, self) =>
+          index === self.findIndex(m => m.id === meeting.id),
       );
-      
+
       // Filter by date in memory
       const filteredMeetings = uniqueMeetings.filter(meeting => {
         const meetingDate = new Date(meeting.date);
@@ -755,7 +777,9 @@ class FirestoreService {
       });
 
       // Sort by date
-      filteredMeetings.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      filteredMeetings.sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      );
 
       return filteredMeetings;
     } catch (error) {
@@ -769,7 +793,9 @@ class FirestoreService {
   }
 
   // Report operations
-  async createReport(reportData: Omit<Report, 'id' | 'createdAt' | 'updatedAt'>): Promise<Report> {
+  async createReport(
+    reportData: Omit<Report, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<Report> {
     const docRef = firestore().collection(COLLECTIONS.REPORTS).doc();
     const timestamp = firestore.Timestamp.now();
     const report: Report = {
@@ -783,7 +809,7 @@ class FirestoreService {
 
     // Create activity
     await this.createActivity({
-      type: 'task_assigned', // Using existing type, could add 'report_assigned'
+      type: 'comment_added', // Use a valid existing activity type
       message: `assigned report "${report.title}"`,
       userId: report.createdBy,
       userName: 'Admin', // Should fetch actual name
@@ -807,18 +833,27 @@ class FirestoreService {
     return report;
   }
 
-  async updateReport(reportId: string, updates: Partial<Report>): Promise<void> {
+  async updateReport(
+    reportId: string,
+    updates: Partial<Report>,
+  ): Promise<void> {
     const updateData = {
       ...updates,
       updatedAt: firestore.Timestamp.now().toDate().toISOString(),
     };
 
-    await firestore().collection(COLLECTIONS.REPORTS).doc(reportId).update(updateData);
+    await firestore()
+      .collection(COLLECTIONS.REPORTS)
+      .doc(reportId)
+      .update(updateData);
   }
 
   async getReport(reportId: string): Promise<Report | null> {
-    const doc = await firestore().collection(COLLECTIONS.REPORTS).doc(reportId).get();
-    return doc.exists ? { ...doc.data() as Report, id: doc.id } : null;
+    const doc = await firestore()
+      .collection(COLLECTIONS.REPORTS)
+      .doc(reportId)
+      .get();
+    return docExists(doc) ? { ...(doc.data() as Report), id: doc.id } : null;
   }
 
   async getReports(): Promise<Report[]> {
@@ -846,19 +881,25 @@ class FirestoreService {
 
       const [userSnapshot, allSnapshot] = await Promise.all([
         userReportsQuery.get(),
-        allReportsQuery.get()
+        allReportsQuery.get(),
       ]);
 
-      const userReports = userSnapshot.docs.map(doc => mapDocToData<Report>(doc));
+      const userReports = userSnapshot.docs.map(doc =>
+        mapDocToData<Report>(doc),
+      );
       const allReports = allSnapshot.docs.map(doc => mapDocToData<Report>(doc));
 
       // Combine and deduplicate
       const combinedReports = [...userReports, ...allReports];
-      const uniqueReports = combinedReports.filter((report, index, self) => 
-        index === self.findIndex(r => r.id === report.id)
+      const uniqueReports = combinedReports.filter(
+        (report, index, self) =>
+          index === self.findIndex(r => r.id === report.id),
       );
 
-      return uniqueReports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return uniqueReports.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
     } catch (error) {
       console.warn('Error fetching user reports:', error);
       return [];
@@ -869,7 +910,7 @@ class FirestoreService {
     try {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
-      
+
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
@@ -885,18 +926,21 @@ class FirestoreService {
 
       const [userSnapshot, allSnapshot] = await Promise.all([
         userReportsQuery.get(),
-        allReportsQuery.get()
+        allReportsQuery.get(),
       ]);
 
-      const userReports = userSnapshot.docs.map(doc => mapDocToData<Report>(doc));
+      const userReports = userSnapshot.docs.map(doc =>
+        mapDocToData<Report>(doc),
+      );
       const allReports = allSnapshot.docs.map(doc => mapDocToData<Report>(doc));
 
       // Combine and deduplicate
       const combinedReports = [...userReports, ...allReports];
-      const uniqueReports = combinedReports.filter((report, index, self) => 
-        index === self.findIndex(r => r.id === report.id)
+      const uniqueReports = combinedReports.filter(
+        (report, index, self) =>
+          index === self.findIndex(r => r.id === report.id),
       );
-      
+
       // Filter by date in memory
       const filteredReports = uniqueReports.filter(report => {
         const reportDate = new Date(report.dueDate); // Changed from startDate to dueDate as reports use dueDate
@@ -904,7 +948,9 @@ class FirestoreService {
       });
 
       // Sort by dueDate
-      filteredReports.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      filteredReports.sort(
+        (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
+      );
 
       return filteredReports;
     } catch (error) {
@@ -918,8 +964,13 @@ class FirestoreService {
   }
 
   // Real-time listeners
-  onProjectsChange(callback: (projects: Project[]) => void, filters?: { assignedTo?: string }): () => void {
-    let query = firestore().collection(COLLECTIONS.PROJECTS).orderBy('updatedAt', 'desc');
+  onProjectsChange(
+    callback: (projects: Project[]) => void,
+    filters?: { assignedTo?: string },
+  ): () => void {
+    let query = firestore()
+      .collection(COLLECTIONS.PROJECTS)
+      .orderBy('updatedAt', 'desc');
 
     if (filters?.assignedTo) {
       query = query.where('assignedTo', 'array-contains', filters.assignedTo);
@@ -931,7 +982,10 @@ class FirestoreService {
     });
   }
 
-  onActivitiesChange(callback: (activities: Activity[]) => void, userId?: string): () => void {
+  onActivitiesChange(
+    callback: (activities: Activity[]) => void,
+    userId?: string,
+  ): () => void {
     let query = firestore()
       .collection(COLLECTIONS.ACTIVITIES)
       .orderBy('createdAt', 'desc')
@@ -947,44 +1001,32 @@ class FirestoreService {
     });
   }
 
-  onNotificationsChange(callback: (notifications: Notification[]) => void, userId: string): () => void {
+  onNotificationsChange(
+    callback: (notifications: Notification[]) => void,
+    userId: string,
+  ): () => void {
     return firestore()
       .collection(COLLECTIONS.NOTIFICATIONS)
       .where('userId', '==', userId)
       .orderBy('createdAt', 'desc')
       .onSnapshot(snapshot => {
-        const notifications = snapshot.docs.map(doc => mapDocToData<Notification>(doc));
+        const notifications = snapshot.docs.map(doc =>
+          mapDocToData<Notification>(doc),
+        );
         callback(notifications);
       });
   }
 
-  // Real-time tasks listeners
-  onTasksChange(callback: (tasks: Task[]) => void): () => void {
-    return firestore()
-      .collection(COLLECTIONS.TASKS)
-      .orderBy('createdAt', 'desc')
-      .onSnapshot(snapshot => {
-        const tasks = snapshot.docs.map(doc => mapDocToData<Task>(doc));
-        callback(tasks);
-      });
-  }
-
-  onUserTasksChange(callback: (tasks: Task[]) => void, userId: string): () => void {
-    return firestore()
-      .collection(COLLECTIONS.TASKS)
-      .where('assignedTo', 'array-contains', userId)
-      .orderBy('createdAt', 'desc')
-      .onSnapshot(snapshot => {
-        const tasks = snapshot.docs.map(doc => mapDocToData<Task>(doc));
-        callback(tasks);
-      });
-  }
+  // Real-time tasks listeners removed
 
   // Enhanced Meeting operations
-  async getUpcomingMeetingsForUser(userId: string, limit: number = 10): Promise<Meeting[]> {
+  async getUpcomingMeetingsForUser(
+    userId: string,
+    limit: number = 10,
+  ): Promise<Meeting[]> {
     try {
       const now = firestore.Timestamp.now();
-      
+
       // Get meetings assigned to user
       const userMeetingsQuery = firestore()
         .collection(COLLECTIONS.MEETINGS)
@@ -1005,20 +1047,28 @@ class FirestoreService {
 
       const [userSnapshot, allSnapshot] = await Promise.all([
         userMeetingsQuery.get(),
-        allMeetingsQuery.get()
+        allMeetingsQuery.get(),
       ]);
 
-      const userMeetings = userSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
-      const allMeetings = allSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+      const userMeetings = userSnapshot.docs.map(doc =>
+        mapDocToData<Meeting>(doc),
+      );
+      const allMeetings = allSnapshot.docs.map(doc =>
+        mapDocToData<Meeting>(doc),
+      );
 
       // Combine and deduplicate
       const allUpcomingMeetings = [...userMeetings, ...allMeetings];
-      const uniqueMeetings = allUpcomingMeetings.filter((meeting, index, self) => 
-        index === self.findIndex(m => m.id === meeting.id)
+      const uniqueMeetings = allUpcomingMeetings.filter(
+        (meeting, index, self) =>
+          index === self.findIndex(m => m.id === meeting.id),
       );
 
       return uniqueMeetings
-        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+        .sort(
+          (a, b) =>
+            new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+        )
         .slice(0, limit);
     } catch (error) {
       console.warn('Error fetching upcoming meetings for user:', error);
@@ -1042,19 +1092,27 @@ class FirestoreService {
 
       const [userSnapshot, allSnapshot] = await Promise.all([
         userMeetingsQuery.get(),
-        allMeetingsQuery.get()
+        allMeetingsQuery.get(),
       ]);
 
-      const userMeetings = userSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
-      const allMeetings = allSnapshot.docs.map(doc => mapDocToData<Meeting>(doc));
+      const userMeetings = userSnapshot.docs.map(doc =>
+        mapDocToData<Meeting>(doc),
+      );
+      const allMeetings = allSnapshot.docs.map(doc =>
+        mapDocToData<Meeting>(doc),
+      );
 
       // Combine and deduplicate
       const combinedMeetings = [...userMeetings, ...allMeetings];
-      const uniqueMeetings = combinedMeetings.filter((meeting, index, self) => 
-        index === self.findIndex(m => m.id === meeting.id)
+      const uniqueMeetings = combinedMeetings.filter(
+        (meeting, index, self) =>
+          index === self.findIndex(m => m.id === meeting.id),
       );
 
-      return uniqueMeetings.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      return uniqueMeetings.sort(
+        (a, b) =>
+          new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+      );
     } catch (error) {
       console.warn('Error fetching meetings for user and all:', error);
       return [];
@@ -1064,7 +1122,10 @@ class FirestoreService {
   // Real-time meetings listeners
   private meetingsUnsubscriber: (() => void) | null = null;
 
-  async subscribeToMeetings(userId: string, callback: (meetings: Meeting[]) => void): Promise<() => void> {
+  async subscribeToMeetings(
+    userId: string,
+    callback: (meetings: Meeting[]) => void,
+  ): Promise<() => void> {
     // Unsubscribe from previous listener if exists
     if (this.meetingsUnsubscriber) {
       this.meetingsUnsubscriber();
@@ -1076,19 +1137,22 @@ class FirestoreService {
       .orderBy('startTime', 'asc')
       .onSnapshot(
         snapshot => {
-          const allMeetings = snapshot.docs.map(doc => mapDocToData<Meeting>(doc));
-          
-          // Filter meetings for the user (assigned to user OR assigned to all)
-          const userMeetings = allMeetings.filter(meeting => 
-            meeting.isAssignedToAll || meeting.assignedTo.includes(userId)
+          const allMeetings = snapshot.docs.map(doc =>
+            mapDocToData<Meeting>(doc),
           );
-          
+
+          // Filter meetings for the user (assigned to user OR assigned to all)
+          const userMeetings = allMeetings.filter(
+            meeting =>
+              meeting.isAssignedToAll || meeting.assignedTo.includes(userId),
+          );
+
           callback(userMeetings);
         },
         error => {
           console.warn('Error in meetings subscription:', error);
           callback([]);
-        }
+        },
       );
 
     return this.meetingsUnsubscriber;
@@ -1102,7 +1166,10 @@ class FirestoreService {
   }
 
   // Meeting comments operations
-  async addMeetingComment(meetingId: string, comment: Omit<Meeting['comments'][0], 'id' | 'timestamp'>): Promise<void> {
+  async addMeetingComment(
+    meetingId: string,
+    comment: Omit<NonNullable<Meeting['comments']>[number], 'id' | 'timestamp'>,
+  ): Promise<void> {
     const meeting = await this.getMeeting(meetingId);
     if (!meeting) throw new Error('Meeting not found');
 
@@ -1114,41 +1181,43 @@ class FirestoreService {
 
     const updatedComments = [...(meeting.comments || []), newComment];
 
-    await firestore()
-      .collection(COLLECTIONS.MEETINGS)
-      .doc(meetingId)
-      .update({
-        comments: updatedComments,
-        lastCommentAt: newComment.timestamp,
-        lastCommentBy: comment.userId,
-        updatedAt: firestore.Timestamp.now().toDate().toISOString(),
-      });
+    await firestore().collection(COLLECTIONS.MEETINGS).doc(meetingId).update({
+      comments: updatedComments,
+      lastCommentAt: newComment.timestamp,
+      lastCommentBy: comment.userId,
+      updatedAt: firestore.Timestamp.now().toDate().toISOString(),
+    });
   }
 
   // Meeting attendance tracking
-  async markAttendance(meetingId: string, userId: string, attended: boolean = true): Promise<void> {
+  async markAttendance(
+    meetingId: string,
+    userId: string,
+    attended: boolean = true,
+  ): Promise<void> {
     const meeting = await this.getMeeting(meetingId);
     if (!meeting) throw new Error('Meeting not found');
 
     let attendees = meeting.attendees || [];
-    
+
     if (attended && !attendees.includes(userId)) {
       attendees.push(userId);
     } else if (!attended && attendees.includes(userId)) {
       attendees = attendees.filter(id => id !== userId);
     }
 
-    await firestore()
-      .collection(COLLECTIONS.MEETINGS)
-      .doc(meetingId)
-      .update({
-        attendees,
-        updatedAt: firestore.Timestamp.now().toDate().toISOString(),
-      });
+    await firestore().collection(COLLECTIONS.MEETINGS).doc(meetingId).update({
+      attendees,
+      updatedAt: firestore.Timestamp.now().toDate().toISOString(),
+    });
   }
 
   // Update meeting status (for starting/completing meetings)
-  async updateMeetingStatus(meetingId: string, status: Meeting['status'], notes?: string): Promise<void> {
+  async updateMeetingStatus(
+    meetingId: string,
+    status: Meeting['status'],
+    notes?: string,
+  ): Promise<void> {
     const updates: any = {
       status,
       updatedAt: firestore.Timestamp.now().toDate().toISOString(),

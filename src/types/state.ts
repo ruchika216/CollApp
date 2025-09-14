@@ -3,7 +3,14 @@
  * Redux store state interfaces and related types
  */
 
-import { User, Project, Task, Meeting, Report, Notification, Activity } from './entities';
+import {
+  User,
+  Project,
+  Meeting,
+  Report,
+  Notification,
+  Activity,
+} from './entities';
 
 // =====================================================================================
 // AUTH STATE
@@ -57,18 +64,7 @@ export interface ProjectState {
 // =====================================================================================
 // TASK STATE
 // =====================================================================================
-export interface TaskState {
-  tasks: Task[];
-  currentTask: Task | null;
-  isLoading: boolean;
-  error: string | null;
-  filters: {
-    status?: string[];
-    priority?: string[];
-    assignedTo?: string[];
-    search?: string;
-  };
-}
+// Task state removed
 
 // =====================================================================================
 // MEETING STATE
@@ -148,7 +144,6 @@ export interface RootState {
   auth: AuthState;
   ui: UIState;
   projects: ProjectState;
-  tasks: TaskState;
   meetings: MeetingState;
   reports: ReportState;
   notifications: NotificationState;

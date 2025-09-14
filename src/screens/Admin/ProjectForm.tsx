@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -16,7 +15,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useDispatch } from 'react-redux';
 import { useTheme } from '../../theme/useTheme';
 import { addProject, updateProject } from '../../store/slices/projectSlice';
-import { addProjectToFirestore, updateProjectInFirestore, getDevelopers } from '../../firebase/firestore';
+import {
+  addProjectToFirestore,
+  updateProjectInFirestore,
+  getDevelopers,
+} from '../../firebase/firestore';
 import { Project, User } from '../../types';
 import { Picker } from '@react-native-picker/picker';
 import Icon from '../../components/common/Icon';
@@ -28,21 +31,37 @@ interface Props {
   navigation?: any;
 }
 
-const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
+const ProjectForm: React.FC<Props> = ({ project, onClose }) => {
   const dispatch = useDispatch();
-  const { colors, theme } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const currentUser = useAppSelector(state => state.user.user);
-  
+
   const [title, setTitle] = useState(project?.title || '');
   const [description, setDescription] = useState(project?.description || '');
-  const [assignedTo, setAssignedTo] = useState(project?.assignedTo || '');
-  const [priority, setPriority] = useState<Project['priority']>(project?.priority || 'Medium');
-  const [status, setStatus] = useState<Project['status']>(project?.status || 'Pending');
-  const [estimatedHours, setEstimatedHours] = useState(project?.estimatedHours?.toString() || '40');
-  const [startDate, setStartDate] = useState(project ? new Date(project.startDate) : new Date());
-  const [endDate, setEndDate] = useState(project ? new Date(project.endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-  
+  const [assignedTo, setAssignedTo] = useState(
+    Array.isArray(project?.assignedTo)
+      ? project?.assignedTo[0] || ''
+      : (project?.assignedTo as any) || '',
+  );
+  const [priority, setPriority] = useState<Project['priority']>(
+    project?.priority || 'Medium',
+  );
+  const [status, setStatus] = useState<Project['status']>(
+    project?.status || 'To Do',
+  );
+  const [estimatedHours, setEstimatedHours] = useState(
+    project?.estimatedHours?.toString() || '40',
+  );
+  const [startDate, setStartDate] = useState(
+    project ? new Date(project.startDate) : new Date(),
+  );
+  const [endDate, setEndDate] = useState(
+    project
+      ? new Date(project.endDate)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  );
+
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -73,7 +92,10 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
       return false;
     }
     if (!assignedTo) {
-      Alert.alert('Validation Error', 'Please assign the project to a developer');
+      Alert.alert(
+        'Validation Error',
+        'Please assign the project to a developer',
+      );
       return false;
     }
     if (endDate <= startDate) {
@@ -85,35 +107,50 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    
+
     setLoading(true);
     try {
+      // Pre-flight role/identity diagnostics
+      if (!currentUser) {
+        console.warn(
+          '[ProjectForm] No currentUser in state; aborting create/update',
+        );
+      }
+      if (!project) {
+        // Creation path requires admin per Firestore rules
+        if (!currentUser || currentUser.role !== 'admin') {
+          Alert.alert('Permission Denied', 'Only admins can create projects.');
+          setLoading(false);
+          return;
+        }
+      }
       if (project) {
         const updatedProject = {
           ...project,
           title: title.trim(),
           description: description.trim(),
-          assignedTo,
+          assignedTo: Array.isArray(assignedTo) ? assignedTo : [assignedTo],
           priority,
           status,
-          estimatedHours: parseInt(estimatedHours) || 40,
+          estimatedHours: parseInt(estimatedHours, 10) || 40,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
-        };
+        } as any;
         await updateProjectInFirestore(updatedProject);
         dispatch(updateProject(updatedProject));
         Alert.alert('Success', 'Project updated successfully');
       } else {
+        const creatorUid = currentUser?.uid || '';
         const newProject = {
           title: title.trim(),
           description: description.trim(),
-          assignedTo,
+          assignedTo: Array.isArray(assignedTo) ? assignedTo : [assignedTo],
           priority,
           status,
-          estimatedHours: parseInt(estimatedHours) || 40,
+          estimatedHours: parseInt(estimatedHours, 10) || 40,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
-          createdBy: currentUser?.uid || '',
+          createdBy: creatorUid,
           files: [],
           images: [],
           comments: [],
@@ -121,7 +158,16 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
           progress: 0,
           actualHours: 0,
         } as Omit<Project, 'id' | 'createdAt' | 'updatedAt'>;
-        
+
+        console.log(
+          '[ProjectForm] Attempt create project payload keys=',
+          Object.keys(newProject),
+          'createdBy=',
+          newProject.createdBy,
+          'role=',
+          currentUser?.role,
+        );
+
         const id = await addProjectToFirestore(newProject);
         dispatch(addProject({ ...newProject, id } as Project));
         Alert.alert('Success', 'Project created successfully');
@@ -135,36 +181,64 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
     }
   };
 
-  const priorityOptions: Project['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
-  const statusOptions: Project['status'][] = ['Pending', 'Development', 'Review', 'Testing', 'Done', 'Deployment', 'Fixing Bug'];
+  const priorityOptions: Project['priority'][] = [
+    'Low',
+    'Medium',
+    'High',
+    'Critical',
+  ];
+  const statusOptions: Project['status'][] = [
+    'To Do',
+    'In Progress',
+    'Review',
+    'Testing',
+    'Done',
+    'Deployment',
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor={colors.primary} 
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={colors.primary}
         translucent={Platform.OS === 'ios'}
       />
-      <View style={[styles.header, { 
-        backgroundColor: colors.primary,
-        paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 16
-      }]}>
-        <TouchableOpacity onPress={onClose} style={styles.backButton}>
-          <Icon name="back" size={24} tintColor="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {project ? 'Edit Project' : 'Create Project'}
-        </Text>
-        <View style={styles.placeholder} />
-      </View>
+      {(() => {
+        const padTop = Platform.OS === 'ios' ? insets.top + 8 : 16;
+        return (
+          <View
+            style={[
+              styles.header,
+              { backgroundColor: colors.primary, paddingTop: padTop },
+            ]}
+          >
+            <TouchableOpacity onPress={onClose} style={styles.backButton}>
+              <Icon name="back" size={24} tintColor="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>
+              {project ? 'Edit Project' : 'Create Project'}
+            </Text>
+            <View style={styles.placeholder} />
+          </View>
+        );
+      })()}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.form}>
           {/* Title */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Project Title *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Project Title *
+            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.card,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
               placeholder="Enter project title"
               placeholderTextColor={colors.placeholder}
               value={title}
@@ -175,9 +249,18 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
 
           {/* Description */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Description *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Description *
+            </Text>
             <TextInput
-              style={[styles.textArea, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+              style={[
+                styles.textArea,
+                {
+                  backgroundColor: colors.card,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
               placeholder="Enter project description"
               placeholderTextColor={colors.placeholder}
               value={description}
@@ -190,8 +273,15 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
 
           {/* Assigned Developer */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Assign to Developer *</Text>
-            <View style={[styles.pickerContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Assign to Developer *
+            </Text>
+            <View
+              style={[
+                styles.pickerContainer,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
               <Picker
                 selectedValue={assignedTo}
                 onValueChange={setAssignedTo}
@@ -199,10 +289,10 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
               >
                 <Picker.Item label="Select Developer" value="" />
                 {users.map(user => (
-                  <Picker.Item 
-                    key={user.uid} 
-                    label={user.displayName || user.email || 'Unknown'} 
-                    value={user.uid} 
+                  <Picker.Item
+                    key={user.uid}
+                    label={user.displayName || user.email || 'Unknown'}
+                    value={user.uid}
                   />
                 ))}
               </Picker>
@@ -212,7 +302,12 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
           {/* Priority */}
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }]}>Priority</Text>
-            <View style={[styles.pickerContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.pickerContainer,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
               <Picker
                 selectedValue={priority}
                 onValueChange={setPriority}
@@ -229,7 +324,12 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
           {project && (
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.text }]}>Status</Text>
-              <View style={[styles.pickerContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View
+                style={[
+                  styles.pickerContainer,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
                 <Picker
                   selectedValue={status}
                   onValueChange={setStatus}
@@ -245,9 +345,18 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
 
           {/* Estimated Hours */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Estimated Hours</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Estimated Hours
+            </Text>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.card,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
               placeholder="Enter estimated hours"
               placeholderTextColor={colors.placeholder}
               value={estimatedHours}
@@ -258,9 +367,14 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
 
           {/* Start Date */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Start Date</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Start Date
+            </Text>
             <TouchableOpacity
-              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[
+                styles.dateButton,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
               onPress={() => setShowStartPicker(true)}
             >
               <Text style={[styles.dateText, { color: colors.text }]}>
@@ -274,7 +388,10 @@ const ProjectForm: React.FC<Props> = ({ project, onClose, navigation }) => {
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }]}>End Date</Text>
             <TouchableOpacity
-              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[
+                styles.dateButton,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
               onPress={() => setShowEndPicker(true)}
             >
               <Text style={[styles.dateText, { color: colors.text }]}>
@@ -355,6 +472,7 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  headerDynamic: {},
   backButton: {
     width: 40,
     height: 40,

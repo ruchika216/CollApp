@@ -7,6 +7,7 @@ type Action = {
   key: string;
   label: string;
   icon: string; // use existing icon names only
+  badge?: string; // optional badge to show count/notification
   onPress?: () => void;
 };
 
@@ -34,18 +35,28 @@ const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({
           ]}
           activeOpacity={0.85}
         >
-          <View
-            style={[
-              styles.iconWrap,
-              { backgroundColor: (colors.primary + '20') as any },
-            ]}
-          >
-            <Icon
-              name={action.icon as any}
-              size={20}
-              tintColor={colors.primary}
-            />
+          <View style={styles.iconContainer}>
+            <View
+              style={[
+                styles.iconWrap,
+                { backgroundColor: (colors.primary + '20') as any },
+              ]}
+            >
+              <Icon
+                name={action.icon as any}
+                size={20}
+                tintColor={colors.primary}
+              />
+            </View>
+
+            {/* Badge if provided */}
+            {action.badge && (
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.badgeText}>{action.badge}</Text>
+              </View>
+            )}
           </View>
+
           <Text style={[styles.label, { color: colors.text }]}>
             {action.label}
           </Text>
@@ -72,13 +83,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconContainer: {
+    position: 'relative',
+    marginBottom: 10,
+  },
   iconWrap: {
     width: 42,
     height: 42,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   label: {
     fontSize: 12,

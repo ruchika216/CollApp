@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useTheme } from '../../theme/useTheme';
 import Icon from '../common/Icon';
@@ -16,6 +17,8 @@ interface Props {
   getStatusColor: (s: string) => string;
   getAssigneeName: (id: string) => string;
   shadows?: any;
+  isAdmin?: boolean;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 const AllTasksScrollSection: React.FC<Props> = ({
@@ -25,9 +28,22 @@ const AllTasksScrollSection: React.FC<Props> = ({
   getStatusColor,
   getAssigneeName,
   shadows,
+  isAdmin = false,
+  onDeleteTask,
 }) => {
   const theme = useTheme();
   const { colors } = theme;
+  const confirmDelete = (taskId: string, title: string) => {
+    if (!isAdmin || !onDeleteTask) return;
+    Alert.alert('Delete Task', `Delete "${title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => onDeleteTask(taskId),
+      },
+    ]);
+  };
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -58,7 +74,7 @@ const AllTasksScrollSection: React.FC<Props> = ({
       ) : (
         <ScrollView
           horizontal
-          showsHorizontalScrollIndicator={false}
+          showsHorizontalScrollIndicator
           style={styles.tasksScroll}
           contentContainerStyle={styles.tasksScrollContainer}
         >
@@ -68,7 +84,8 @@ const AllTasksScrollSection: React.FC<Props> = ({
               style={[
                 styles.taskScrollCard,
                 {
-                  backgroundColor: (colors as any).glass?.background || colors.card,
+                  backgroundColor:
+                    (colors as any).glass?.background || colors.card,
                   borderColor: (colors as any).glass?.border || colors.border,
                 },
                 shadows?.sm || theme.shadows.sm,
@@ -82,13 +99,22 @@ const AllTasksScrollSection: React.FC<Props> = ({
                 >
                   {task.title}
                 </Text>
-                <View
-                  style={[
-                    styles.taskScrollPriority,
-                    { backgroundColor: getPriorityColor(task.priority) },
-                  ]}
-                >
-                  <Text style={styles.taskScrollPriorityText} />
+                <View style={styles.headerActions}>
+                  <View
+                    style={[
+                      styles.taskScrollPriority,
+                      { backgroundColor: getPriorityColor(task.priority) },
+                    ]}
+                  />
+                  {isAdmin ? (
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      activeOpacity={0.7}
+                      onPress={() => confirmDelete(task.id, task.title)}
+                    >
+                      <Icon name="delete" size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </View>
               <Text
@@ -112,26 +138,43 @@ const AllTasksScrollSection: React.FC<Props> = ({
                       styles.taskScrollStatusText,
                       { color: getStatusColor(task.status) },
                     ]}
-                  />
+                  >
+                    {String(task.status)
+                      .replace('Pending', 'To Do')
+                      .replace('Done', 'Completed')}
+                  </Text>
                 </View>
               </View>
               <View style={styles.taskScrollFooter}>
-                <Text
-                  style={[
-                    styles.taskScrollAssignee,
-                    { color: colors.textSecondary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {task.assignedTo?.length > 0
-                    ? getAssigneeName(task.assignedTo[0])
-                    : 'Unassigned'}
-                </Text>
-                <Text
-                  style={[styles.taskScrollDate, { color: colors.primary }]}
-                >
-                  {new Date(task.startDate).toLocaleDateString()}
-                </Text>
+                <View style={styles.footerLeft}>
+                  <Icon name="comment" size={14} color={colors.textSecondary} />
+                  <Text
+                    style={[styles.metaSmall, { color: colors.textSecondary }]}
+                  >
+                    {task.comments?.length || 0}
+                  </Text>
+                </View>
+                <View style={styles.footerRight}>
+                  <Text
+                    style={[
+                      styles.taskScrollAssignee,
+                      { color: colors.textSecondary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {Array.isArray(task.assignedTo) &&
+                    task.assignedTo.includes('all')
+                      ? 'All'
+                      : task.assignedTo?.length > 0
+                      ? getAssigneeName(task.assignedTo[0])
+                      : 'Unassigned'}
+                  </Text>
+                  <Text
+                    style={[styles.taskScrollDate, { color: colors.primary }]}
+                  >
+                    {new Date(task.startDate).toLocaleDateString()}
+                  </Text>
+                </View>
               </View>
             </TouchableOpacity>
           ))}
@@ -181,6 +224,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 12,
   },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  deleteBtn: { marginLeft: 8, padding: 4, borderRadius: 8 },
   taskScrollTitle: { fontSize: 16, fontWeight: '600', flex: 1, marginRight: 8 },
   taskScrollPriority: {
     width: 24,
@@ -210,8 +255,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 'auto',
   },
+  footerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  footerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   taskScrollAssignee: { fontSize: 12, flex: 1, marginRight: 8 },
   taskScrollDate: { fontSize: 12, fontWeight: '500' },
+  metaSmall: { fontSize: 12, fontWeight: '600' },
 });
 
 export default AllTasksScrollSection;
